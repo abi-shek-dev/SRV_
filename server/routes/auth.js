@@ -47,7 +47,7 @@ router.post('/login', loginLimiter, async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ srvNumber: srvNumber.trim() });
+    const user = await User.findBySrvNumber(srvNumber.trim());
 
     if (user && (await bcrypt.compare(password, user.password))) {
       // Reject admin logins on the public portal
@@ -57,12 +57,12 @@ router.post('/login', loginLimiter, async (req, res) => {
 
       let displayName = user.name;
       if (user.role === 'parent' && user.studentId) {
-        const student = await Student.findById(user.studentId).select('name motherName fatherName guardianName');
+        const student = await Student.findById(user.studentId);
         displayName = buildParentDisplayName(student, user.name);
 
         if (displayName !== user.name) {
           user.name = displayName;
-          await user.save();
+          user = await User.save(user);
         }
       }
 
@@ -94,15 +94,8 @@ router.post('/admin-login', loginLimiter, async (req, res) => {
   }
 
   try {
-    const normalizedSrvNumber = srvNumber.trim();
-    const adminCandidates = normalizedSrvNumber === normalizedSrvNumber.toUpperCase()
-      ? [normalizedSrvNumber]
-      : [normalizedSrvNumber, normalizedSrvNumber.toUpperCase()];
-
-    const user = await User.findOne({
-      srvNumber: { $in: adminCandidates },
-      role: 'admin'
-    });
+    const normalizedSrvNumber = srvNumber.trim().toUpperCase();
+    const user = await User.findAdminBySrvNumber(normalizedSrvNumber);
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({ message: 'Invalid admin ID or password.' });
@@ -131,7 +124,7 @@ router.get('/recovery-question/:srvNumber', async (req, res) => {
       return res.status(400).json({ message: 'Invalid ID.' });
     }
 
-    const user = await User.findOne({ srvNumber }).select('srvNumber role recoveryQuestion');
+    const user = await User.findBySrvNumber(srvNumber);
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
@@ -168,7 +161,7 @@ router.post('/reset-password-with-answer', async (req, res) => {
   }
 
   try {
-    const user = await User.findOne({ srvNumber: srvNumber.trim() });
+    const user = await User.findBySrvNumber(srvNumber.trim());
     if (!user) {
       return res.status(404).json({ message: 'User not found.' });
     }
@@ -188,7 +181,7 @@ router.post('/reset-password-with-answer', async (req, res) => {
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
-    await user.save();
+    user = await User.save(user);
 
     await PasswordReset.deleteMany({ srvNumber: user.srvNumber });
 

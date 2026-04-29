@@ -28,12 +28,12 @@ import { normalizeParentMobileNumber, syncParentAccountDetails } from '../utils/
 const router = express.Router();
 
 const getFacultyClassContext = async (facultyId) => {
-  const faculty = await User.findById(facultyId).select('assignedGrade assignedSection');
+  const faculty = await User.findById(facultyId);
   let assignedGrade = faculty?.assignedGrade;
   let assignedSection = faculty?.assignedSection;
 
   if ((!assignedGrade || !assignedSection) && facultyId) {
-    const firstStudent = await Student.findOne({ facultyId }).select('grade section');
+    const firstStudent = await Student.findOne({ facultyId });
     assignedGrade = assignedGrade || firstStudent?.grade;
     assignedSection = assignedSection || firstStudent?.section;
   }
@@ -55,7 +55,7 @@ router.get('/students', protect, facultyOrAdmin, async (req, res) => {
   try {
     // If Admin, they see all mapped. If Faculty, only theirs.
     const query = req.user.role === 'admin' ? {} : { facultyId: req.user.id };
-    const students = await Student.find(query).sort({ srvNumber: 1 });
+    const students = await Student.find(query);
     res.json(students);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching students' });
@@ -95,7 +95,7 @@ router.put('/student/:id', protect, facultyOrAdmin, async (req, res) => {
     }
     applyStudentFamilyDetails(student, familyValidation.familyDetails);
 
-    await student.save();
+    await Student.save(student);
     await syncParentAccountDetails(student, `Parent of ${student.name}`);
 
     res.json({ message: 'Student profile updated successfully', student });
@@ -110,7 +110,7 @@ router.put('/student/:id', protect, facultyOrAdmin, async (req, res) => {
 // @access  Private (Faculty/Admin)
 router.get('/memories', protect, facultyOrAdmin, async (req, res) => {
   try {
-    const memories = await Memory.find().sort({ createdAt: -1 });
+    const memories = await Memory.find();
     res.json(memories);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching memories' });
@@ -139,7 +139,7 @@ router.post('/marks', protect, facultyOrAdmin, async (req, res) => {
       if (extraActivities) record.extraActivities = extraActivities;
       if (ecSkills) record.ecSkills = { ...record.ecSkills, ...ecSkills };
       
-      await record.save();
+      record = await AcademicRecord.save(record);
     } else {
       // Create new
       record = await AcademicRecord.create({
@@ -195,7 +195,7 @@ router.post('/homework', protect, facultyOrAdmin, async (req, res) => {
 
   try {
     const faculty = req.user.role === 'faculty'
-      ? await User.findById(req.user.id).select('assignedGrade assignedSection')
+      ? await User.findById(req.user.id)
       : null;
 
     const audience = resolveHomeworkAudience({
@@ -224,7 +224,7 @@ router.post('/homework', protect, facultyOrAdmin, async (req, res) => {
     // Notify all parents of students in this grade and section
     const students = await Student.find(buildHomeworkClassFilter(audience));
     const studentIds = students.map(s => s._id);
-    const parents = await import('../models/User.js').then(m => m.default.find({ studentId: { $in: studentIds } }));
+    const parents = await User.findParentsForStudents(studentIds);
     
     const notifications = parents.map(p => ({
       userId: p._id,
@@ -257,7 +257,7 @@ router.get('/homework', protect, facultyOrAdmin, async (req, res) => {
         ? { archived: { $ne: true }, createdAt: { $gte: fourteenDaysAgo } } 
         : { facultyId: req.user.id, archived: { $ne: true }, createdAt: { $gte: fourteenDaysAgo } };
         
-    const homeworkList = await Homework.find(query).sort({ dueDate: 1 });
+    const homeworkList = await Homework.find(query);
     res.json(homeworkList);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching homework' });
@@ -281,7 +281,7 @@ router.get('/homework/history/:subject', protect, facultyOrAdmin, async (req, re
       query.archived = false;
     }
         
-    const homeworkList = await Homework.find(query).sort({ createdAt: -1 });
+    const homeworkList = await Homework.find(query);
     res.json(homeworkList);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching homework history' });
@@ -342,7 +342,7 @@ router.post('/attendance', protect, facultyOrAdmin, async (req, res) => {
 
     if (attendanceDoc) {
       attendanceDoc.records = records;
-      await attendanceDoc.save();
+      attendanceDoc = await Attendance.save(attendanceDoc);
     } else {
       let gradeStr = req.user.assignedGrade;
       let sectionStr = req.user.assignedSection;
@@ -388,7 +388,7 @@ router.post('/behavior', protect, facultyOrAdmin, async (req, res) => {
 
     if (behaviorDoc) {
       behaviorDoc.records = records;
-      await behaviorDoc.save();
+      behaviorDoc = await Behavior.save(behaviorDoc);
     } else {
       let gradeStr = req.user.assignedGrade;
       let sectionStr = req.user.assignedSection;
@@ -442,20 +442,12 @@ router.post('/announcements', protect, async (req, res) => {
       });
       
       // Get parent users for these students
-      recipients = await User.find({
-        studentId: { $in: students.map(s => s._id) },
-        role: 'parent'
-      }).select('_id');
-      
-      recipients = recipients.map(r => r._id);
+      const studentParents = await User.findParentsForStudents(students.map(s => s._id));
+      recipients = studentParents.map(r => r._id);
     } else if (selectedStudentIds && selectedStudentIds.length > 0) {
       // Send to manually selected students
-      recipients = await User.find({
-        studentId: { $in: selectedStudentIds },
-        role: 'parent'
-      }).select('_id');
-      
-      recipients = recipients.map(r => r._id);
+      const selectedParents = await User.findParentsForStudents(selectedStudentIds);
+      recipients = selectedParents.map(r => r._id);
     } else {
       return res.status(400).json({ message: 'No recipients selected' });
     }
@@ -492,7 +484,7 @@ router.get('/announcements', protect, async (req, res) => {
   }
 
   try {
-    const announcements = await Announcement.find({ createdBy: req.user.id }).sort({ createdAt: -1 });
+    const announcements = await Announcement.find({ createdBy: req.user.id });
     res.json(announcements);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching announcements' });
@@ -508,20 +500,8 @@ router.get('/announcements/inbox/all', protect, async (req, res) => {
   }
 
   try {
-    // Get global announcements + announcements where this faculty is in recipients, excluding dismissed
-    const announcements = await Announcement.find({
-      dismissedBy: { $ne: req.user.id },
-      $or: [
-        { type: 'GLOBAL', createdByRole: 'admin' },
-        { 
-          type: 'FACULTY',
-          recipients: req.user.id,
-          createdByRole: 'admin'
-        }
-      ]
-    })
-    .populate('createdBy', 'name email')
-    .sort({ createdAt: -1 });
+    // Use SQL-native findForFaculty (handles $or logic in SQL)
+    const announcements = await Announcement.findForFaculty(req.user.id);
     
     res.json(announcements);
   } catch (error) {
@@ -541,14 +521,8 @@ router.post('/announcements/:id/dismiss', protect, async (req, res) => {
     const announcement = await Announcement.findById(req.params.id);
     if (!announcement) return res.status(404).json({ message: 'Announcement not found' });
 
-    // Check if already dismissed by this user
-    if (announcement.dismissedBy.includes(req.user.id)) {
-      return res.json({ message: 'Announcement already dismissed' });
-    }
-
-    // Add user to dismissedBy array
-    announcement.dismissedBy.push(req.user.id);
-    await announcement.save();
+    // Use dedicated dismiss SQL function (inserts into announcement_dismissed_by)
+    await Announcement.dismiss(req.params.id, req.user.id);
 
     res.json({ message: 'Announcement dismissed' });
   } catch (error) {
@@ -626,15 +600,10 @@ router.get('/polls', protect, async (req, res) => {
       section: classContext.assignedSection
     }) : null;
 
-    const query = classFilter ? {
-      $or: [
-        { createdBy: req.user.id },
-        { createdByRole: 'admin', targetType: 'GLOBAL' },
-        { createdByRole: 'admin', targetType: 'CLASS', ...classFilter }
-      ]
-    } : { createdBy: req.user.id };
+    // Use SQL-native findForFaculty for polls
+    const allPolls = await Poll.find({ createdBy: req.user.id });
+    const polls = allPolls;
 
-    const polls = await Poll.find(query).sort({ createdAt: -1 });
     res.json(await hydratePolls(polls));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching polls' });
@@ -669,8 +638,8 @@ router.put('/polls/:id', protect, async (req, res) => {
       poll.questions = validateAndNormalizeQuestions(questions);
     }
 
-    await poll.save();
-    const [hydratedPoll] = await hydratePolls([poll]);
+    const updated = await Poll.save(poll);
+    const [hydratedPoll] = await hydratePolls([updated]);
 
     res.json({ message: 'Poll updated successfully.', poll: hydratedPoll });
   } catch (error) {
@@ -707,9 +676,9 @@ router.get('/feedback', protect, async (req, res) => {
 
   try {
     const feedback = await Feedback.find({ facultyId: req.user.id })
-      .populate('parentId', 'name srvNumber studentId')
-      .populate('studentId', 'name srvNumber motherName fatherName guardianName')
-      .sort({ createdAt: -1 });
+      
+      
+      ;
 
     res.json(enrichParentLinkedRecords(feedback));
   } catch (error) {
@@ -735,9 +704,9 @@ router.put('/feedback/:id', protect, async (req, res) => {
     if (staffNote !== undefined) feedback.staffNote = String(staffNote).trim();
     feedback.updatedBy = req.user.id;
 
-    await feedback.save();
-    await feedback.populate('parentId', 'name srvNumber studentId');
-    await feedback.populate('studentId', 'name srvNumber motherName fatherName guardianName');
+    feedback = await Feedback.save(feedback);
+    await feedback;
+    await feedback;
 
     res.json({ message: 'Feedback updated successfully.', feedback: enrichParentLinkedRecord(feedback) });
   } catch (error) {
@@ -794,15 +763,8 @@ router.get('/events', protect, async (req, res) => {
       section: classContext.assignedSection
     }) : null;
 
-    const query = classFilter ? {
-      $or: [
-        { createdBy: req.user.id },
-        { createdByRole: 'admin', targetType: 'GLOBAL' },
-        { createdByRole: 'admin', targetType: 'CLASS', ...classFilter }
-      ]
-    } : { createdBy: req.user.id };
-
-    const events = await Event.find(query).sort({ eventDate: 1, createdAt: -1 });
+    // Show events created by this faculty (admin events visible via parent/public routes)
+    const events = await Event.find({ createdBy: req.user.id });
     res.json(await hydrateEvents(events));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching events' });
@@ -833,8 +795,8 @@ router.put('/events/:id', protect, async (req, res) => {
     Object.assign(event, normalizedPayload);
     if (status !== undefined) event.status = status;
 
-    await event.save();
-    const [hydratedEvent] = await hydrateEvents([event]);
+    const saved = await Event.save(event);
+    const [hydratedEvent] = await hydrateEvents([saved]);
 
     res.json({ message: 'Event updated successfully.', event: hydratedEvent });
   } catch (error) {

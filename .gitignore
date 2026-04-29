@@ -1,20 +1,102 @@
-# Dependencies
+# ──────────────────────────────────────────
+# Node dependencies — all portals
+# ──────────────────────────────────────────
 node_modules/
+server/node_modules/
 frontend/node_modules/
 admin/node_modules/
-server/node_modules/
+faculty/node_modules/
+parent/node_modules/
 
-# Environment files
+# ──────────────────────────────────────────
+# Environment / secrets — NEVER commit these
+# ──────────────────────────────────────────
 .env
+.env.*
+server/.env
 frontend/.env
 admin/.env
-server/.env
+faculty/.env
+parent/.env
+!.env.example
+!**/.env.example
 
+# ──────────────────────────────────────────
 # Build output
+# ──────────────────────────────────────────
 dist/
+build/
+server/dist/
 frontend/dist/
 admin/dist/
+faculty/dist/
+parent/dist/
 
-# Misc
-.DS_Store
+# ──────────────────────────────────────────
+# Vite cache
+# ──────────────────────────────────────────
+.vite/
+**/.vite/
+frontend/.vite/
+admin/.vite/
+faculty/.vite/
+parent/.vite/
+
+# ──────────────────────────────────────────
+# Logs
+# ──────────────────────────────────────────
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+server/logs/
+logs/
+
+# ──────────────────────────────────────────
+# OS files
+# ──────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+Desktop.ini
+
+# ──────────────────────────────────────────
+# Editor / IDE
+# ──────────────────────────────────────────
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.swp
+
+# ──────────────────────────────────────────
+# Temp / scratch files
+# ──────────────────────────────────────────
+tmp-*.js
+fix_saves.ps1
+clean_routes.ps1
+buildPngFavicon.js
+buildSvgFavicon.js
+roundFavicon.js
+replaceAlerts.js
+.sixth/
+
+# ──────────────────────────────────────────
+# Test artifacts
+# ──────────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ──────────────────────────────────────────
+# Misc
+# ──────────────────────────────────────────
+*.local
+.cache/

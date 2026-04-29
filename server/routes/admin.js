@@ -48,10 +48,7 @@ router.post('/faculty', protect, adminOnly, async (req, res) => {
     // Generate a unique sequential SRV number for faculty (e.g., FAC26001)
     const year = new Date().getFullYear().toString().slice(-2);
     const prefix = `FAC${year}`;
-    const lastFaculty = await User.findOne({ 
-      role: 'faculty', 
-      srvNumber: { $regex: `^${prefix}` } 
-    }).sort({ srvNumber: -1 });
+    const lastFaculty = await User.findLastBySrvPrefix('faculty', prefix);
 
     let sequence = '001';
     if (lastFaculty && lastFaculty.srvNumber) {
@@ -126,9 +123,7 @@ router.post('/student', protect, adminOnly, async (req, res) => {
       // Auto-generate sequential SRV number (e.g., SRV26001)
       const year = new Date().getFullYear().toString().slice(-2);
       const prefix = `SRV${year}`;
-      const lastStudent = await Student.findOne({ 
-        srvNumber: { $regex: `^${prefix}` } 
-      }).sort({ srvNumber: -1 });
+      const lastStudent = await Student.findLastBySrvPrefix(prefix);
 
       let sequence = '001';
       if (lastStudent && lastStudent.srvNumber) {
@@ -238,7 +233,7 @@ router.post('/food', protect, adminOnly, async (req, res) => {
       menu.breakfast = breakfast;
       menu.lunch = lunch;
       menu.snacks = snacks;
-      await menu.save();
+      menu = await FoodMenu.save(menu);
     } else {
       menu = await FoodMenu.create({ day, breakfast, lunch, snacks });
     }
@@ -253,13 +248,7 @@ router.post('/food', protect, adminOnly, async (req, res) => {
 // @access  Private (Admin only)
 router.get('/students', protect, adminOnly, async (req, res) => {
   try {
-    const students = await Student.find().populate('facultyId', 'name srvNumber');
-    // Sort by numeric portion of srvNumber ascending
-    students.sort((a, b) => {
-      const numA = parseInt((a.srvNumber || '').replace(/\D/g, ''), 10) || 0;
-      const numB = parseInt((b.srvNumber || '').replace(/\D/g, ''), 10) || 0;
-      return numA - numB;
-    });
+    const students = await Student.findWithFaculty();
     res.json(students);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching students' });
@@ -271,8 +260,10 @@ router.get('/students', protect, adminOnly, async (req, res) => {
 // @access  Private (Admin only)
 router.get('/faculty', protect, adminOnly, async (req, res) => {
   try {
-    const faculty = await User.find({ role: 'faculty' }).select('-password -recoveryAnswerHash');
-    res.json(faculty);
+    const faculty = await User.findByRole('faculty');
+    // strip sensitive fields
+    const safe = faculty.map(f => { const { password, recoveryAnswerHash, ...rest } = f; return rest; });
+    res.json(safe);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching faculty' });
   }
@@ -314,7 +305,7 @@ router.put('/faculty/:id', protect, adminOnly, async (req, res) => {
       }
     }
 
-    await faculty.save();
+    faculty = await User.save(faculty);
 
     res.json({ message: 'Faculty updated successfully', faculty });
   } catch (error) {
@@ -333,14 +324,11 @@ router.post('/faculty/:id/assign-students', protect, adminOnly, async (req, res)
       return res.status(404).json({ message: 'Faculty not found' });
     }
 
-    // Replace their assignment completely
-    // First, unassign anyone currently assigned to them
+    // Unassign current students from this faculty
     await Student.updateMany({ facultyId: faculty._id }, { $set: { facultyId: null } });
 
-    // Ensure we aren't assigning more than maxStudents
+    // Assign the new list (capped to maxStudents)
     const idsToAssign = Array.isArray(studentIds) ? studentIds.slice(0, faculty.maxStudents) : [];
-
-    // Assign the new list
     if (idsToAssign.length > 0) {
       await Student.updateMany({ _id: { $in: idsToAssign } }, { $set: { facultyId: faculty._id } });
     }
@@ -397,7 +385,7 @@ router.put('/student/:id/fees', protect, adminOnly, async (req, res) => {
     if (additionalFees !== undefined) student.fees.additionalFees = Number(additionalFees);
     if (additionalPaid !== undefined) student.fees.additionalPaid = Number(additionalPaid);
 
-    await student.save();
+    student = await Student.save(student);
     res.json({ message: 'Fees updated successfully', student });
   } catch (error) {
     res.status(500).json({ message: 'Error updating fees' });
@@ -432,7 +420,7 @@ router.put('/student/:id', protect, adminOnly, async (req, res) => {
     }
     applyStudentFamilyDetails(student, familyValidation.familyDetails);
 
-    await student.save();
+    student = await Student.save(student);
     await syncParentAccountDetails(student, `Parent of ${student.name}`);
 
     if (parentRecoveryQuestion !== undefined || parentRecoveryAnswer !== undefined) {
@@ -450,7 +438,7 @@ router.put('/student/:id', protect, adminOnly, async (req, res) => {
             parentUser.recoveryAnswerHash = '';
           }
         }
-        await parentUser.save();
+        parentUser = await User.save(parentUser);
       }
     }
 
@@ -673,7 +661,7 @@ router.put('/student/:id/srv', protect, adminOnly, async (req, res) => {
 
     const oldSrvNumber = student.srvNumber;
     student.srvNumber = newSrvNumber;
-    await student.save();
+    student = await Student.save(student);
 
     // Also update the parent User account's srvNumber so login still works
     await User.updateOne({ srvNumber: oldSrvNumber, role: 'parent' }, { $set: { srvNumber: newSrvNumber } });
@@ -732,7 +720,7 @@ router.put('/settings/fee-toggle', protect, adminOnly, async (req, res) => {
       setting = await Setting.create({ key: 'onlineFeePayment', value: isEnabled });
     } else {
       setting.value = isEnabled;
-      await setting.save();
+      setting = await Setting.save(setting);
     }
     res.json({ message: 'Setting updated successfully', isOnlineFeeEnabled: setting.value });
   } catch (error) {
@@ -745,7 +733,7 @@ router.put('/settings/fee-toggle', protect, adminOnly, async (req, res) => {
 // @access  Private (Admin only)
 router.get('/notifications', protect, adminOnly, async (req, res) => {
   try {
-    const notifications = await Notification.find({ type: 'FEE_ALERT' }).sort({ createdAt: -1 }).limit(20);
+    const notifications = await Notification.find({ type: 'FEE_ALERT' }, { limit: 20 });
     res.json(notifications);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching admin notifications' });
@@ -757,7 +745,7 @@ router.get('/notifications', protect, adminOnly, async (req, res) => {
 // @access  Private (Admin only)
 router.get('/password-requests', protect, adminOnly, async (req, res) => {
   try {
-    const requests = await PasswordReset.find({ status: 'Pending' }).sort({ createdAt: -1 });
+    const requests = await PasswordReset.find({ status: 'Pending' });
     res.json(requests);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching password requests' });
@@ -781,12 +769,12 @@ router.post('/password-requests/:id/approve', protect, adminOnly, async (req, re
     // Hash new password
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(newPassword, salt);
-    await user.save();
+    user = await User.save(user);
 
     // Update request
     request.status = 'Reset';
     request.newPassword = newPassword;
-    await request.save();
+    request = await PasswordReset.save(request);
 
     res.json({ message: 'Password successfully reset.', request });
   } catch (error) {
@@ -857,7 +845,7 @@ router.post('/announcements', protect, adminOnly, async (req, res) => {
 // @access  Private (Admin only)
 router.get('/announcements', protect, adminOnly, async (req, res) => {
   try {
-    const announcements = await Announcement.find({ createdBy: req.user.id }).sort({ createdAt: -1 });
+    const announcements = await Announcement.find({ createdBy: req.user.id });
     res.json(announcements);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching announcements' });
@@ -905,7 +893,7 @@ router.put('/faculty/:id/srv', protect, adminOnly, async (req, res) => {
     }
 
     faculty.srvNumber = newFacultyNumber;
-    await faculty.save();
+    faculty = await User.save(faculty);
 
     res.json({ message: `FAC number updated to ${newFacultyNumber}. Faculty login ID changed, password unchanged.`, faculty });
   } catch (error) {
@@ -969,7 +957,7 @@ router.post('/polls', protect, adminOnly, async (req, res) => {
 // @access  Private (Admin only)
 router.get('/polls', protect, adminOnly, async (req, res) => {
   try {
-    const polls = await Poll.find().sort({ createdAt: -1 });
+    const polls = await Poll.find();
     res.json(await hydratePolls(polls));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching polls' });
@@ -1018,7 +1006,7 @@ router.put('/polls/:id', protect, adminOnly, async (req, res) => {
       poll.questions = validateAndNormalizeQuestions(questions);
     }
 
-    await poll.save();
+    poll = await Poll.save(poll);
     const [hydratedPoll] = await hydratePolls([poll]);
 
     res.json({ message: 'Poll updated successfully.', poll: hydratedPoll });
@@ -1048,10 +1036,10 @@ router.delete('/polls/:id', protect, adminOnly, async (req, res) => {
 router.get('/feedback', protect, adminOnly, async (req, res) => {
   try {
     const feedback = await Feedback.find()
-      .populate('parentId', 'name srvNumber studentId')
-      .populate('studentId', 'name srvNumber motherName fatherName guardianName')
-      .populate('facultyId', 'name')
-      .sort({ createdAt: -1 });
+      
+      
+      
+      ;
 
     res.json(enrichParentLinkedRecords(feedback));
   } catch (error) {
@@ -1073,10 +1061,10 @@ router.put('/feedback/:id', protect, adminOnly, async (req, res) => {
     if (staffNote !== undefined) feedback.staffNote = String(staffNote).trim();
     feedback.updatedBy = req.user.id;
 
-    await feedback.save();
-    await feedback.populate('parentId', 'name srvNumber studentId');
-    await feedback.populate('studentId', 'name srvNumber motherName fatherName guardianName');
-    await feedback.populate('facultyId', 'name');
+    feedback = await Feedback.save(feedback);
+    await feedback;
+    await feedback;
+    await feedback;
 
     res.json({ message: 'Feedback updated successfully.', feedback: enrichParentLinkedRecord(feedback) });
   } catch (error) {
@@ -1126,7 +1114,7 @@ router.post('/events', protect, adminOnly, async (req, res) => {
 router.get('/events', protect, adminOnly, async (req, res) => {
   try {
     await archivePastEvents();
-    const events = await Event.find().sort({ eventDate: 1, createdAt: -1 });
+    const events = await Event.find();
     res.json(await hydrateEvents(events));
   } catch (error) {
     res.status(500).json({ message: 'Error fetching events' });
@@ -1169,7 +1157,7 @@ router.put('/events/:id', protect, adminOnly, async (req, res) => {
       event.targetSection = section;
     }
 
-    await event.save();
+    event = await Event.save(event);
     const [hydratedEvent] = await hydrateEvents([event]);
 
     res.json({ message: 'Event updated successfully.', event: hydratedEvent });
@@ -1194,3 +1182,4 @@ router.delete('/events/:id', protect, adminOnly, async (req, res) => {
 });
 
 export default router;
+

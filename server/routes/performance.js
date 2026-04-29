@@ -11,46 +11,34 @@ const router = express.Router();
 /**
  * Performance Scoring Engine
  * Weights: 40% Task | 20% Quality | 20% Feedback | 20% Contribution
- * 
- * Each component is normalized to a 0–100 scale, then combined:
- *   finalScore = (taskScore * 0.4) + (qualityScore * 0.2) + (feedbackScore * 0.2) + (contributionScore * 0.2)
  */
 
 const calculatePerformanceScore = async (facultyId) => {
   // ──── 1. Task Completion (40%) ────
-  // How many assigned tasks has this faculty completed (Approved)?
-  const allTasks = await FacultyTask.find({
-    isActive: true,
-    $or: [{ targetAll: true }, { assignedTo: facultyId }]
-  });
-
+  const allTasks = await FacultyTask.findForFaculty(facultyId);
   const totalTasks = allTasks.length;
   const taskIds = allTasks.map(t => t._id);
 
-  const submissions = await TaskSubmission.find({
-    facultyId,
-    taskId: { $in: taskIds }
-  });
+  const submissions = await TaskSubmission.findByTaskIds(taskIds);
+  const mySubmissions = submissions.filter(s => String(s.facultyId) === String(facultyId));
 
-  const approvedSubmissions = submissions.filter(s => s.status === 'Approved');
+  const approvedSubmissions = mySubmissions.filter(s => s.status === 'Approved');
   const taskScore = totalTasks > 0 ? (approvedSubmissions.length / totalTasks) * 100 : 0;
 
   // ──── 2. Quality Score (20%) ────
-  // Average quality score from approved submissions
   const qualityScores = approvedSubmissions.map(s => s.qualityScore).filter(q => q > 0);
   const qualityScore = qualityScores.length > 0
     ? qualityScores.reduce((a, b) => a + b, 0) / qualityScores.length
     : 0;
 
   // ──── 3. Student Feedback (20%) ────
-  // Average of all rating dimensions (each 1–5, normalized to 0–100)
   const feedbacks = await StudentFeedback.find({ facultyId });
   let feedbackScore = 0;
   if (feedbacks.length > 0) {
     const avgRatings = feedbacks.reduce((acc, fb) => {
-      acc.teaching += fb.ratings.teachingQuality;
-      acc.communication += fb.ratings.communication;
-      acc.support += fb.ratings.support;
+      acc.teaching += fb.ratings?.teachingQuality || 0;
+      acc.communication += fb.ratings?.communication || 0;
+      acc.support += fb.ratings?.support || 0;
       return acc;
     }, { teaching: 0, communication: 0, support: 0 });
 
@@ -60,11 +48,10 @@ const calculatePerformanceScore = async (facultyId) => {
       (avgRatings.support / feedbacks.length)
     ) / 3;
     
-    feedbackScore = (avgOverall / 5) * 100; // Normalize 1-5 to 0-100
+    feedbackScore = (avgOverall / 5) * 100;
   }
 
   // ──── 4. Program Contribution (20%) ────
-  // Based on participation level: Active=100, Moderate=70, Low=40, None=0
   const contributions = await ProgramContribution.find({ facultyId });
   let contributionScore = 0;
   if (contributions.length > 0) {
@@ -86,7 +73,7 @@ const calculatePerformanceScore = async (facultyId) => {
   if (totalTasks > 0 && (approvedSubmissions.length / totalTasks) < 0.5) {
     alerts.push({ type: 'LOW_TASK_COMPLETION', message: 'Task completion is below 50%. Consider following up.' });
   }
-  if (submissions.length > 0 && qualityScore < 40) {
+  if (mySubmissions.length > 0 && qualityScore < 40) {
     alerts.push({ type: 'LOW_QUALITY', message: 'Average quality score is below 40. Review submission standards.' });
   }
   if (feedbackScore > 0 && feedbackScore < 50) {
@@ -101,18 +88,17 @@ const calculatePerformanceScore = async (facultyId) => {
     finalScore,
     totalTasks,
     completedTasks: approvedSubmissions.length,
-    pendingTasks: submissions.filter(s => s.status === 'Pending').length,
+    pendingTasks: mySubmissions.filter(s => s.status === 'Pending').length,
     alerts
   };
 };
 
 // ──────────────────────────────────────────────
 // GET /api/performance/leaderboard
-// Returns ranked faculty with performance scores
 // ──────────────────────────────────────────────
 router.get('/leaderboard', protect, facultyOrAdmin, async (req, res) => {
   try {
-    const allFaculty = await User.find({ role: 'faculty' }).select('name srvNumber assignedGrade assignedSection');
+    const allFaculty = await User.findByRole('faculty');
 
     const leaderboard = await Promise.all(
       allFaculty.map(async (faculty) => {
@@ -128,13 +114,8 @@ router.get('/leaderboard', protect, facultyOrAdmin, async (req, res) => {
       })
     );
 
-    // Sort by finalScore descending
     leaderboard.sort((a, b) => b.finalScore - a.finalScore);
-
-    // Add rank
-    leaderboard.forEach((entry, index) => {
-      entry.rank = index + 1;
-    });
+    leaderboard.forEach((entry, index) => { entry.rank = index + 1; });
 
     res.json(leaderboard);
   } catch (error) {
@@ -145,7 +126,6 @@ router.get('/leaderboard', protect, facultyOrAdmin, async (req, res) => {
 
 // ──────────────────────────────────────────────
 // GET /api/performance/me
-// Returns the current faculty's own score
 // ──────────────────────────────────────────────
 router.get('/me', protect, async (req, res) => {
   if (req.user.role !== 'faculty') {

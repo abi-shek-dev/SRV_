@@ -41,35 +41,24 @@ router.post('/', protect, adminOnly, async (req, res) => {
 // ──────────────────────────────────────────────
 router.get('/', protect, facultyOrAdmin, async (req, res) => {
   try {
-    let query = {};
+    let tasks;
 
     if (req.user.role === 'faculty') {
-      // Faculty sees tasks assigned to them OR targeted to all
-      query = {
-        isActive: true,
-        $or: [
-          { targetAll: true },
-          { assignedTo: req.user.id }
-        ]
-      };
+      // Use SQL-native findForFaculty (handles targetAll OR assignedTo)
+      tasks = await FacultyTask.findForFaculty(req.user.id);
+    } else {
+      // Admin sees all tasks
+      tasks = await FacultyTask.find();
     }
-    // Admin sees all tasks
-
-    const tasks = await FacultyTask.find(query)
-      .populate('assignedBy', 'name srvNumber')
-      .populate('assignedTo', 'name srvNumber')
-      .sort({ createdAt: -1 });
 
     // Attach submission info for each task
     const taskIds = tasks.map(t => t._id);
-    const submissions = await TaskSubmission.find({ taskId: { $in: taskIds } })
-      .populate('facultyId', 'name srvNumber');
+    const submissions = await TaskSubmission.findByTaskIds(taskIds);
 
-    const tasksWithSubmissions = tasks.map(task => {
-      const taskObj = task.toObject();
-      taskObj.submissions = submissions.filter(s => String(s.taskId) === String(task._id));
-      return taskObj;
-    });
+    const tasksWithSubmissions = tasks.map(task => ({
+      ...task,
+      submissions: submissions.filter(s => String(s.taskId) === String(task._id))
+    }));
 
     res.json(tasksWithSubmissions);
   } catch (error) {
@@ -118,14 +107,14 @@ router.post('/:id/submit', protect, async (req, res) => {
     }
 
     // Check for existing submission
-    const existing = await TaskSubmission.findOne({ facultyId: req.user.id, taskId: req.params.id });
+    let existing = await TaskSubmission.findOne({ facultyId: req.user.id, taskId: req.params.id });
     if (existing) {
-      // Update existing submission
+      // Update existing submission using save helper
       existing.proofUrl = proofUrl || existing.proofUrl;
       existing.proofType = proofType || existing.proofType;
       existing.comments = comments || existing.comments;
       existing.status = 'Pending'; // Reset to pending on re-submit
-      await existing.save();
+      existing = await TaskSubmission.save(existing);
       return res.json({ message: 'Submission updated.', submission: existing });
     }
 
@@ -153,15 +142,14 @@ router.put('/submissions/:id', protect, adminOnly, async (req, res) => {
   const { status, qualityScore, adminFeedback } = req.body;
 
   try {
-    const submission = await TaskSubmission.findById(req.params.id);
+    let submission = await TaskSubmission.findById(req.params.id);
     if (!submission) return res.status(404).json({ message: 'Submission not found.' });
 
     if (status) submission.status = status;
     if (qualityScore !== undefined) submission.qualityScore = Math.min(100, Math.max(0, Number(qualityScore)));
     if (adminFeedback !== undefined) submission.adminFeedback = String(adminFeedback).trim();
 
-    await submission.save();
-    await submission.populate('facultyId', 'name srvNumber');
+    submission = await TaskSubmission.save(submission);
 
     res.json({ message: 'Submission reviewed.', submission });
   } catch (error) {

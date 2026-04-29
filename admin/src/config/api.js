@@ -1,5 +1,3 @@
-// Centralized API configuration
-// Uses Vite environment variable VITE_API_URL, falling back to production URL
-const API_URL = import.meta.env.VITE_API_URL || 'https://srv-backend-psi.vercel.app';
-
+// Centralized API configuration for Admin Portal
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 export default API_URL;

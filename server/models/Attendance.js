@@ -1,22 +1,82 @@
-import mongoose from 'mongoose';
+import pool from '../db/pool.js';
 
-const attendanceSchema = new mongoose.Schema({
-  facultyId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  grade: { type: String, required: true },
-  section: { type: String, required: true },
-  date: { type: Date, required: true },
-  
-  // Storing the attendance log for all students array-wise for a single day/class
-  records: [{
-    studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
-    status: { type: String, enum: ['Present', 'Absent', 'Half-Day'], default: 'Present' },
-    remarks: { type: String, default: '' }
-  }]
-}, { timestamps: true });
+const row2log = async (r) => {
+  if (!r) return null;
+  const [recs] = await pool.query(
+    'SELECT * FROM attendance_records WHERE log_id = ?', [r.id]
+  );
+  return {
+    _id: r.id, id: r.id,
+    facultyId: r.faculty_id,
+    grade: r.grade,
+    section: r.section,
+    date: r.date,
+    records: recs.map(rec => ({
+      _id: rec.id,
+      studentId: rec.student_id,
+      status: rec.status,
+      remarks: rec.remarks
+    })),
+    createdAt: r.created_at,
+    updatedAt: r.updated_at
+  };
+};
 
-// Ensure one attendance sheet per faculty per day
-attendanceSchema.index({ facultyId: 1, date: 1 }, { unique: true });
-// Index for fast lookup by student ID
-attendanceSchema.index({ 'records.studentId': 1, date: 1 });
+export async function findOne(where) {
+  const colMap = { facultyId: 'faculty_id' };
+  const keys = Object.keys(where);
+  const conds = keys.map(k => `\`${colMap[k] || k}\` = ?`).join(' AND ');
+  const [rows] = await pool.query(
+    `SELECT * FROM attendance_logs WHERE ${conds} LIMIT 1`, Object.values(where)
+  );
+  return rows[0] ? row2log(rows[0]) : null;
+}
 
-export default mongoose.model('Attendance', attendanceSchema);
+export async function findById(id) {
+  const [rows] = await pool.query('SELECT * FROM attendance_logs WHERE id = ? LIMIT 1', [id]);
+  return rows[0] ? row2log(rows[0]) : null;
+}
+
+export async function find(where = {}) {
+  const colMap = { facultyId: 'faculty_id', grade: 'grade', section: 'section' };
+  let sql = 'SELECT * FROM attendance_logs';
+  const vals = [];
+  const keys = Object.keys(where);
+  if (keys.length) {
+    sql += ' WHERE ' + keys.map(k => `\`${colMap[k] || k}\` = ?`).join(' AND ');
+    vals.push(...Object.values(where));
+  }
+  const [rows] = await pool.query(sql, vals);
+  return Promise.all(rows.map(row2log));
+}
+
+export async function create(data) {
+  const { facultyId, grade, section, date, records = [] } = data;
+  const [result] = await pool.query(
+    'INSERT INTO attendance_logs (faculty_id, grade, section, date) VALUES (?, ?, ?, ?)',
+    [facultyId, grade, section, date]
+  );
+  const logId = result.insertId;
+  await _setRecords(logId, records);
+  return findById(logId);
+}
+
+export async function save(obj) {
+  await pool.query(
+    'UPDATE attendance_logs SET grade=?, section=? WHERE id=?',
+    [obj.grade, obj.section, obj._id]
+  );
+  await _setRecords(obj._id, obj.records || []);
+  return findById(obj._id);
+}
+
+async function _setRecords(logId, records) {
+  await pool.query('DELETE FROM attendance_records WHERE log_id = ?', [logId]);
+  if (!records.length) return;
+  const rows = records.map(r => [logId, r.studentId, r.status || 'Present', r.remarks || '']);
+  await pool.query(
+    'INSERT INTO attendance_records (log_id, student_id, status, remarks) VALUES ?', [rows]
+  );
+}
+
+export default { findOne, findById, find, create, save };

@@ -1,21 +1,50 @@
-import mongoose from 'mongoose';
+import pool from '../db/pool.js';
 
-const behaviorSchema = new mongoose.Schema({
-  facultyId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  grade: { type: String, required: true },
-  section: { type: String, required: true },
-  date: { type: Date, required: true },
-  
-  records: [{
-    studentId: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
-    score: { type: Number, min: 1, max: 10, default: 10 },
-    remarks: { type: String, default: '' }
-  }]
-}, { timestamps: true });
+const row2log = async (r) => {
+  if (!r) return null;
+  const [recs] = await pool.query('SELECT * FROM behavior_records WHERE log_id = ?', [r.id]);
+  return {
+    _id: r.id, id: r.id,
+    facultyId: r.faculty_id, grade: r.grade, section: r.section, date: r.date,
+    records: recs.map(rec => ({ _id: rec.id, studentId: rec.student_id, score: rec.score, remarks: rec.remarks })),
+    createdAt: r.created_at, updatedAt: r.updated_at
+  };
+};
 
-// Ensure one behavior log per faculty per day
-behaviorSchema.index({ facultyId: 1, date: 1 }, { unique: true });
-// Index for fast lookup by student ID
-behaviorSchema.index({ 'records.studentId': 1, date: 1 });
+export async function findOne(where) {
+  const colMap = { facultyId: 'faculty_id' };
+  const keys = Object.keys(where);
+  const conds = keys.map(k => `\`${colMap[k] || k}\` = ?`).join(' AND ');
+  const [rows] = await pool.query(`SELECT * FROM behavior_logs WHERE ${conds} LIMIT 1`, Object.values(where));
+  return rows[0] ? row2log(rows[0]) : null;
+}
 
-export default mongoose.model('Behavior', behaviorSchema);
+export async function findById(id) {
+  const [rows] = await pool.query('SELECT * FROM behavior_logs WHERE id = ? LIMIT 1', [id]);
+  return rows[0] ? row2log(rows[0]) : null;
+}
+
+export async function create(data) {
+  const { facultyId, grade, section, date, records = [] } = data;
+  const [result] = await pool.query(
+    'INSERT INTO behavior_logs (faculty_id, grade, section, date) VALUES (?, ?, ?, ?)',
+    [facultyId, grade, section, date]
+  );
+  const logId = result.insertId;
+  await _setRecords(logId, records);
+  return findById(logId);
+}
+
+export async function save(obj) {
+  await _setRecords(obj._id, obj.records || []);
+  return findById(obj._id);
+}
+
+async function _setRecords(logId, records) {
+  await pool.query('DELETE FROM behavior_records WHERE log_id = ?', [logId]);
+  if (!records.length) return;
+  const rows = records.map(r => [logId, r.studentId, r.score ?? 10, r.remarks || '']);
+  await pool.query('INSERT INTO behavior_records (log_id, student_id, score, remarks) VALUES ?', [rows]);
+}
+
+export default { findOne, findById, create, save };
