@@ -217,6 +217,7 @@ CREATE TABLE IF NOT EXISTS homework (
   title         VARCHAR(500) NOT NULL,
   description   TEXT         NOT NULL,
   due_date      DATETIME     NOT NULL,
+  submission_deadline DATETIME DEFAULT NULL,
   assigned_date DATETIME     DEFAULT CURRENT_TIMESTAMP,
   archived      TINYINT(1)   DEFAULT 0,
   created_at    DATETIME     DEFAULT CURRENT_TIMESTAMP,
@@ -224,6 +225,35 @@ CREATE TABLE IF NOT EXISTS homework (
   FOREIGN KEY (faculty_id) REFERENCES users(id) ON DELETE CASCADE,
   INDEX idx_grade_section_archived (grade, section, archived),
   INDEX idx_faculty_id (faculty_id)
+);
+
+-- ──────────────────────────────────────────────────────────
+-- HOMEWORK SUBMISSIONS
+-- ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS homework_submissions (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  homework_id     INT UNSIGNED NOT NULL,
+  student_id      INT UNSIGNED NOT NULL,
+  parent_id       INT UNSIGNED DEFAULT NULL,
+  pdf_data        LONGBLOB     DEFAULT NULL,
+  pdf_filename    VARCHAR(255) DEFAULT NULL,
+  pdf_size        INT          DEFAULT NULL,
+  uploaded_at     DATETIME     DEFAULT NULL,
+  expires_at      DATETIME     DEFAULT NULL,
+  score           DECIMAL(5,2) DEFAULT NULL,
+  remarks         TEXT         DEFAULT NULL,
+  graded_by       INT UNSIGNED DEFAULT NULL,
+  graded_at       DATETIME     DEFAULT NULL,
+  status          ENUM('pending','submitted','graded') DEFAULT 'pending',
+  created_at      DATETIME     DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (homework_id) REFERENCES homework(id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id)  REFERENCES students(id) ON DELETE CASCADE,
+  FOREIGN KEY (parent_id)   REFERENCES users(id)    ON DELETE CASCADE,
+  FOREIGN KEY (graded_by)   REFERENCES users(id)    ON DELETE SET NULL,
+  INDEX idx_homework_id (homework_id),
+  INDEX idx_student_id (student_id),
+  INDEX idx_expires_at (expires_at)
 );
 
 -- ──────────────────────────────────────────────────────────
