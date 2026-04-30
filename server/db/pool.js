@@ -12,7 +12,10 @@ const pool = mysql.createPool({
   connectionLimit:    10,
   queueLimit:         0,
   timezone:           '+00:00',
-  dateStrings:        false
+  dateStrings:        false,
+  // Allow up to 64MB packets — required for PDF BLOB storage
+  maxAllowedPacket:   67108864
 });
+
 
 export default pool;

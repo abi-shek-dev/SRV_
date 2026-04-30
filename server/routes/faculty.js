@@ -14,6 +14,7 @@ import Event from '../models/Event.js';
 import EventRegistration from '../models/EventRegistration.js';
 import Memory from '../models/Memory.js';
 import Setting from '../models/Setting.js';
+import HomeworkSubmission from '../models/HomeworkSubmission.js';
 import { protect, facultyOrAdmin } from '../middleware/auth.js';
 import { archiveOldHomework } from '../utils/archiveHomework.js';
 import { buildHomeworkClassFilter, resolveHomeworkAudience } from '../utils/homeworkMatching.js';
@@ -192,7 +193,7 @@ router.post('/marks', protect, facultyOrAdmin, async (req, res) => {
 // @desc    Upload Homework
 // @access  Private (Faculty/Admin)
 router.post('/homework', protect, facultyOrAdmin, async (req, res) => {
-  const { grade, section, subject, title, description, dueDate } = req.body;
+  const { grade, section, subject, title, description, dueDate, submissionDeadline } = req.body;
 
   try {
     const faculty = req.user.role === 'faculty'
@@ -219,7 +220,8 @@ router.post('/homework', protect, facultyOrAdmin, async (req, res) => {
       description,
       dueDate,
       assignedDate: new Date(),
-      archived: false
+      archived: false,
+      submissionDeadline
     });
 
     // Notify all parents of students in this grade and section
@@ -293,12 +295,12 @@ router.get('/homework/history/:subject', protect, facultyOrAdmin, async (req, re
 // @desc    Update/Edit existing homework (including deadline)
 // @access  Private (Faculty/Admin)
 router.put('/homework/:id', protect, facultyOrAdmin, async (req, res) => {
-  const { subject, title, description, dueDate } = req.body;
+  const { subject, title, description, dueDate, submissionDeadline } = req.body;
   try {
     const query = req.user.role === 'admin' ? { _id: req.params.id } : { _id: req.params.id, facultyId: req.user.id };
     const hw = await Homework.findOneAndUpdate(
       query,
-      { subject, title, description, dueDate },
+      { subject, title, description, dueDate, submissionDeadline },
       { new: true, runValidators: true }
     );
     if (!hw) return res.status(404).json({ message: 'Homework not found or unauthorized' });
@@ -323,6 +325,113 @@ router.delete('/homework/:id', protect, facultyOrAdmin, async (req, res) => {
     res.json({ message: 'Homework archived successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Error archiving homework' });
+  }
+});
+
+// @route   POST /api/faculty/homework/:id/update-deadline
+// @desc    Update submission_deadline on existing homework
+// @access  Private (Faculty/Admin)
+router.post('/homework/:id/update-deadline', protect, facultyOrAdmin, async (req, res) => {
+  const { submissionDeadline } = req.body;
+  try {
+    const query = req.user.role === 'admin' ? { _id: req.params.id } : { _id: req.params.id, facultyId: req.user.id };
+    const hw = await Homework.findOneAndUpdate(query, { submissionDeadline }, { new: true });
+    if (!hw) return res.status(404).json({ message: 'Homework not found or unauthorized' });
+    res.json({ message: 'Deadline updated', homework: hw });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating deadline' });
+  }
+});
+
+// @route   GET /api/faculty/homework/:id/submissions
+// @desc    Get all student submissions for a homework, including students with no submission
+// @access  Private (Faculty/Admin)
+router.get('/homework/:id/submissions', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    const hw = await Homework.findById(req.params.id);
+    if (!hw) return res.status(404).json({ message: 'Homework not found' });
+
+    // Verify faculty owns this homework (admin can see all)
+    if (req.user.role !== 'admin' && String(hw.facultyId) !== String(req.user.id)) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    // Get all students in this class
+    const students = await Student.find(buildHomeworkClassFilter({ grade: hw.grade, section: hw.section }));
+    // Get all submissions for this homework
+    const submissions = await HomeworkSubmission.find({ homeworkId: req.params.id });
+    const subMap = {};
+    submissions.forEach(s => { subMap[String(s.studentId)] = s; });
+
+    // Merge: every student gets a row
+    const result = students.map(st => ({
+      student: { _id: st._id, name: st.name, srvNumber: st.srvNumber, grade: st.grade, section: st.section },
+      submission: subMap[String(st._id)] || null
+    }));
+
+    res.json({ homework: hw, students: result });
+  } catch (error) {
+    console.error('[Submissions fetch error]', error);
+    res.status(500).json({ message: 'Error fetching submissions' });
+  }
+});
+
+// @route   GET /api/faculty/homework/submissions/:submissionId/pdf
+// @desc    Stream a submitted PDF (only within 7-day window)
+// @access  Private (Faculty/Admin)
+router.get('/homework/submissions/:submissionId/pdf', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    const row = await HomeworkSubmission.getPdf(req.params.submissionId);
+    if (!row || !row.pdf_data) return res.status(404).json({ message: 'PDF not found or already expired' });
+    if (row.expires_at && new Date(row.expires_at) < new Date()) {
+      return res.status(410).json({ message: 'PDF has expired and been deleted' });
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${row.pdf_filename || 'homework.pdf'}"`);
+    res.send(row.pdf_data);
+  } catch (error) {
+    res.status(500).json({ message: 'Error serving PDF' });
+  }
+});
+
+// @route   PUT /api/faculty/homework/:homeworkId/submissions/:studentId/grade
+// @desc    Grade a student's homework (with or without PDF upload)
+// @access  Private (Faculty/Admin)
+router.put('/homework/:homeworkId/submissions/:studentId/grade', protect, facultyOrAdmin, async (req, res) => {
+  const { score, remarks } = req.body;
+  try {
+    if (score === undefined || score === null || score === '') {
+      return res.status(400).json({ message: 'Score is required' });
+    }
+    const hw = await Homework.findById(req.params.homeworkId);
+    if (!hw) return res.status(404).json({ message: 'Homework not found' });
+    if (req.user.role !== 'admin' && String(hw.facultyId) !== String(req.user.id)) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+    const submission = await HomeworkSubmission.grade({
+      homeworkId: req.params.homeworkId,
+      studentId: req.params.studentId,
+      score: Number(score),
+      remarks,
+      gradedBy: req.user.id
+    });
+    res.json({ message: 'Graded successfully', submission });
+  } catch (error) {
+    console.error('[Grade error]', error);
+    res.status(500).json({ message: 'Error saving grade' });
+  }
+});
+
+// @route   POST /api/faculty/homework/cleanup
+// @desc    Manually trigger cleanup of expired PDFs
+// @access  Private (Admin only)
+router.post('/homework/cleanup', protect, async (req, res) => {
+  if (req.user.role !== 'admin') return res.status(403).json({ message: 'Admin only' });
+  try {
+    const count = await HomeworkSubmission.cleanupExpiredPdfs();
+    res.json({ message: `Cleaned up ${count} expired PDF(s)` });
+  } catch (error) {
+    res.status(500).json({ message: 'Cleanup error' });
   }
 });
 

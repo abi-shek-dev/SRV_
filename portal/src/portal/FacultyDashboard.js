@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Users, LogOut, CheckSquare, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Calendar as CalIcon, Clock, Edit2, Trash2, CalendarClock, X, Check, History, ArrowRight, Archive, ChevronDown, Megaphone, Bell, LayoutDashboard, ClipboardList, MessageSquareMore, Image as ImageIcon, Trophy, TrendingUp, Target, ExternalLink, AlertTriangle, Send, CheckCircle2, XCircle } from 'lucide-react';
+import { Users, LogOut, CheckSquare, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Calendar as CalIcon, Clock, Edit2, Trash2, CalendarClock, X, Check, History, ArrowRight, Archive, ChevronDown, Megaphone, Bell, LayoutDashboard, ClipboardList, MessageSquareMore, Image as ImageIcon, Trophy, TrendingUp, Target, ExternalLink, AlertTriangle, Send, CheckCircle2, XCircle, Star, FileText } from 'lucide-react';
 import API_URL from '../config/api.js';
 import { OpinionPollSection } from '../components/OpinionPollSection.js';
 import { FeedbackInboxSection } from '../components/FeedbackInboxSection.js';
@@ -10,7 +10,8 @@ import { Logo } from '../components/Logo.js';
 import { PortalHeader } from '../components/PortalHeader.js';
 import { NotificationPanel } from '../components/NotificationPanel.js';
 import { MemoriesSection } from '../components/MemoriesSection.js';
-import Swal from 'sweetalert2';
+
+import Swal from 'sweetalert2';
 
 function MyTasksSection({ token }) {
   const [tasks, setTasks] = useState([]);
@@ -134,11 +135,10 @@ function MyTasksSection({ token }) {
                   <div className="shrink-0">
                     {mySub ? (
                       <div className="text-center">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${
-                          mySub.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' :
-                          mySub.status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                          'bg-amber-100 text-amber-800'
-                        }`}>
+                        <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${mySub.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' :
+                            mySub.status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                              'bg-amber-100 text-amber-800'
+                          }`}>
                           {mySub.status === 'Approved' ? <CheckCircle2 size={14} /> : mySub.status === 'Rejected' ? <XCircle size={14} /> : <Clock size={14} />}
                           {mySub.status}
                         </span>
@@ -199,9 +199,11 @@ function MyTasksSection({ token }) {
           <p className="mt-1 text-sm text-slate-400">Check back later for new task assignments from admin.</p>
         </div>
       )}
+
     </div>
   );
 }
+
 
 export function FacultyDashboard({ section = 'dashboard' }) {
   const hasValidFamilyDetails = (profile) => Boolean(
@@ -236,7 +238,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
   const [studentProfileForm, setStudentProfileForm] = useState({ name: '', grade: '', section: '', group: '', motherName: '', fatherName: '', guardianName: '', parentMobileNumber: '' });
   const [profileMsg, setProfileMsg] = useState({ text: '', type: '' });
   const [assignedHomework, setAssignedHomework] = useState([]);
-  
+
   // Grading Form State
   const [gradeForm, setGradeForm] = useState({
     term: 'Term 1',
@@ -250,16 +252,21 @@ export function FacultyDashboard({ section = 'dashboard' }) {
   const [gradeMsg, setGradeMsg] = useState({ text: '', type: '' });
 
   // Homework Form State
-  const [hwForm, setHwForm] = useState({ subject: '', title: '', description: '', dueDate: '' });
+  const [hwForm, setHwForm] = useState({ subject: '', title: '', description: '', dueDate: '', submissionDeadline: '' });
   const [hwMsg, setHwMsg] = useState({ text: '', type: '' });
 
+  // Homework Submissions State
+  const [viewingSubmissions, setViewingSubmissions] = useState(null);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  const [gradingEntry, setGradingEntry] = useState(null);
+  const [gradeInput, setGradeInput] = useState({ score: '', remarks: '' });
+  const [gradingMsg, setGradingMsg] = useState({ text: '', type: '' });
+
   // Homework Calendar State
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
+  const [selectedDate, setSelectedDate] = useState(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(d.setDate(diff));
+    return d;
   });
   const [flippedDay, setFlippedDay] = useState(null);
   const [editingHw, setEditingHw] = useState(null);
@@ -274,7 +281,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
   const [attDate, setAttDate] = useState(new Date().toISOString().split('T')[0]);
   const [attRecords, setAttRecords] = useState({});
   const [attMsg, setAttMsg] = useState({ text: '', type: '' });
-  
+
   // Announcements
   const [announcementForm, setAnnouncementForm] = useState({ title: '', message: '', priority: 'MEDIUM', toAllStudents: true });
   const [announcements, setAnnouncements] = useState([]);
@@ -283,7 +290,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
   const [inboxAnnouncements, setInboxAnnouncements] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  
+
   const openAttendanceModal = () => {
     const initialRecords = {};
     students.forEach(s => {
@@ -407,25 +414,17 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     navigate(targetSection === 'dashboard' ? '/faculty/dashboard' : `/faculty/${targetSection}`);
   };
 
-  // Calendar Helper Functions
-  const days = [];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(currentWeekStart);
-    d.setDate(d.getDate() + i);
-    days.push(d);
-  }
-
-  const nextWeek = () => {
-    const d = new Date(currentWeekStart);
-    d.setDate(d.getDate() + 7);
-    setCurrentWeekStart(d);
+  const nextDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + 1);
+    setSelectedDate(d);
     setFlippedDay(null);
   };
 
-  const prevWeek = () => {
-    const d = new Date(currentWeekStart);
-    d.setDate(d.getDate() - 7);
-    setCurrentWeekStart(d);
+  const prevDay = () => {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() - 1);
+    setSelectedDate(d);
     setFlippedDay(null);
   };
 
@@ -433,17 +432,17 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     const date1 = new Date(d1);
     const date2 = new Date(d2);
     return date1.getFullYear() === date2.getFullYear() &&
-           date1.getMonth() === date2.getMonth() &&
-           date1.getDate() === date2.getDate();
+      date1.getMonth() === date2.getMonth() &&
+      date1.getDate() === date2.getDate();
   };
 
   const isPastDeadline = (date) => {
-    return new Date(date).setHours(0,0,0,0) < new Date().setHours(0,0,0,0);
+    return new Date(date).setHours(0, 0, 0, 0) < new Date().setHours(0, 0, 0, 0);
   };
 
   const isUpcomingDeadline = (date) => {
-    const d = new Date(date).setHours(0,0,0,0);
-    const today = new Date().setHours(0,0,0,0);
+    const d = new Date(date).setHours(0, 0, 0, 0);
+    const today = new Date().setHours(0, 0, 0, 0);
     return d >= today && d <= today + 2 * 24 * 60 * 60 * 1000;
   };
 
@@ -657,13 +656,14 @@ export function FacultyDashboard({ section = 'dashboard' }) {
       await axios.post(`${API_URL}/api/faculty/homework`, {
         grade: user.assignedGrade,
         section: user.assignedSection,
-        ...hwForm
+        ...hwForm,
+        submissionDeadline: hwForm.submissionDeadline || null
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setHwMsg({ text: 'Homework published successfully!', type: 'success' });
-      setHwForm({ subject: '', title: '', description: '', dueDate: '' });
-      fetchHomework(); // Update the UI immediately
+      setHwForm({ subject: '', title: '', description: '', dueDate: '', submissionDeadline: '' });
+      fetchHomework();
       setTimeout(() => setHwMsg({ text: '', type: '' }), 3000);
     } catch (err) {
       setHwMsg({ text: 'Failed to publish homework', type: 'error' });
@@ -720,6 +720,70 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  // Open submissions panel for a homework
+  const openSubmissions = async (hw) => {
+    setLoadingSubmissions(true);
+    setViewingSubmissions({ homework: hw, students: [] });
+    try {
+      const token = localStorage.getItem('schoolToken');
+      const res = await axios.get(`${API_URL}/api/faculty/homework/${hw._id}/submissions`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setViewingSubmissions({ homework: res.data.homework, students: res.data.students });
+    } catch (err) {
+      console.error('Error fetching submissions', err);
+    } finally {
+      setLoadingSubmissions(false);
+    }
+  };
+
+  // Open grade modal
+  const openGradeModal = (homeworkId, student, submission) => {
+    setGradingEntry({ homeworkId, student, submission });
+    setGradeInput({ score: submission?.score ?? '', remarks: submission?.remarks ?? '' });
+    setGradingMsg({ text: '', type: '' });
+  };
+
+  // Submit grade
+  const submitGrade = async () => {
+    if (gradeInput.score === '' || gradeInput.score === null) {
+      setGradingMsg({ text: 'Please enter a score', type: 'error' });
+      return;
+    }
+    try {
+      const token = localStorage.getItem('schoolToken');
+      await axios.put(
+        `${API_URL}/api/faculty/homework/${gradingEntry.homeworkId}/submissions/${gradingEntry.student._id}/grade`,
+        { score: Number(gradeInput.score), remarks: gradeInput.remarks },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setGradingMsg({ text: 'Grade saved!', type: 'success' });
+      setTimeout(() => {
+        setGradingEntry(null);
+        // Refresh submissions
+        if (viewingSubmissions) openSubmissions(viewingSubmissions.homework);
+      }, 1200);
+    } catch (err) {
+      setGradingMsg({ text: err.response?.data?.message || 'Error saving grade', type: 'error' });
+    }
+  };
+
+  // View a submitted PDF in new tab
+  const viewPdf = (submissionId, isParent = false) => {
+    const token = localStorage.getItem('schoolToken');
+    const url = isParent
+      ? `${API_URL}/api/parent/homework/submissions/${submissionId}/pdf`
+      : `${API_URL}/api/faculty/homework/submissions/${submissionId}/pdf`;
+    // Open PDF with auth header via fetch + blob URL
+    fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.blob())
+      .then(blob => {
+        const blobUrl = URL.createObjectURL(blob);
+        window.open(blobUrl, '_blank');
+      })
+      .catch(() => alert('Could not load PDF. It may have expired.'));
   };
 
   const upcomingHomeworkCount = assignedHomework.filter(hw => isUpcomingDeadline(hw.dueDate)).length;
@@ -1185,8 +1249,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
                 </tbody>
               </table>
             </div>
-
-            {/* Homework Dashboard Weekly Calendar */}
+            {/* Homework Dashboard Daily View */}
             <div className="relative mt-8 overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
               <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-3">
@@ -1198,159 +1261,105 @@ export function FacultyDashboard({ section = 'dashboard' }) {
                     Refresh Data
                   </button>
                   <div className="flex w-full items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-1">
-                    <button onClick={prevWeek} className="p-1.5 hover:bg-white rounded-lg transition-colors"><ChevronLeft size={18} className="text-slate-600" /></button>
+                    <button onClick={prevDay} className="p-1.5 hover:bg-white rounded-lg transition-colors"><ChevronLeft size={18} className="text-slate-600" /></button>
                     <span className="text-sm font-bold text-slate-700 text-center min-w-0 flex-1 px-2">
-                      {days[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - {days[6].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                     </span>
-                    <button onClick={nextWeek} className="p-1.5 hover:bg-white rounded-lg transition-colors"><ChevronRight size={18} className="text-slate-600" /></button>
+                    <button 
+                      onClick={nextDay} 
+                      disabled={new Date(selectedDate).setHours(0,0,0,0) >= new Date().setHours(0,0,0,0)}
+                      className="p-1.5 hover:bg-white rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight size={18} className="text-slate-600" />
+                    </button>
                   </div>
                 </div>
               </div>
 
-              <div className="-mx-4 overflow-x-auto overflow-y-hidden px-4 pb-4 sm:mx-0 sm:px-0">
-                <div className="grid grid-flow-col auto-cols-[minmax(250px,86vw)] gap-4 snap-x snap-mandatory md:auto-cols-[minmax(280px,320px)] xl:grid-flow-row xl:grid-cols-7 xl:auto-cols-fr">
-                  {days.map((day, i) => {
-                    const dayHomework = assignedHomework.filter(hw => isSameDay(hw.dueDate, day));
-                    const isToday = isSameDay(day, new Date());
-                    const isFlipped = flippedDay === i;
-                    const grouped = groupBySubject(dayHomework);
-                    const subjectKeys = Object.keys(grouped);
+              {(() => {
+                const dayHomework = assignedHomework.filter(hw => isSameDay(hw.dueDate, selectedDate));
+                const grouped = groupBySubject(dayHomework);
+                const subjectKeys = Object.keys(grouped);
 
-                    return (
-                      <div 
-                        key={i} 
-                        className="group relative h-[300px] w-full snap-start perspective-1000 sm:h-[340px] xl:h-[420px]"
-                        onMouseEnter={() => setFlippedDay(i)}
-                        onMouseLeave={() => setFlippedDay(null)}
-                        onClick={() => setFlippedDay(isFlipped ? null : i)}
-                      >
-                        <div className={`w-full h-full relative transition-transform duration-700 transform-style-3d ${isFlipped ? 'rotate-y-180' : 'md:group-hover:[transform:rotateY(180deg)]'}`}>
-                          
-                          {/* FRONT FACE */}
-                          <div className={`absolute flex h-full w-full flex-col items-center justify-center rounded-[24px] border p-4 text-center shadow-sm transition-colors sm:p-6 ${isToday ? 'border-emerald-300 bg-emerald-50' : 'border-slate-100 bg-slate-50'}`}>
-                            <p className={`text-xs sm:text-sm font-bold uppercase tracking-widest mb-3 text-center ${isToday ? 'text-emerald-600' : 'text-slate-500'}`}>
-                              {day.toLocaleDateString('en-US', { weekday: 'long' })}
-                            </p>
-                            <p className={`text-5xl sm:text-6xl font-display font-black mb-4 ${isToday ? 'text-emerald-900' : 'text-slate-800'}`}>
-                              {day.getDate()}
-                            </p>
-                            
-                            {/* Subject pills on front face */}
-                            {subjectKeys.length > 0 ? (
-                              <div className="flex flex-col items-center gap-2 w-full">
-                                <div className="bg-white border border-emerald-100 text-emerald-700 px-4 py-1.5 rounded-full text-xs font-bold shadow-sm flex items-center gap-2">
-                                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                                  {dayHomework.length} Task{dayHomework.length > 1 ? 's' : ''}
-                                </div>
-                                <div className="flex flex-wrap justify-center gap-1 mt-1 max-w-full px-2">
-                                  {subjectKeys.slice(0, 3).map(sub => (
-                                    <span key={sub} className={`${getSubjectColor(sub).pill} text-[9px] font-bold px-2 py-0.5 rounded-full truncate max-w-[90px]`}>
-                                      {sub}
-                                    </span>
-                                  ))}
-                                  {subjectKeys.length > 3 && (
-                                    <span className="bg-slate-200 text-slate-600 text-[9px] font-bold px-2 py-0.5 rounded-full">
-                                      +{subjectKeys.length - 3}
-                                    </span>
-                                  )}
-                                </div>
+                return (
+                  <div className="flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50">
+                    <div className="p-4 bg-white border-b border-slate-200 flex justify-between items-center px-5">
+                      <span className="text-emerald-600 font-bold text-sm tracking-wider uppercase">
+                        {selectedDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                      </span>
+                      <span className="text-slate-500 text-sm font-bold">
+                        {subjectKeys.length} Subject{subjectKeys.length !== 1 ? 's' : ''} • {dayHomework.length} Task{dayHomework.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    
+                    <div className="flex flex-col gap-4 p-5 max-h-[600px] overflow-y-auto">
+                      {subjectKeys.length > 0 ? subjectKeys.map(subject => {
+                        const color = getSubjectColor(subject);
+                        const subjectHw = grouped[subject];
+
+                        return (
+                          <div key={subject} className={`${color.bg} border ${color.border} rounded-2xl overflow-hidden`}>
+                            {/* Subject Header */}
+                            <div className="w-full flex items-center justify-between px-4 py-3 bg-white/40 border-b border-white/20">
+                              <div className="flex items-center gap-2">
+                                <span className={`text-xs font-black uppercase tracking-widest ${color.text}`}>
+                                  {subject}
+                                </span>
+                                <span className="text-xs text-slate-500 font-bold">
+                                  ({subjectHw.length} Task{subjectHw.length > 1 ? 's' : ''})
+                                </span>
                               </div>
-                            ) : (
-                              <div className="bg-transparent text-slate-400 px-4 py-2 rounded-full text-xs font-semibold border border-slate-200">
-                                No Tasks
-                              </div>
-                            )}
-                            <div className="mt-auto pt-4 text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-1 opacity-50">
-                              <span className="hidden md:inline">Hover to flip</span>
-                              <span className="md:hidden">Tap to flip</span>
-                              <ChevronRight size={10} />
                             </div>
-                          </div>
 
-                          {/* BACK FACE — Grouped by Subject */}
-                          <div className="absolute flex h-full w-full flex-col overflow-hidden rounded-[24px] border border-slate-800 bg-slate-900 shadow-xl cursor-default backface-hidden rotate-y-180">
-                            <div className="p-3 bg-slate-800/80 border-b border-slate-700/50 text-center shrink-0 flex justify-between items-center px-4">
-                              <span className="text-emerald-400 font-bold text-[10px] tracking-wider uppercase">
-                                {day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                              </span>
-                              <span className="text-slate-400 text-[10px] font-bold">
-                                {subjectKeys.length} Subject{subjectKeys.length !== 1 ? 's' : ''} • {dayHomework.length} Task{dayHomework.length !== 1 ? 's' : ''}
-                              </span>
-                            </div>
-                            
-                            <div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-3 no-scrollbar" onClick={e => e.stopPropagation()}>
-                              {subjectKeys.length > 0 ? subjectKeys.map(subject => {
-                                const color = getSubjectColor(subject);
-                                const subjectHw = grouped[subject];
-
-                                return (
-                                  <div key={subject} className={`${color.bg} border ${color.border} rounded-xl overflow-hidden`}>
-                                    {/* Subject Header — clickable for history */}
-                                    <button 
-                                      onClick={() => openSubjectHistory(subject)}
-                                      className="w-full flex items-center justify-between px-3 py-2 hover:bg-white/5 transition-colors group/sub"
-                                    >
-                                      <div className="flex items-center gap-2">
-                                        <span className={`text-[9px] font-black uppercase tracking-widest ${color.text}`}>
-                                          {subject}
+                            {/* Homework entries */}
+                            <div className="px-4 pb-4 pt-4 space-y-3">
+                              {subjectHw.map(hw => (
+                                <div key={hw._id} className="bg-white rounded-xl p-4 shadow-sm relative group transition-colors">
+                                  <div className="mb-2">
+                                    <h4 className="font-display font-bold text-slate-900 text-sm mb-1">{hw.title}</h4>
+                                    <p className="text-xs text-slate-600 leading-relaxed">{hw.description}</p>
+                                  </div>
+                                  <div className="flex flex-wrap items-center justify-between mt-3 pt-3 border-t border-slate-100 gap-3">
+                                    <div className="flex flex-col">
+                                      <span className="text-[11px] text-slate-500 font-semibold flex items-center gap-1">
+                                        <Clock size={12} /> Due: {new Date(hw.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                      </span>
+                                      {hw.submissionDeadline && (
+                                        <span className="text-[11px] text-amber-600 font-semibold flex items-center gap-1 mt-0.5">
+                                          <AlertCircle size={12} /> Upload Deadline: {new Date(hw.submissionDeadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                                         </span>
-                                        <span className="text-[9px] text-slate-500 font-bold">
-                                          ({subjectHw.length})
-                                        </span>
-                                      </div>
-                                      <div className="flex items-center gap-1 opacity-0 group-hover/sub:opacity-100 transition-opacity">
-                                        <span className="text-[8px] text-slate-500 font-bold">History</span>
-                                        <ArrowRight size={10} className={color.text} />
-                                      </div>
-                                    </button>
-
-                                    {/* Homework entries under this subject — clickable for history */}
-                                    <div className="px-3 pb-2 space-y-1.5">
-                                      {subjectHw.map(hw => (
-                                        <div key={hw._id} className="bg-slate-800/50 rounded-lg p-2.5 relative group hover:bg-slate-700/60 transition-colors">
-                                          <button 
-                                            onClick={() => openSubjectHistory(subject)}
-                                            className="w-full text-left pb-2 -m-2.5 p-2.5 rounded-lg hover:bg-slate-700/40 transition-colors"
-                                          >
-                                            <h4 className="font-display font-bold text-white text-[12px] mb-0.5 leading-tight group-hover:text-emerald-300 transition-colors">{hw.title}</h4>
-                                            <p className="text-[10px] text-slate-400 line-clamp-2 leading-relaxed">{hw.description}</p>
-                                          </button>
-                                          <div className="flex items-center justify-between">
-                                            <span className="text-[9px] text-slate-500 font-semibold flex items-center gap-1">
-                                              <Clock size={9} /> Due: {new Date(hw.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                                            </span>
-                                            <div className="flex gap-1">
-                                              <button onClick={() => setEditingHw(hw)} className="p-1 bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 rounded transition-colors" title="Edit">
-                                                <Edit2 size={10} />
-                                              </button>
-                                              <button onClick={() => setExtendingHw(hw)} className="p-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 rounded transition-colors" title="Extend Deadline">
-                                                <CalendarClock size={10} />
-                                              </button>
-                                              <button onClick={() => handleDelete(hw._id)} className="p-1 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded transition-colors" title="Archive">
-                                                <Trash2 size={10} />
-                                              </button>
-                                            </div>
-                                          </div>
-                                        </div>
-                                      ))}
+                                      )}
+                                    </div>
+                                    <div className="flex flex-wrap gap-2">
+                                      <button onClick={() => openSubmissions(hw)} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 rounded-lg transition-colors text-xs font-bold" title="View Submissions">
+                                        <Users size={14} /> Submissions
+                                      </button>
+                                      <button onClick={() => setEditingHw(hw)} className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition-colors text-xs font-bold" title="Edit">
+                                        <Edit2 size={14} /> Edit
+                                      </button>
+                                      <button onClick={() => setExtendingHw(hw)} className="p-1.5 px-3 bg-amber-50 hover:bg-amber-100 text-amber-600 rounded-lg transition-colors" title="Extend Deadline">
+                                        <CalendarClock size={14} />
+                                      </button>
+                                      <button onClick={() => handleDelete(hw._id)} className="p-1.5 px-3 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg transition-colors" title="Archive">
+                                        <Trash2 size={14} />
+                                      </button>
                                     </div>
                                   </div>
-                                );
-                              }) : (
-                                <div className="flex flex-col items-center justify-center h-full text-slate-600 opacity-60 space-y-2">
-                                  <CalIcon size={24} strokeWidth={1.5} />
-                                  <span className="text-[10px] font-bold uppercase tracking-widest text-center">No Tasks<br/>Assigned</span>
                                 </div>
-                              )}
+                              ))}
                             </div>
                           </div>
+                        );
+                      }) : (
+                        <div className="flex flex-col items-center justify-center py-20 text-slate-400 space-y-3 bg-white rounded-2xl border border-dashed border-slate-200">
+                          <CalIcon size={48} strokeWidth={1.5} className="text-slate-300" />
+                          <span className="text-sm font-bold uppercase tracking-widest text-center">No Tasks Assigned For This Day</span>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
+                      )}
+                    </div>
+                  </div>
+                );
+              })()}
               {/* Subject History Slide-out Panel */}
               {historySubject && (
                 <div className="fixed inset-0 z-50 flex justify-end animate-fade-in" onClick={() => setHistorySubject(null)}>
@@ -1478,7 +1487,8 @@ export function FacultyDashboard({ section = 'dashboard' }) {
                         subject: editingHw.subject,
                         title: editingHw.title,
                         description: editingHw.description,
-                        dueDate: editingHw.dueDate
+                        dueDate: editingHw.dueDate,
+                        submissionDeadline: editingHw.submissionDeadline || null
                       });
                     }} className="space-y-4">
                       <div>
@@ -1492,6 +1502,10 @@ export function FacultyDashboard({ section = 'dashboard' }) {
                       <div>
                         <label htmlFor="editHw-description" className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">Description</label>
                         <textarea id="editHw-description" name="description" required rows="3" value={editingHw.description} onChange={e => setEditingHw({...editingHw, description: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-sm"></textarea>
+                      </div>
+                      <div>
+                        <label htmlFor="editHw-subDeadline" className="block text-xs font-bold text-slate-500 mb-1 uppercase tracking-wider">PDF Upload Deadline (Optional)</label>
+                        <input id="editHw-subDeadline" name="submissionDeadline" type="date" value={editingHw.submissionDeadline ? new Date(editingHw.submissionDeadline).toISOString().split('T')[0] : ''} onChange={e => setEditingHw({...editingHw, submissionDeadline: e.target.value})} className="w-full px-4 py-2 border border-slate-200 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-semibold text-slate-600" />
                       </div>
                       <button disabled={isSubmitting} type="submit" className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20 disabled:opacity-50 flex justify-center items-center gap-2 mt-2">
                         {isSubmitting ? 'Saving Changes...' : <><Check size={18}/> Save Changes</>}
@@ -1514,7 +1528,8 @@ export function FacultyDashboard({ section = 'dashboard' }) {
                          subject: extendingHw.subject,
                          title: extendingHw.title,
                          description: extendingHw.description,
-                         dueDate: extendingHw.dueDate
+                         dueDate: extendingHw.dueDate,
+                         submissionDeadline: extendingHw.submissionDeadline || null
                       });
                     }} className="space-y-4">
                       <div>
@@ -1526,6 +1541,17 @@ export function FacultyDashboard({ section = 'dashboard' }) {
                           type="date" 
                           value={new Date(extendingHw.dueDate).toISOString().split('T')[0]} 
                           onChange={e => setExtendingHw({...extendingHw, dueDate: e.target.value})} 
+                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold outline-none focus:ring-2 focus:ring-amber-500" 
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor="extendHw-subDeadline" className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">New PDF Upload Deadline</label>
+                        <input 
+                          id="extendHw-subDeadline"
+                          name="submissionDeadline"
+                          type="date" 
+                          value={extendingHw.submissionDeadline ? new Date(extendingHw.submissionDeadline).toISOString().split('T')[0] : ''} 
+                          onChange={e => setExtendingHw({...extendingHw, submissionDeadline: e.target.value})} 
                           className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold outline-none focus:ring-2 focus:ring-amber-500" 
                         />
                       </div>
@@ -1577,6 +1603,13 @@ export function FacultyDashboard({ section = 'dashboard' }) {
                 <div>
                   <label htmlFor="hwForm-dueDate" className="block text-sm font-semibold text-slate-700 mb-1.5">Due Date</label>
                   <input id="hwForm-dueDate" name="hwForm-dueDate" type="date" required value={hwForm.dueDate} onChange={e => setHwForm({...hwForm, dueDate: e.target.value})} className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+                <div>
+                  <label htmlFor="hwForm-submissionDeadline" className="block text-sm font-semibold text-slate-700 mb-1.5">
+                    Submission Deadline <span className="text-xs text-slate-400 font-normal">(for PDF upload)</span>
+                  </label>
+                  <input id="hwForm-submissionDeadline" name="hwForm-submissionDeadline" type="date" value={hwForm.submissionDeadline} onChange={e => setHwForm({...hwForm, submissionDeadline: e.target.value})} className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500" />
+                  <p className="mt-1 text-xs text-slate-400">Parents cannot upload after this date. PDF auto-deleted 7 days after upload.</p>
                 </div>
                 <button type="submit" className="flex w-full items-center justify-center rounded-xl bg-amber-500 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-amber-600">
                   Publish & Notify Parents
@@ -1744,350 +1777,592 @@ export function FacultyDashboard({ section = 'dashboard' }) {
         {activeSection === 'memories' && <MemoriesSection role="faculty" />}
       </div>
 
-      {/* ══════ MY TASKS & PERFORMANCE SECTION ══════ */}
-      {activeSection === 'mytasks' && (
-        <MyTasksSection token={localStorage.getItem('schoolToken')} />
-      )}
+      {/* ══════ MY TASKS & PERFORMANCE SECTION ══════ */ }
+  {
+    activeSection === 'mytasks' && (
+      <MyTasksSection token={localStorage.getItem('schoolToken')} />
+    )
+  }
 
-      {editingStudentProfile && (
-        <div className="fixed inset-0 z-[55] flex items-start justify-center overflow-y-auto bg-slate-900/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="absolute inset-0" onClick={closeStudentProfileEditor} />
-          <div className="relative z-10 mx-auto my-3 w-full max-w-5xl overflow-y-auto rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-2xl max-h-[calc(100vh-1.5rem)] sm:my-8 sm:max-h-[90vh] sm:p-8">
-            <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h3 className="text-2xl font-display font-bold text-slate-900">Edit Student Profile</h3>
-                <p className="text-sm text-slate-500 mt-1">{editingStudentProfile.name} ({editingStudentProfile.srvNumber})</p>
-              </div>
-              <button
-                type="button"
-                onClick={closeStudentProfileEditor}
-                className="self-start rounded-xl px-3 py-2 text-sm font-bold text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 sm:self-auto"
-              >
-                Close
-              </button>
+  {
+    editingStudentProfile && (
+      <div className="fixed inset-0 z-[55] flex items-start justify-center overflow-y-auto bg-slate-900/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+        <div className="absolute inset-0" onClick={closeStudentProfileEditor} />
+        <div className="relative z-10 mx-auto my-3 w-full max-w-5xl overflow-y-auto rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-2xl max-h-[calc(100vh-1.5rem)] sm:my-8 sm:max-h-[90vh] sm:p-8">
+          <div className="mb-5 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h3 className="text-2xl font-display font-bold text-slate-900">Edit Student Profile</h3>
+              <p className="text-sm text-slate-500 mt-1">{editingStudentProfile.name} ({editingStudentProfile.srvNumber})</p>
             </div>
+            <button
+              type="button"
+              onClick={closeStudentProfileEditor}
+              className="self-start rounded-xl px-3 py-2 text-sm font-bold text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 sm:self-auto"
+            >
+              Close
+            </button>
+          </div>
 
-            {profileMsg.text && (
-              <div className={`mb-4 rounded-xl px-4 py-3 text-sm font-semibold ${profileMsg.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                {profileMsg.text}
-              </div>
-            )}
+          {profileMsg.text && (
+            <div className={`mb-4 rounded-xl px-4 py-3 text-sm font-semibold ${profileMsg.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+              {profileMsg.text}
+            </div>
+          )}
 
-            <form onSubmit={saveStudentProfile} className="space-y-5">
-              <div className="grid gap-4 md:grid-cols-3">
-                <input
-                  type="text"
-                  value={studentProfileForm.name}
-                  onChange={e => setStudentProfileForm({ ...studentProfileForm, name: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Student name"
-                />
-                <select
-                  value={studentProfileForm.grade}
-                  onChange={e => setStudentProfileForm({ ...studentProfileForm, grade: e.target.value, group: '' })}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select Grade</option>
-                  {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
-                <select
-                  value={studentProfileForm.section}
-                  onChange={e => setStudentProfileForm({ ...studentProfileForm, section: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select Section</option>
-                  {['A', 'B', 'C'].map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-
-              {isSeniorGrade(studentProfileForm.grade) && (
-                <input
-                  type="text"
-                  value={studentProfileForm.group}
-                  onChange={e => setStudentProfileForm({ ...studentProfileForm, group: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Group"
-                />
-              )}
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <input
-                  type="text"
-                  value={studentProfileForm.motherName}
-                  onChange={e => setStudentProfileForm({ ...studentProfileForm, motherName: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Mother name"
-                />
-                <input
-                  type="text"
-                  value={studentProfileForm.fatherName}
-                  onChange={e => setStudentProfileForm({ ...studentProfileForm, fatherName: e.target.value })}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Father name"
-                />
-              </div>
-
+          <form onSubmit={saveStudentProfile} className="space-y-5">
+            <div className="grid gap-4 md:grid-cols-3">
               <input
                 type="text"
-                value={studentProfileForm.guardianName}
-                onChange={e => setStudentProfileForm({ ...studentProfileForm, guardianName: e.target.value })}
+                value={studentProfileForm.name}
+                onChange={e => setStudentProfileForm({ ...studentProfileForm, name: e.target.value })}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Guardian name if parent names are unavailable"
+                placeholder="Student name"
               />
+              <select
+                value={studentProfileForm.grade}
+                onChange={e => setStudentProfileForm({ ...studentProfileForm, grade: e.target.value, group: '' })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select Grade</option>
+                {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+              <select
+                value={studentProfileForm.section}
+                onChange={e => setStudentProfileForm({ ...studentProfileForm, section: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select Section</option>
+                {['A', 'B', 'C'].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </div>
 
+            {isSeniorGrade(studentProfileForm.grade) && (
               <input
                 type="text"
-                inputMode="numeric"
-                value={studentProfileForm.parentMobileNumber}
-                onChange={e => setStudentProfileForm({ ...studentProfileForm, parentMobileNumber: normalizeParentMobileInput(e.target.value) })}
+                value={studentProfileForm.group}
+                onChange={e => setStudentProfileForm({ ...studentProfileForm, group: e.target.value })}
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Parent mobile number"
+                placeholder="Group"
               />
+            )}
 
-              <p className="text-sm text-slate-500">Enter mother and father names together, or fill only the guardian field. Add the parent mobile here if it is still missing.</p>
-
-              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                <button type="submit" className="w-full rounded-xl bg-blue-600 px-6 py-3 font-bold text-white transition-colors hover:bg-blue-700 sm:w-auto">
-                  Save Profile
-                </button>
-                <button type="button" onClick={closeStudentProfileEditor} className="w-full rounded-xl bg-slate-100 px-6 py-3 font-bold text-slate-700 transition-colors hover:bg-slate-200 sm:w-auto">
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Attendance Modal */}
-      {showAttModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="relative mx-auto my-3 flex max-h-[calc(100vh-1.5rem)] w-full max-w-lg flex-col rounded-3xl bg-white p-5 shadow-2xl sm:my-8 sm:max-h-[90vh] sm:p-8">
-            <button onClick={() => setShowAttModal(false)} className="absolute right-5 top-5 z-10 font-bold text-slate-400 hover:text-slate-700 sm:right-6 sm:top-6">✕</button>
-            
-            <div className="mb-6 flex items-center justify-between shrink-0 pr-10">
-              <div>
-                <h3 className="text-2xl font-display font-bold text-slate-900">Daily Register</h3>
-                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{students.length} Students Total</p>
-              </div>
-              <button 
-                type="button" 
-                onClick={markAllPresent}
-                className="text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 px-3 py-2 rounded-xl hover:bg-emerald-200 transition-all active:scale-95 shadow-sm"
-              >
-                Mark All Present
-              </button>
+            <div className="grid gap-4 md:grid-cols-2">
+              <input
+                type="text"
+                value={studentProfileForm.motherName}
+                onChange={e => setStudentProfileForm({ ...studentProfileForm, motherName: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Mother name"
+              />
+              <input
+                type="text"
+                value={studentProfileForm.fatherName}
+                onChange={e => setStudentProfileForm({ ...studentProfileForm, fatherName: e.target.value })}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Father name"
+              />
             </div>
-            
-            {attMsg.text && (
-              <div className={`mb-4 px-4 py-3 shrink-0 rounded-xl text-sm font-semibold ${attMsg.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                {attMsg.text}
-              </div>
-            )}
 
-            <form onSubmit={submitAttendance} className="flex flex-col overflow-hidden">
-              <div className="shrink-0 mb-6">
-                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Date of Class</label>
-                <input type="date" required value={attDate} onChange={e => setAttDate(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500" />
-              </div>
+            <input
+              type="text"
+              value={studentProfileForm.guardianName}
+              onChange={e => setStudentProfileForm({ ...studentProfileForm, guardianName: e.target.value })}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Guardian name if parent names are unavailable"
+            />
 
-              <div className="space-y-2 overflow-y-auto pr-2 mb-6">
-                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Student Roster</label>
-                {students.map(s => (
-                  <div key={s._id} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-2xl transition-all hover:bg-white hover:shadow-sm">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-slate-800 text-sm">{s.name}</span>
-                      <span className="text-[10px] font-bold text-slate-400">{s.srvNumber}</span>
-                    </div>
-                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-                       <button 
-                         type="button"
-                         onClick={() => setAttRecords({...attRecords, [s._id]: 'Present'})}
-                         className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${attRecords[s._id] === 'Present' || !attRecords[s._id] ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' : 'text-slate-400 hover:bg-slate-50'}`}
-                       >
-                         P
-                       </button>
-                       <button 
-                         type="button"
-                         onClick={() => setAttRecords({...attRecords, [s._id]: 'Absent'})}
-                         className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${attRecords[s._id] === 'Absent' ? 'bg-red-500 text-white shadow-md shadow-red-500/20' : 'text-slate-400 hover:bg-slate-50'}`}
-                       >
-                         A
-                       </button>
-                       <button 
-                         type="button"
-                         onClick={() => setAttRecords({...attRecords, [s._id]: 'Half-Day'})}
-                         className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${attRecords[s._id] === 'Half-Day' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' : 'text-slate-400 hover:bg-slate-50'}`}
-                       >
-                         H
-                       </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={studentProfileForm.parentMobileNumber}
+              onChange={e => setStudentProfileForm({ ...studentProfileForm, parentMobileNumber: normalizeParentMobileInput(e.target.value) })}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Parent mobile number"
+            />
 
-              <button type="submit" className="w-full py-3.5 mt-auto shrink-0 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg">
-                Save Register
+            <p className="text-sm text-slate-500">Enter mother and father names together, or fill only the guardian field. Add the parent mobile here if it is still missing.</p>
+
+            <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <button type="submit" className="w-full rounded-xl bg-blue-600 px-6 py-3 font-bold text-white transition-colors hover:bg-blue-700 sm:w-auto">
+                Save Profile
               </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Behavior Modal */}
-      {showBhvModal && (
-        <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-900/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="relative mx-auto my-3 flex max-h-[calc(100vh-1.5rem)] w-full max-w-2xl flex-col rounded-3xl bg-white p-5 shadow-2xl sm:my-8 sm:max-h-[90vh] sm:p-8">
-            <button onClick={() => setShowBhvModal(false)} className="absolute right-5 top-5 z-10 font-bold text-slate-400 hover:text-slate-700 sm:right-6 sm:top-6">✕</button>
-            <h3 className="mb-6 flex shrink-0 items-center gap-3 pr-10 text-2xl font-display font-bold text-slate-900"><AlertCircle className="text-amber-500" /> Daily Behavior Log</h3>
-            
-            {bhvMsg.text && (
-              <div className={`mb-4 px-4 py-3 shrink-0 rounded-xl text-sm font-semibold ${bhvMsg.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                {bhvMsg.text}
-              </div>
-            )}
-
-            <form onSubmit={submitBehavior} className="flex flex-col overflow-hidden">
-              <div className="shrink-0 mb-6">
-                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Date</label>
-                <input type="date" required value={bhvDate} onChange={e => setBhvDate(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500" />
-              </div>
-
-              <div className="space-y-3 overflow-y-auto pr-2 mb-6">
-                <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Student Behavior Roster</label>
-                {students.map(s => (
-                  <div key={s._id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center p-4 bg-slate-50 border border-slate-100 rounded-xl">
-                    <div className="flex flex-col w-full sm:w-1/3 shrink-0">
-                      <span className="font-bold text-slate-800 text-sm">{s.name}</span>
-                      <span className="text-xs font-mono text-slate-500">{s.srvNumber}</span>
-                    </div>
-                    
-                    <div className="flex-1 w-full flex items-center gap-3">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Score / 10</span>
-                        <input type="number" min="1" max="10" required
-                          value={bhvRecords[s._id]?.score || 10}
-                          onChange={e => setBhvRecords({...bhvRecords, [s._id]: { ...bhvRecords[s._id], score: Number(e.target.value) }})}
-                          className="w-16 px-2 py-1.5 text-center font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg outline-none"
-                        />
-                      </div>
-                      <div className="flex-1 flex flex-col">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Remarks (Optional)</span>
-                        <input type="text" placeholder="Great participation..."
-                          value={bhvRecords[s._id]?.remarks || ''}
-                          onChange={e => setBhvRecords({...bhvRecords, [s._id]: { ...bhvRecords[s._id], remarks: e.target.value }})}
-                          className="w-full px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-amber-400"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <button type="submit" className="w-full py-3.5 mt-auto shrink-0 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition-colors shadow-lg">
-                Publish Behavior Logs
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {selectedStudent && (
-        <div className="fixed inset-0 z-[58] flex items-start justify-center overflow-y-auto bg-slate-900/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
-          <div className="absolute inset-0" onClick={closeStudentEvaluation} />
-          <div className="relative z-10 mx-auto my-3 w-full max-w-6xl overflow-y-auto rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-2xl max-h-[calc(100vh-1.5rem)] sm:my-8 sm:max-h-[90vh] sm:p-8">
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="flex items-center gap-2 text-xl font-display font-bold text-slate-900">
-                Evaluating: <span className="text-emerald-600">{selectedStudent.name}</span>
-              </h3>
-              <button type="button" onClick={closeStudentEvaluation} className="self-start font-bold text-slate-400 hover:text-slate-600 sm:self-auto">
+              <button type="button" onClick={closeStudentProfileEditor} className="w-full rounded-xl bg-slate-100 px-6 py-3 font-bold text-slate-700 transition-colors hover:bg-slate-200 sm:w-auto">
                 Cancel
               </button>
             </div>
+          </form>
+        </div>
+      </div>
+    )
+  }
 
-            {gradeMsg.text && (
-              <div className={`mb-4 rounded-lg px-4 py-3 text-sm font-semibold ${gradeMsg.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
-                {gradeMsg.text}
+  {/* Attendance Modal */ }
+  {
+    showAttModal && (
+      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+        <div className="relative mx-auto my-3 flex max-h-[calc(100vh-1.5rem)] w-full max-w-lg flex-col rounded-3xl bg-white p-5 shadow-2xl sm:my-8 sm:max-h-[90vh] sm:p-8">
+          <button onClick={() => setShowAttModal(false)} className="absolute right-5 top-5 z-10 font-bold text-slate-400 hover:text-slate-700 sm:right-6 sm:top-6">✕</button>
+
+          <div className="mb-6 flex items-center justify-between shrink-0 pr-10">
+            <div>
+              <h3 className="text-2xl font-display font-bold text-slate-900">Daily Register</h3>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{students.length} Students Total</p>
+            </div>
+            <button
+              type="button"
+              onClick={markAllPresent}
+              className="text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 px-3 py-2 rounded-xl hover:bg-emerald-200 transition-all active:scale-95 shadow-sm"
+            >
+              Mark All Present
+            </button>
+          </div>
+
+
+          {attMsg.text && (
+            <div className={`mb-4 px-4 py-3 shrink-0 rounded-xl text-sm font-semibold ${attMsg.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+              {attMsg.text}
+            </div>
+          )}
+
+          <form onSubmit={submitAttendance} className="flex flex-col overflow-hidden">
+            <div className="shrink-0 mb-6">
+              <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Date of Class</label>
+              <input type="date" required value={attDate} onChange={e => setAttDate(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500" />
+            </div>
+
+            <div className="space-y-2 overflow-y-auto pr-2 mb-6">
+              <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Student Roster</label>
+              {students.map(s => (
+                <div key={s._id} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-2xl transition-all hover:bg-white hover:shadow-sm">
+                  <div className="flex flex-col">
+                    <span className="font-bold text-slate-800 text-sm">{s.name}</span>
+                    <span className="text-[10px] font-bold text-slate-400">{s.srvNumber}</span>
+                  </div>
+                  <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                    <button
+                      type="button"
+                      onClick={() => setAttRecords({ ...attRecords, [s._id]: 'Present' })}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${attRecords[s._id] === 'Present' || !attRecords[s._id] ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' : 'text-slate-400 hover:bg-slate-50'}`}
+                    >
+                      P
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAttRecords({ ...attRecords, [s._id]: 'Absent' })}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${attRecords[s._id] === 'Absent' ? 'bg-red-500 text-white shadow-md shadow-red-500/20' : 'text-slate-400 hover:bg-slate-50'}`}
+                    >
+                      A
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAttRecords({ ...attRecords, [s._id]: 'Half-Day' })}
+                      className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${attRecords[s._id] === 'Half-Day' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' : 'text-slate-400 hover:bg-slate-50'}`}
+                    >
+                      H
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button type="submit" className="w-full py-3.5 mt-auto shrink-0 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors shadow-lg">
+              Save Register
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  {/* Behavior Modal */ }
+  {
+    showBhvModal && (
+      <div className="fixed inset-0 z-[60] flex items-start justify-center overflow-y-auto bg-slate-900/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+        <div className="relative mx-auto my-3 flex max-h-[calc(100vh-1.5rem)] w-full max-w-2xl flex-col rounded-3xl bg-white p-5 shadow-2xl sm:my-8 sm:max-h-[90vh] sm:p-8">
+          <button onClick={() => setShowBhvModal(false)} className="absolute right-5 top-5 z-10 font-bold text-slate-400 hover:text-slate-700 sm:right-6 sm:top-6">✕</button>
+          <h3 className="mb-6 flex shrink-0 items-center gap-3 pr-10 text-2xl font-display font-bold text-slate-900"><AlertCircle className="text-amber-500" /> Daily Behavior Log</h3>
+
+          {bhvMsg.text && (
+            <div className={`mb-4 px-4 py-3 shrink-0 rounded-xl text-sm font-semibold ${bhvMsg.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+              {bhvMsg.text}
+            </div>
+          )}
+
+          <form onSubmit={submitBehavior} className="flex flex-col overflow-hidden">
+            <div className="shrink-0 mb-6">
+              <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Date</label>
+              <input type="date" required value={bhvDate} onChange={e => setBhvDate(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500" />
+            </div>
+
+            <div className="space-y-3 overflow-y-auto pr-2 mb-6">
+              <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Student Behavior Roster</label>
+              {students.map(s => (
+                <div key={s._id} className="flex flex-col sm:flex-row gap-3 items-start sm:items-center p-4 bg-slate-50 border border-slate-100 rounded-xl">
+                  <div className="flex flex-col w-full sm:w-1/3 shrink-0">
+                    <span className="font-bold text-slate-800 text-sm">{s.name}</span>
+                    <span className="text-xs font-mono text-slate-500">{s.srvNumber}</span>
+                  </div>
+
+                  <div className="flex-1 w-full flex items-center gap-3">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Score / 10</span>
+                      <input type="number" min="1" max="10" required
+                        value={bhvRecords[s._id]?.score || 10}
+                        onChange={e => setBhvRecords({ ...bhvRecords, [s._id]: { ...bhvRecords[s._id], score: Number(e.target.value) } })}
+                        className="w-16 px-2 py-1.5 text-center font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg outline-none"
+                      />
+                    </div>
+                    <div className="flex-1 flex flex-col">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Remarks (Optional)</span>
+                      <input type="text" placeholder="Great participation..."
+                        value={bhvRecords[s._id]?.remarks || ''}
+                        onChange={e => setBhvRecords({ ...bhvRecords, [s._id]: { ...bhvRecords[s._id], remarks: e.target.value } })}
+                        className="w-full px-3 py-1.5 text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-amber-400"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button type="submit" className="w-full py-3.5 mt-auto shrink-0 bg-amber-500 text-white font-bold rounded-xl hover:bg-amber-600 transition-colors shadow-lg">
+              Publish Behavior Logs
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  {
+    selectedStudent && (
+      <div className="fixed inset-0 z-[58] flex items-start justify-center overflow-y-auto bg-slate-900/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+        <div className="absolute inset-0" onClick={closeStudentEvaluation} />
+        <div className="relative z-10 mx-auto my-3 w-full max-w-6xl overflow-y-auto rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-2xl max-h-[calc(100vh-1.5rem)] sm:my-8 sm:max-h-[90vh] sm:p-8">
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h3 className="flex items-center gap-2 text-xl font-display font-bold text-slate-900">
+              Evaluating: <span className="text-emerald-600">{selectedStudent.name}</span>
+            </h3>
+            <button type="button" onClick={closeStudentEvaluation} className="self-start font-bold text-slate-400 hover:text-slate-600 sm:self-auto">
+              Cancel
+            </button>
+          </div>
+
+          {gradeMsg.text && (
+            <div className={`mb-4 rounded-lg px-4 py-3 text-sm font-semibold ${gradeMsg.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+              {gradeMsg.text}
+            </div>
+          )}
+
+          <form onSubmit={submitGrades} className="space-y-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <label htmlFor="gradeForm-term" className="block text-xs font-bold text-slate-500 mb-1">Term</label>
+                <select id="gradeForm-term" name="term" value={gradeForm.term} onChange={e => setGradeForm({ ...gradeForm, term: e.target.value })} className="w-full px-4 py-2 border rounded-xl">
+                  <option>Term 1</option>
+                  <option>Mid-Terms</option>
+                  <option>Term 2</option>
+                  <option>Finals</option>
+                </select>
+              </div>
+              <div>
+                <label htmlFor="gradeForm-behaviour" className="block text-xs font-bold text-slate-500 mb-1">Behaviour</label>
+                <select id="gradeForm-behaviour" name="behaviour" value={gradeForm.behaviour} onChange={e => setGradeForm({ ...gradeForm, behaviour: e.target.value })} className="w-full px-4 py-2 border rounded-xl">
+                  <option>Excellent</option>
+                  <option>Good</option>
+                  <option>Needs Improvement</option>
+                  <option>Poor</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-slate-700 border-b pb-2 mb-3">Student EC Skills (0-5)</h4>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {Object.keys(gradeForm.ecSkills).map(skillName => (
+                  <div key={skillName}>
+                    <label htmlFor={`ecSkill-${skillName}`} className="block text-xs font-bold text-slate-500 mb-1 capitalize">
+                      {skillName === 'cdc' ? 'CDC' : skillName === 'suits' ? 'SUITS' : 'SRV Skill Development'}
+                    </label>
+                    <input
+                      id={`ecSkill-${skillName}`}
+                      name={`ecSkill-${skillName}`}
+                      type="number"
+                      min="0"
+                      max="5"
+                      required
+                      value={gradeForm.ecSkills[skillName]}
+                      onChange={e => setGradeForm({ ...gradeForm, ecSkills: { ...gradeForm.ecSkills, [skillName]: Number(e.target.value) } })}
+                      className="w-full px-3 py-2 border rounded-xl bg-amber-50"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <h4 className="font-bold text-slate-700 border-b pb-2 mb-3">Academic Marks (Out of 100)</h4>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+                {Object.keys(gradeForm.marks).map(subject => (
+                  <div key={subject}>
+                    <label htmlFor={`marks-${subject}`} className="block text-xs font-bold text-slate-500 mb-1 capitalize">{subject}</label>
+                    <input
+                      id={`marks-${subject}`}
+                      name={`marks-${subject}`}
+                      type="number"
+                      min="0"
+                      max="100"
+                      required
+                      value={gradeForm.marks[subject]}
+                      onChange={e => setGradeForm({ ...gradeForm, marks: { ...gradeForm.marks, [subject]: Number(e.target.value) } })}
+                      className="w-full px-3 py-2 border rounded-xl bg-slate-50"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <button type="submit" className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors">
+              Save Evaluation & Notify Parents
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
+  {/* ══════════════════════════════════════════
+          SUBMISSIONS PANEL MODAL
+      ══════════════════════════════════════════ */}
+  {
+    viewingSubmissions && (
+      <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto">
+        <div className="w-full max-w-3xl mt-8 mb-8 rounded-3xl bg-white shadow-2xl">
+          {/* Header */}
+          <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Homework Submissions</p>
+              <h2 className="text-xl font-display font-bold text-slate-900 mt-0.5">
+                {viewingSubmissions.homework?.title}
+              </h2>
+              <p className="text-sm text-slate-500 mt-0.5">
+                {viewingSubmissions.homework?.subject}
+                {viewingSubmissions.homework?.dueDate && (
+                  <> &bull; Due: {new Date(viewingSubmissions.homework.dueDate).toLocaleDateString('en-IN')}</>
+                )}
+                {viewingSubmissions.homework?.submissionDeadline && (
+                  <> &bull; <span className="text-amber-600 font-semibold">Upload deadline: {new Date(viewingSubmissions.homework.submissionDeadline).toLocaleDateString('en-IN')}</span></>
+                )}
+              </p>
+            </div>
+            <button
+              onClick={() => setViewingSubmissions(null)}
+              className="ml-4 shrink-0 rounded-xl bg-slate-100 p-2 hover:bg-slate-200 transition"
+            >
+              <X size={20} className="text-slate-600" />
+            </button>
+          </div>
+
+          {loadingSubmissions ? (
+            <div className="py-20 text-center">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-r-transparent" />
+              <p className="mt-3 text-sm font-semibold text-slate-400">Loading submissions...</p>
+            </div>
+          ) : (
+            <>
+              {/* Stats Bar */}
+              {viewingSubmissions.students.length > 0 && (() => {
+                const total = viewingSubmissions.students.length;
+                const submitted = viewingSubmissions.students.filter(e => e.submission?.status === 'submitted' || e.submission?.status === 'graded').length;
+                const graded = viewingSubmissions.students.filter(e => e.submission?.status === 'graded').length;
+                const pending = total - submitted;
+                return (
+                  <div className="grid grid-cols-4 divide-x divide-slate-100 border-b border-slate-100 bg-slate-50">
+                    {[
+                      { label: 'Total', value: total, color: 'text-slate-900' },
+                      { label: 'Submitted', value: submitted, color: 'text-emerald-600' },
+                      { label: 'Pending', value: pending, color: 'text-amber-600' },
+                      { label: 'Graded', value: graded, color: 'text-blue-600' },
+                    ].map(s => (
+                      <div key={s.label} className="py-4 text-center">
+                        <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mt-0.5">{s.label}</p>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Student Rows */}
+              <div className="divide-y divide-slate-50 max-h-[60vh] overflow-y-auto">
+                {viewingSubmissions.students.map(({ student, submission }) => {
+                  const hasFile = submission?.hasPdf;
+                  const isGraded = submission?.status === 'graded';
+                  const isSubmitted = submission?.status === 'submitted';
+                  return (
+                    <div key={student._id} className="flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors">
+                      {/* Avatar */}
+                      <div className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 font-black text-white text-sm shadow-sm">
+                        {student.name?.charAt(0)?.toUpperCase()}
+                      </div>
+
+                      {/* Info */}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-bold text-slate-900 text-sm truncate">{student.name}</p>
+                        <p className="text-xs text-slate-400">{student.srvNumber}</p>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          {isGraded ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700">
+                              <Star size={10} /> Score: {submission.score}/100
+                            </span>
+                          ) : isSubmitted ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700">
+                              📄 Awaiting grade
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                              ⏳ Not submitted
+                            </span>
+                          )}
+                          {hasFile && submission?.expiresAt && (
+                            <span className="text-[10px] text-slate-400">
+                              PDF expires {new Date(submission.expiresAt).toLocaleDateString('en-IN')}
+                            </span>
+                          )}
+                          {submission?.remarks && (
+                            <span className="text-xs text-slate-500 italic truncate max-w-[200px]">"{submission.remarks}"</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-2 shrink-0">
+                        {hasFile && (
+                          <button
+                            onClick={() => viewPdf(submission._id)}
+                            className="flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-700 hover:bg-slate-200 transition"
+                          >
+                            <FileText size={13} /> PDF
+                          </button>
+                        )}
+                        <button
+                          onClick={() => openGradeModal(viewingSubmissions.homework._id, student, submission)}
+                          className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition ${isGraded
+                              ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                              : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                            }`}
+                        >
+                          <Star size={13} /> {isGraded ? 'Edit Grade' : 'Grade'}
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {viewingSubmissions.students.length === 0 && (
+                  <div className="py-20 text-center">
+                    <Users size={40} className="mx-auto text-slate-200" />
+                    <p className="mt-3 text-sm font-bold text-slate-400">No students found for this class</p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  {/* ══════════════════════════════════════════
+          GRADING MODAL
+      ══════════════════════════════════════════ */}
+  {
+    gradingEntry && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full bg-gradient-to-br from-amber-400 to-orange-500 shadow">
+              <Star size={18} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-display font-bold text-slate-900 leading-tight">Grade Homework</h3>
+              <p className="text-sm text-slate-500">
+                {gradingEntry.student.name}
+                <span className="text-slate-400"> &bull; {gradingEntry.student.srvNumber}</span>
+              </p>
+            </div>
+          </div>
+
+          {gradingEntry.submission?.hasPdf && (
+            <button
+              onClick={() => viewPdf(gradingEntry.submission._id)}
+              className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-slate-100 px-4 py-2.5 text-sm font-bold text-slate-700 hover:bg-slate-200 transition"
+            >
+              <FileText size={16} className="text-emerald-600" /> View Submitted PDF
+            </button>
+          )}
+
+          {!gradingEntry.submission?.hasPdf && (
+            <div className="mt-4 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
+              <p className="text-xs font-bold text-amber-700">📝 Manual Grade — no PDF uploaded</p>
+              <p className="text-xs text-amber-600 mt-0.5">Student submitted offline. You can still record a score below.</p>
+            </div>
+          )}
+
+          <div className="mt-4 space-y-3">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                Score <span className="font-normal text-slate-400">(out of 100)</span>
+              </label>
+              <input
+                type="number" min={0} max={100}
+                value={gradeInput.score}
+                onChange={e => setGradeInput(g => ({ ...g, score: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-lg font-black text-slate-900 outline-none focus:ring-2 focus:ring-emerald-500"
+                placeholder="e.g. 85"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
+                Remarks <span className="font-normal text-slate-400">(optional)</span>
+              </label>
+              <textarea
+                rows={2}
+                value={gradeInput.remarks}
+                onChange={e => setGradeInput(g => ({ ...g, remarks: e.target.value }))}
+                className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-emerald-500 resize-none"
+                placeholder="Well done! / Needs improvement..."
+              />
+            </div>
+            {gradingMsg.text && (
+              <div className={`rounded-xl px-4 py-2.5 text-xs font-bold ${gradingMsg.type === 'error'
+                  ? 'bg-red-50 text-red-600 border border-red-100'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-100'
+                }`}>
+                {gradingMsg.text}
               </div>
             )}
+          </div>
 
-            <form onSubmit={submitGrades} className="space-y-6">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label htmlFor="gradeForm-term" className="block text-xs font-bold text-slate-500 mb-1">Term</label>
-                  <select id="gradeForm-term" name="term" value={gradeForm.term} onChange={e => setGradeForm({...gradeForm, term: e.target.value})} className="w-full px-4 py-2 border rounded-xl">
-                    <option>Term 1</option>
-                    <option>Mid-Terms</option>
-                    <option>Term 2</option>
-                    <option>Finals</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="gradeForm-behaviour" className="block text-xs font-bold text-slate-500 mb-1">Behaviour</label>
-                  <select id="gradeForm-behaviour" name="behaviour" value={gradeForm.behaviour} onChange={e => setGradeForm({...gradeForm, behaviour: e.target.value})} className="w-full px-4 py-2 border rounded-xl">
-                    <option>Excellent</option>
-                    <option>Good</option>
-                    <option>Needs Improvement</option>
-                    <option>Poor</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-slate-700 border-b pb-2 mb-3">Student EC Skills (0-5)</h4>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  {Object.keys(gradeForm.ecSkills).map(skillName => (
-                    <div key={skillName}>
-                      <label htmlFor={`ecSkill-${skillName}`} className="block text-xs font-bold text-slate-500 mb-1 capitalize">
-                        {skillName === 'cdc' ? 'CDC' : skillName === 'suits' ? 'SUITS' : 'SRV Skill Development'}
-                      </label>
-                      <input
-                        id={`ecSkill-${skillName}`}
-                        name={`ecSkill-${skillName}`}
-                        type="number"
-                        min="0"
-                        max="5"
-                        required
-                        value={gradeForm.ecSkills[skillName]}
-                        onChange={e => setGradeForm({...gradeForm, ecSkills: {...gradeForm.ecSkills, [skillName]: Number(e.target.value)}})}
-                        className="w-full px-3 py-2 border rounded-xl bg-amber-50"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-bold text-slate-700 border-b pb-2 mb-3">Academic Marks (Out of 100)</h4>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
-                  {Object.keys(gradeForm.marks).map(subject => (
-                    <div key={subject}>
-                      <label htmlFor={`marks-${subject}`} className="block text-xs font-bold text-slate-500 mb-1 capitalize">{subject}</label>
-                      <input
-                        id={`marks-${subject}`}
-                        name={`marks-${subject}`}
-                        type="number"
-                        min="0"
-                        max="100"
-                        required
-                        value={gradeForm.marks[subject]}
-                        onChange={e => setGradeForm({...gradeForm, marks: {...gradeForm.marks, [subject]: Number(e.target.value)}})}
-                        className="w-full px-3 py-2 border rounded-xl bg-slate-50"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <button type="submit" className="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-700 transition-colors">
-                Save Evaluation & Notify Parents
-              </button>
-            </form>
+          <div className="mt-5 flex gap-3">
+            <button
+              onClick={submitGrade}
+              className="flex-1 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 py-3 text-sm font-black text-white hover:opacity-90 active:scale-95 transition shadow-lg shadow-emerald-500/20"
+            >
+              Save Grade
+            </button>
+            <button
+              onClick={() => setGradingEntry(null)}
+              className="rounded-xl bg-slate-100 px-5 py-3 text-sm font-bold text-slate-700 hover:bg-slate-200 active:scale-95 transition"
+            >
+              Cancel
+            </button>
           </div>
         </div>
-      )}
+      </div>
+    )
+  }
 
-    </div>
+    </div >
   );
 }
-

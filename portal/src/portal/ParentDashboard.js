@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { LogOut, Bell, Download, FileText, Calendar as CalIcon, TrendingUp, Sparkles, CheckCircle2, Coffee, CreditCard, AlertCircle, Clock, CheckCheck, BookOpen, ChevronLeft, ChevronRight, History, ArrowRight, Archive, X, BookMarked, AlertCircleIcon, Home, Zap, MessageSquareMore, Image as ImageIcon } from 'lucide-react';
+import { LogOut, Bell, Download, FileText, Calendar as CalIcon, TrendingUp, Sparkles, CheckCircle2, Coffee, CreditCard, AlertCircle, Clock, CheckCheck, BookOpen, ChevronLeft, ChevronRight, History, ArrowRight, Archive, X, BookMarked, AlertCircleIcon, Home, Zap, MessageSquareMore, Image as ImageIcon, Star } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
@@ -92,6 +92,10 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
   const [historySubject, setHistorySubject] = useState(null);
   const [historyData, setHistoryData] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [submissions, setSubmissions] = useState({});
+  const [uploadingHwId, setUploadingHwId] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState({});
+
   
   const navigate = useNavigate();
   const { subject: subjectParam } = useParams();
@@ -323,11 +327,102 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
         headers: { Authorization: `Bearer ${token}` }
       });
       setHistoryData(res.data);
+      
+      // Fetch submission status for each homework item
+      const hwIds = res.data.map(hw => hw._id);
+      const subs = {};
+      await Promise.all(hwIds.map(async (id) => {
+        try {
+          const subRes = await axios.get(`${API_URL}/api/parent/homework/${id}/submission`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          subs[id] = subRes.data;
+        } catch (e) {
+          console.error(`Failed to fetch submission for ${id}`);
+        }
+      }));
+      setSubmissions(subs);
     } catch (err) {
       console.error('Error fetching subject history:', err);
       setHistoryData([]);
+      setSubmissions({});
     } finally {
       setHistoryLoading(false);
+    }
+  };
+
+  const handleUploadHomework = async (homeworkId, file) => {
+    if (!file) return;
+    
+    // Check if it's a PDF
+    if (file.type !== 'application/pdf') {
+      Swal.fire('Invalid File', 'Please upload a PDF file.', 'error');
+      return;
+    }
+    
+    // Check size (max 15MB)
+    if (file.size > 15 * 1024 * 1024) {
+      Swal.fire('File too large', 'Maximum allowed size is 15MB.', 'error');
+      return;
+    }
+
+    setUploadingHwId(homeworkId);
+    setUploadProgress(prev => ({ ...prev, [homeworkId]: 0 }));
+    
+    try {
+      const token = localStorage.getItem('schoolToken');
+      
+      // We must send raw binary
+      const arrayBuffer = await file.arrayBuffer();
+      
+      await axios.post(
+        `${API_URL}/api/parent/homework/${homeworkId}/submit`,
+        arrayBuffer,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/pdf',
+            'x-filename': file.name
+          },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadProgress(prev => ({ ...prev, [homeworkId]: percentCompleted }));
+          }
+        }
+      );
+      
+      Swal.fire('Success', 'Homework uploaded successfully.', 'success');
+      
+      // Refresh the specific submission status
+      const subRes = await axios.get(`${API_URL}/api/parent/homework/${homeworkId}/submission`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setSubmissions(prev => ({ ...prev, [homeworkId]: subRes.data }));
+    } catch (err) {
+      console.error('Upload error', err);
+      Swal.fire('Upload Failed', err.response?.data?.message || 'Failed to upload homework.', 'error');
+    } finally {
+      setUploadingHwId(null);
+      setUploadProgress(prev => {
+        const newProg = { ...prev };
+        delete newProg[homeworkId];
+        return newProg;
+      });
+    }
+  };
+
+  const viewPdf = async (submissionId) => {
+    try {
+      const token = localStorage.getItem('schoolToken');
+      const res = await axios.get(`${API_URL}/api/parent/homework/submissions/${submissionId}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` },
+        responseType: 'blob'
+      });
+      const fileURL = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+      window.open(fileURL, '_blank');
+    } catch (err) {
+      console.error('Error opening PDF:', err);
+      Swal.fire('Error', 'Failed to load PDF or the 7-day viewing window has expired.', 'error');
     }
   };
 
@@ -1410,19 +1505,100 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
                       </div>
                     ) : historyData.length > 0 ? (
                       <div className="space-y-3">
-                        {historyData.map(item => (
+                        {historyData.map(item => {
+                          const sub = submissions[item._id];
+                          const isPastDeadline = item.submissionDeadline ? new Date(item.submissionDeadline).setHours(0,0,0,0) < new Date().setHours(0,0,0,0) : false;
+                          const isUploading = uploadingHwId === item._id;
+                          const progress = uploadProgress[item._id] || 0;
+                          
+                          return (
                           <div key={item._id} className="rounded-2xl border border-white bg-white px-4 py-4 shadow-sm">
-                            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                              <div>
+                            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                              <div className="flex-1">
                                 <h4 className="text-base font-display font-bold text-slate-900">{item.title}</h4>
                                 <p className="mt-1 text-sm leading-6 text-slate-600">{item.description}</p>
+                                
+                                {item.submissionDeadline && (
+                                  <p className="mt-2 text-xs font-semibold text-amber-600">
+                                    Upload Deadline: {new Date(item.submissionDeadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                                  </p>
+                                )}
+
+                                {/* Submission UI */}
+                                <div className="mt-4 flex flex-wrap items-center gap-3">
+                                  {sub?.status === 'graded' ? (
+                                    <div className="flex items-center gap-2 rounded-xl bg-blue-50 px-3 py-2 border border-blue-100">
+                                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-700">
+                                        <Star size={12} />
+                                      </span>
+                                      <div>
+                                        <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Graded</p>
+                                        <p className="text-sm font-black text-blue-900">{sub.score}/100</p>
+                                      </div>
+                                    </div>
+                                  ) : sub?.status === 'submitted' ? (
+                                    <span className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
+                                      <CheckCircle2 size={14} /> Submitted for grading
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1.5 rounded-xl bg-slate-50 border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-500">
+                                      <Clock size={14} /> Pending submission
+                                    </span>
+                                  )}
+
+                                  {sub?.hasPdf && (
+                                    <button
+                                      onClick={() => viewPdf(sub._id)}
+                                      className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200 transition"
+                                    >
+                                      <FileText size={14} /> View My PDF
+                                    </button>
+                                  )}
+
+                                  {/* Upload Button */}
+                                  {(!sub || (!sub.hasPdf && sub.status !== 'graded')) && !isPastDeadline && (
+                                    <div className="relative">
+                                      <input 
+                                        type="file" 
+                                        accept="application/pdf"
+                                        disabled={isUploading}
+                                        onChange={(e) => handleUploadHomework(item._id, e.target.files[0])}
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer disabled:cursor-not-allowed"
+                                      />
+                                      <button 
+                                        disabled={isUploading}
+                                        className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-blue-700 transition disabled:opacity-70 disabled:cursor-not-allowed"
+                                      >
+                                        {isUploading ? (
+                                          `Uploading... ${progress}%`
+                                        ) : (
+                                          <><FileText size={14} /> Upload PDF</>
+                                        )}
+                                      </button>
+                                    </div>
+                                  )}
+
+                                  {isPastDeadline && (!sub || (!sub.hasPdf && sub.status !== 'graded')) && (
+                                    <span className="text-xs font-bold text-red-500">Deadline Passed</span>
+                                  )}
+                                  
+                                  {sub?.remarks && (
+                                    <div className="w-full mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs italic text-slate-600 border border-slate-100">
+                                      "{sub.remarks}"
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              <div className="shrink-0 rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
-                                Due {new Date(item.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+
+                              <div className="shrink-0">
+                                <div className="rounded-full bg-blue-100 px-3 py-1 text-xs font-bold text-blue-700">
+                                  Due {new Date(item.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                                </div>
                               </div>
                             </div>
                           </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     ) : (
                       <div className="rounded-2xl border border-dashed border-blue-200 bg-white px-4 py-8 text-center text-sm font-semibold text-slate-500">

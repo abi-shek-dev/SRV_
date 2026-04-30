@@ -5,6 +5,7 @@ const row2hw = (r) => !r ? null : {
   facultyId: r.faculty_id, grade: r.grade, section: r.section,
   subject: r.subject, title: r.title, description: r.description,
   dueDate: r.due_date, assignedDate: r.assigned_date,
+  submissionDeadline: r.submission_deadline,
   archived: Boolean(r.archived),
   createdAt: r.created_at, updatedAt: r.updated_at
 };
@@ -48,7 +49,7 @@ export async function findOneAndUpdate(where, update, opts = {}) {
   const id = rows[0].id;
   const setData = update['$set'] || update;
   const updColMap = { subject: 'subject', title: 'title', description: 'description',
-                      dueDate: 'due_date', archived: 'archived' };
+                      dueDate: 'due_date', archived: 'archived', submissionDeadline: 'submission_deadline' };
   const fields = {};
   for (const [k, v] of Object.entries(setData)) { fields[updColMap[k] || k] = v; }
   if (Object.keys(fields).length) {
@@ -59,12 +60,12 @@ export async function findOneAndUpdate(where, update, opts = {}) {
 }
 
 export async function create(data) {
-  const { facultyId, grade, section, subject, title, description, dueDate, assignedDate, archived = false } = data;
+  const { facultyId, grade, section, subject, title, description, dueDate, assignedDate, archived = false, submissionDeadline } = data;
   const [result] = await pool.query(
-    `INSERT INTO homework (faculty_id, grade, section, subject, title, description, due_date, assigned_date, archived)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO homework (faculty_id, grade, section, subject, title, description, due_date, assigned_date, archived, submission_deadline)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [facultyId, grade, section, subject, title, description, dueDate,
-     assignedDate || new Date(), archived ? 1 : 0]
+     assignedDate || new Date(), archived ? 1 : 0, submissionDeadline || null]
   );
   return findById(result.insertId);
 }

@@ -15,6 +15,7 @@ import Feedback from '../models/Feedback.js';
 import Event from '../models/Event.js';
 import EventRegistration from '../models/EventRegistration.js';
 import Memory from '../models/Memory.js';
+import HomeworkSubmission from '../models/HomeworkSubmission.js';
 import { protect } from '../middleware/auth.js';
 import { archiveOldHomework } from '../utils/archiveHomework.js';
 import { buildHomeworkClassFilter } from '../utils/homeworkMatching.js';
@@ -187,6 +188,112 @@ router.get('/homework/history/:subject', protect, parentOnly, async (req, res) =
     res.status(500).json({ message: 'Server error fetching homework history' });
   }
 });
+
+// @route   POST /api/parent/homework/:homeworkId/submit
+// @desc    Parent uploads a PDF submission for their child's homework
+// @access  Private (Parent only)
+router.post('/homework/:homeworkId/submit', protect, parentOnly, async (req, res) => {
+  try {
+    const parentUser = await User.findById(req.user.id);
+    if (!parentUser.studentId) return res.status(404).json({ message: 'No student linked' });
+
+    const student = await Student.findById(parentUser.studentId);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    const hw = await Homework.findById(req.params.homeworkId);
+    if (!hw) return res.status(404).json({ message: 'Homework not found' });
+
+    // Check submission deadline
+    if (hw.submissionDeadline) {
+      const deadlineDate = new Date(hw.submissionDeadline);
+      deadlineDate.setHours(23, 59, 59, 999);
+      if (deadlineDate < new Date()) {
+        return res.status(400).json({ message: 'Submission deadline has passed. You can no longer upload.' });
+      }
+    }
+
+    // Body must be raw PDF buffer (Content-Type: application/pdf)
+    if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
+      return res.status(400).json({ message: 'Please upload a valid PDF file (Content-Type: application/pdf)' });
+    }
+
+    const MAX_PDF_SIZE = 15 * 1024 * 1024; // 15MB
+    if (req.body.length > MAX_PDF_SIZE) {
+      return res.status(413).json({ message: 'PDF is too large. Maximum allowed size is 15MB.' });
+    }
+
+    const filename = req.headers['x-filename'] || `homework_${student.name}_${Date.now()}.pdf`;
+
+    const submission = await HomeworkSubmission.upsertSubmission({
+      homeworkId: req.params.homeworkId,
+      studentId: student._id,
+      parentId: req.user.id,
+      pdfData: req.body,
+      pdfFilename: filename,
+      pdfSize: req.body.length
+    });
+
+    res.status(201).json({
+      message: 'Homework submitted successfully! It will be available for 7 days.',
+      submission
+    });
+  } catch (error) {
+    console.error('[Homework Submit Error]', error);
+    res.status(500).json({ message: 'Error submitting homework' });
+  }
+});
+
+// @route   GET /api/parent/homework/:homeworkId/submission
+// @desc    Get the parent's child's submission status for a homework
+// @access  Private (Parent only)
+router.get('/homework/:homeworkId/submission', protect, parentOnly, async (req, res) => {
+  try {
+    const parentUser = await User.findById(req.user.id);
+    if (!parentUser.studentId) return res.status(404).json({ message: 'No student linked' });
+    const student = await Student.findById(parentUser.studentId);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    const submission = await HomeworkSubmission.findOne({
+      homeworkId: req.params.homeworkId,
+      studentId: student._id
+    });
+    res.json(submission || null);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching submission' });
+  }
+});
+
+// @route   GET /api/parent/homework/submissions/:submissionId/pdf
+// @desc    Parent views their child's submitted PDF (only within 7-day window)
+// @access  Private (Parent only)
+router.get('/homework/submissions/:submissionId/pdf', protect, parentOnly, async (req, res) => {
+  try {
+    const parentUser = await User.findById(req.user.id);
+    if (!parentUser.studentId) return res.status(404).json({ message: 'No student linked' });
+    const student = await Student.findById(parentUser.studentId);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    const row = await HomeworkSubmission.getPdf(req.params.submissionId);
+    if (!row || !row.pdf_data) return res.status(404).json({ message: 'PDF not found or already expired' });
+
+    // Verify this PDF belongs to the parent's child
+    const sub = await HomeworkSubmission.findById(req.params.submissionId);
+    if (!sub || String(sub.studentId) !== String(student._id)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    if (row.expires_at && new Date(row.expires_at) < new Date()) {
+      return res.status(410).json({ message: 'PDF has expired and been deleted' });
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${row.pdf_filename || 'homework.pdf'}"`);
+    res.send(row.pdf_data);
+  } catch (error) {
+    res.status(500).json({ message: 'Error serving PDF' });
+  }
+});
+
 
 // @route   PUT /api/parent/notifications/:id/read
 router.put('/notifications/:id/read', protect, parentOnly, async (req, res) => {

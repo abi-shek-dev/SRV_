@@ -69,6 +69,9 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({ limit: '10kb' }));
+// Raw binary body parser for PDF upload endpoint
+app.use('/api/parent/homework', express.raw({ type: 'application/pdf', limit: '15mb' }));
+
 
 // Global rate limiter
 const globalLimiter = rateLimit({
@@ -175,6 +178,17 @@ const PORT = process.env.PORT || 5001;
     console.log(`🌐 CORS allowed origins: ${allowedOrigins.join(', ')}`);
     console.log(`📦 Environment: ${process.env.NODE_ENV || 'development'}`);
   });
+
+  // ── Hourly cleanup: remove expired homework PDF blobs from DB ──
+  const { cleanupExpiredPdfs } = await import('./models/HomeworkSubmission.js');
+  setInterval(async () => {
+    try {
+      const count = await cleanupExpiredPdfs();
+      if (count > 0) console.log(`🗑️  Cleaned up ${count} expired homework PDF(s)`);
+    } catch (e) {
+      console.error('Homework PDF cleanup error:', e.message);
+    }
+  }, 60 * 60 * 1000); // every hour
 })();
 
 export default app;
