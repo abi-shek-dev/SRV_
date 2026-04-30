@@ -541,7 +541,13 @@ router.post('/attendance', protect, facultyOrAdmin, async (req, res) => {
   if (!date || !records) return res.status(400).json({ message: 'Date and records are required.' });
 
   try {
-    const parsedDate = new Date(date).setHours(0, 0, 0, 0); // Normalize to midnight
+    // Normalize date — portal sends DD-MM-YYYY, API/mobile sends YYYY-MM-DD
+    let dateStr = date;
+    if (/^\d{2}-\d{2}-\d{4}$/.test(date)) {
+      const [dd, mm, yyyy] = date.split('-');
+      dateStr = `${yyyy}-${mm}-${dd}`; // Convert to YYYY-MM-DD
+    }
+    // Pass date as plain string to avoid UTC timezone shifts (do NOT use new Date())
 
     let setting = await Setting.findOne({ key: 'academicYear' });
     let academicYearStr = null;
@@ -549,9 +555,9 @@ router.post('/attendance', protect, facultyOrAdmin, async (req, res) => {
       academicYearStr = `${setting.value.start} to ${setting.value.end}`;
     }
 
-    let attendanceDoc = await Attendance.findOne({ 
-      facultyId: req.user.id, 
-      date: new Date(parsedDate) 
+    let attendanceDoc = await Attendance.findOne({
+      facultyId: req.user.id,
+      date: dateStr   // plain string — MySQL DATE column handles YYYY-MM-DD directly
     });
 
     if (attendanceDoc) {
@@ -561,29 +567,33 @@ router.post('/attendance', protect, facultyOrAdmin, async (req, res) => {
     } else {
       let gradeStr = req.user.assignedGrade;
       let sectionStr = req.user.assignedSection;
-      
+
       if ((!gradeStr || !sectionStr) && records.length > 0) {
-        const Student = (await import('../models/Student.js')).default;
         const firstStudent = await Student.findById(records[0].studentId);
         if (firstStudent) {
-            gradeStr = firstStudent.grade;
-            sectionStr = firstStudent.section;
+          gradeStr = firstStudent.grade;
+          sectionStr = firstStudent.section;
         }
       }
-      
+
       attendanceDoc = await Attendance.create({
         facultyId: req.user.id,
         grade: gradeStr || 'N/A',
         section: sectionStr || 'N/A',
-        date: new Date(parsedDate),
+        date: dateStr,   // plain YYYY-MM-DD string
         academicYear: academicYearStr,
         records
       });
     }
 
-    res.json({ message: 'Attendance accurately recorded for ' + new Date(parsedDate).toLocaleDateString(), attendanceDoc });
+    res.json({ message: 'Attendance recorded for ' + dateStr, attendanceDoc });
   } catch (error) {
-    res.status(500).json({ message: 'Error saving attendance sheet' });
+    console.error('[ATTENDANCE ERROR]', error.message);
+    // Handle duplicate entry — record exists with slightly different date (old timezone bug)
+    if (error.message && error.message.includes('Duplicate entry')) {
+      return res.status(409).json({ message: 'Attendance for this date already exists. Try a different date or contact admin to reset it.' });
+    }
+    res.status(500).json({ message: 'Error saving attendance: ' + error.message });
   }
 });
 
