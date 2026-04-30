@@ -1,102 +1,149 @@
-# 🏫 SRVMS Portal (SRV School Portal)
+# 🏫 SRV Matriculation School — School Management System
 
-A comprehensive, full-stack school management system designed to streamline academic administration, automate media management, and provide role-based portals for students, parents, faculty, and administrative staff.
-
-## 🚀 Key Features
-
-*   **Modern & Responsive UI**: Built with React, Vite, and Tailwind CSS, featuring modern web design practices, intuitive layouts, and fluid dynamic animations via Framer Motion.
-*   **Role-Based Access Control**:
-    *   **Frontend/Student Portal**: A dedicated workspace for parents/students to track academic progress and explore school services.
-    *   **Admin Panel**: Granular role-based portals (Admin, HOD, Faculty) tailored for robust school management. 
-*   **Dynamic Media System**: Automated, folder-based image management serving optimized `.webp` images to ensure snappy load times and seamless content updates.
-*   **Robust Backend System**: A secure Node.js & Express REST API interacting with MongoDB. Engineered with JWT authentication, password hashing, and vital security middlewares including Helmet, CORS, and Rate Limiting.
-
-## 📂 Project Structure
-
-This project is structured as a monorepo containing three core applications:
-
-*   [`/frontend`](./frontend/): The user-facing client React application.
-*   [`/admin`](./admin/): The administrative dashboard React application.
-*   [`/server`](./server/): The Node.js Express backend API that powers both portals.
-
-## 💻 Tech Stack
-
-### Frontend & Admin Dashboard
-*   **Core**: React 19, React Router DOM 7, Vite 6
-*   **Styling**: Tailwind CSS 4
-*   **UI Components & Animations**: Framer Motion, Lucide React, Recharts
-*   **Utilities**: Axios, SweetAlert2, Lenis (smooth scrolling), html2canvas/jspdf
-
-### Backend Server
-*   **Core**: Node.js, Express 5
-*   **Database**: MongoDB & Mongoose
-*   **Authentication**: JSON Web Tokens (JWT), bcryptjs
-*   **Security Tools**: Helmet, Express-Rate-Limit, Express-Mongo-Sanitize, HPP, CORS
-
-## 🛠️ Prerequisites
-
-Before you begin, ensure you have the following installed:
-*   [Node.js](https://nodejs.org/) (v18 or higher recommended)
-*   [MongoDB](https://www.mongodb.com/try/download/community) (Locally installed or an accessible MongoDB Atlas URI)
-
-## ⚙️ Getting Started & Installation
-
-You need to run the `server`, `admin`, and `frontend` applications concurrently.
-
-### 1. Backend API (`/server`)
-
-```bash
-cd server
-npm install
-```
-
-**Environment Variables**: Create a `.env` file in the `/server` folder and configure variables such as:
-```env
-PORT=5000
-MONGODB_URI=your_mongo_database_uri
-JWT_SECRET=your_jwt_secret_key
-```
-
-**Start the API**:
-```bash
-npm run dev
-```
-
-### 2. Administrator Panel (`/admin`)
-
-Open a new terminal session:
-
-```bash
-cd admin
-npm install
-```
-
-**Configuration**: Set your backend API base URL in the frontend environment configurations if required (e.g. `VITE_API_BASE_URL`).
-
-**Start the Admin App**:
-```bash
-npm run dev
-```
-*(The admin portal runs on `http://localhost:3001` or your configured host)*
-
-### 3. User Portal (`/frontend`)
-
-Open a new terminal session:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-*(The frontend runs on `http://localhost:3000` or your configured host)*
-
-## 🔧 Scripts & Maintenance
-
-Several utility scripts are located in the project's root folder to help facilitate UI/UX changes and testing:
-*   `buildPngFavicon.js` / `buildSvgFavicon.js` — Useful for automated icon generation processes.
-*   `roundFavicon.js` — Facilitates generating perfectly-rounded assets for Android/PWA production builds.
-*   `replaceAlerts.js` — Script to sweep and format structural alerts.
+A full-stack, production-ready school management platform with a **web admin panel**, a **parent & faculty portal**, and a native **Android mobile app** — all powered by a shared **Node.js + MySQL backend**.
 
 ---
 
-**Note**: This repository contains production-ready APK configurations generated via wrappers. To compile Android applications natively, refer to your mobile wrapper configuration logs.
+## 📐 Architecture
+
+```
+srv/
+├── server/      → Node.js + Express + MySQL REST API
+├── admin/       → React web app — School Administrator
+├── portal/      → React web app — Parent & Faculty
+└── mobile/      → React Native (Expo) — Android App
+```
+
+```
+┌──────────────┐   ┌──────────────┐   ┌──────────────┐
+│  Admin Panel │   │    Portal    │   │  Mobile App  │
+│  (port 3001) │   │  (port 3003) │   │  Expo / APK  │
+└──────┬───────┘   └──────┬───────┘   └──────┬───────┘
+       │                  │                  │
+       └──────────────────┴──────────────────┘
+                          │
+                 ┌────────▼────────┐
+                 │  Express API    │
+                 │  (port 5000)    │
+                 └────────┬────────┘
+                          │
+                 ┌────────▼────────┐
+                 │   MySQL DB      │
+                 └─────────────────┘
+```
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+
+- MySQL 8+
+- XAMPP (or any MySQL server) running locally
+
+### 1. Clone the repo
+```bash
+git clone https://github.com/abi-shek-dev/SRV_.git
+cd SRV_
+```
+
+### 2. Set up the database
+```bash
+# Open phpMyAdmin or MySQL CLI
+# Create database: srv_school
+# Import: server/db/schema.sql
+```
+
+### 3. Configure the backend
+```bash
+cd server
+cp .env.example .env    # fill in DB credentials and JWT_SECRET
+npm install
+npm run dev             # starts on port 5000
+```
+
+### 4. Start the Admin Panel
+```bash
+cd admin
+npm install
+npm run dev             # http://localhost:3001
+```
+
+### 5. Start the Portal (Parent + Faculty)
+```bash
+cd portal
+npm install
+npm run dev             # http://localhost:3003
+```
+
+### 6. Start the Mobile App
+```bash
+cd mobile
+npm install
+npx expo start          # scan QR with Expo Go
+```
+
+---
+
+## 📦 Modules
+
+### 🖥️ [server/](./server/README.md) — Backend API
+- Express 5 REST API with JWT authentication
+- MySQL 2 connection pool
+- Role-based access: Admin / Faculty / Parent
+- Rate limiting and Helmet security headers
+- Routes: `/api/auth`, `/api/admin`, `/api/faculty`, `/api/parent`, `/api/public`
+
+### 🎛️ [admin/](./admin/README.md) — Admin Dashboard
+- Complete school administration interface
+- Manage students, faculty, fees, announcements, events, polls, memories
+- Academic performance reports and charts
+- Runs at `http://localhost:3001`
+
+### 🏫 [portal/](./portal/README.md) — Parent & Faculty Portal
+- **Parent**: View child's attendance, homework, fees, behavior, events
+- **Faculty**: Submit attendance, create homework, log behavior, post announcements
+- Shared login page with role selector
+- Runs at `http://localhost:3003`
+
+### 📱 [mobile/](./mobile/README.md) — Android Mobile App
+- React Native (Expo SDK 54) replica of the portal
+- Parent and Faculty roles with bottom tab navigation
+- PDF homework submission, attendance tracking, behavior logs
+- Light theme matching the web portal (emerald + amber accents)
+- Ready for Google Play Store via `eas build`
+
+---
+
+## 👤 Login Credentials
+
+| Role | ID Format | Password |
+|---|---|---|
+| Admin | (set in DB) | Set during setup |
+| Faculty | `FAC26001` | Set by admin |
+| Parent | `SRV26001` | Child's DOB `DDMMYYYY` |
+
+---
+
+## 🛠️ Tech Stack Summary
+
+| Layer | Technology |
+|---|---|
+| Backend | Node.js, Express 5, MySQL 2 |
+| Web Frontend | React 19, Vite, Tailwind CSS v4 |
+| Mobile | React Native, Expo SDK 54 |
+| Auth | JWT + bcryptjs |
+| File Storage | Cloudinary |
+| Security | Helmet, CORS, Rate Limiting |
+
+---
+
+## 📁 Branch
+
+Active development branch: **`xe54z`**
+
+---
+
+## 📄 License
+
+Private — SRV Matriculation School. All rights reserved.
