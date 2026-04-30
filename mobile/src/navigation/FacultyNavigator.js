@@ -1,6 +1,7 @@
 import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import theme from '../config/theme';
 
 import FacultyDashboard from '../screens/faculty/FacultyDashboard';
 import StudentsScreen from '../screens/faculty/StudentsScreen';
@@ -10,28 +11,28 @@ import FacultyMoreScreen from '../screens/faculty/FacultyMoreScreen';
 
 const Tab = createBottomTabNavigator();
 
-const ACTIVE = '#3b82f6';
-const INACTIVE = '#64748b';
-const BG = '#0f172a';
-
 export default function FacultyNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarStyle: { backgroundColor: BG, borderTopColor: '#1e293b', height: 60 },
-        tabBarActiveTintColor: ACTIVE,
-        tabBarInactiveTintColor: INACTIVE,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: '600', marginBottom: 4 },
+        tabBarStyle: {
+          backgroundColor: theme.surface,
+          borderTopColor: theme.border,
+          borderTopWidth: 1,
+          height: 62,
+          paddingBottom: 8,
+          paddingTop: 4,
+        },
+        tabBarActiveTintColor: theme.amber,
+        tabBarInactiveTintColor: theme.textMuted,
+        tabBarLabelStyle: { fontSize: 10, fontWeight: '700' },
         tabBarIcon: ({ color, size }) => {
           const icons = {
-            Dashboard: 'home',
-            Students: 'people',
-            Homework: 'document-text',
-            Attendance: 'calendar',
-            More: 'grid',
+            Dashboard: 'home', Students: 'people-outline',
+            Homework: 'document-text-outline', Attendance: 'calendar-outline', More: 'grid-outline',
           };
-          return <Ionicons name={icons[route.name] || 'circle'} size={size} color={color} />;
+          return <Ionicons name={icons[route.name] || 'circle'} size={size - 2} color={color} />;
         },
       })}
     >

@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  RefreshControl, ActivityIndicator
-} from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
+import theme from '../../config/theme';
 
 export default function FacultyDashboard() {
   const { user, logout, authHeaders } = useAuth();
@@ -37,33 +35,37 @@ export default function FacultyDashboard() {
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator color="#3b82f6" size="large" /></View>;
+    return <View style={styles.center}><ActivityIndicator color={theme.amber} size="large" /></View>;
   }
 
   return (
     <ScrollView
       style={styles.root}
-      contentContainerStyle={{ paddingBottom: 24 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
+      contentContainerStyle={{ paddingBottom: 28 }}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.amber} />}
     >
+      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.greeting}>Faculty Portal 📚</Text>
           <Text style={styles.name}>{user?.name || 'Faculty'}</Text>
           {user?.assignedGrade && (
-            <Text style={styles.classTag}>Grade {user.assignedGrade} - {user.assignedSection || '—'}</Text>
+            <View style={styles.classPill}>
+              <Ionicons name="school-outline" size={12} color={theme.amber} />
+              <Text style={styles.classText}>Grade {user.assignedGrade}{user.assignedSection ? ` · ${user.assignedSection}` : ''}</Text>
+            </View>
           )}
         </View>
         <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
-          <Ionicons name="log-out-outline" size={22} color="#ef4444" />
+          <Ionicons name="log-out-outline" size={20} color={theme.error} />
         </TouchableOpacity>
       </View>
 
       {/* Stat cards */}
       <View style={styles.statRow}>
-        <StatCard icon="people" label="Students" value={stats.students} color="#3b82f6" />
-        <StatCard icon="document-text" label="Homework" value={stats.homework} color="#8b5cf6" />
-        <StatCard icon="megaphone" label="Posts" value={stats.announcements} color="#f59e0b" />
+        <StatCard icon="people-outline" label="Students" value={stats.students} color={theme.info} bg={theme.infoBg} border="#bfdbfe" />
+        <StatCard icon="document-text-outline" label="Homework" value={stats.homework} color="#7c3aed" bg="#f5f3ff" border="#ddd6fe" />
+        <StatCard icon="megaphone-outline" label="Posts" value={stats.announcements} color={theme.amber} bg={theme.amberBg} border={theme.amberBorder} />
       </View>
 
       {/* Announcements */}
@@ -72,8 +74,11 @@ export default function FacultyDashboard() {
           <Text style={styles.sectionTitle}>My Announcements</Text>
           {announcements.map((a, i) => (
             <View key={a._id || i} style={styles.annCard}>
-              <Text style={styles.annTitle}>{a.title}</Text>
-              <Text style={styles.annBody} numberOfLines={2}>{a.body}</Text>
+              <View style={styles.annStripe} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.annTitle}>{a.title}</Text>
+                <Text style={styles.annBody} numberOfLines={2}>{a.body}</Text>
+              </View>
             </View>
           ))}
         </View>
@@ -82,12 +87,10 @@ export default function FacultyDashboard() {
   );
 }
 
-function StatCard({ icon, label, value, color }) {
+function StatCard({ icon, label, value, color, bg, border }) {
   return (
-    <View style={[styles.statCard, { borderColor: color + '33' }]}>
-      <View style={[styles.statIcon, { backgroundColor: color + '22' }]}>
-        <Ionicons name={icon} size={20} color={color} />
-      </View>
+    <View style={[styles.statCard, { backgroundColor: bg, borderColor: border }]}>
+      <Ionicons name={icon} size={20} color={color} />
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
     </View>
@@ -95,21 +98,22 @@ function StatCard({ icon, label, value, color }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0f172a' },
-  center: { flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' },
+  root: { flex: 1, backgroundColor: theme.bg },
+  center: { flex: 1, backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' },
   header: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', padding: 20, paddingTop: 56 },
-  greeting: { color: '#64748b', fontSize: 13 },
-  name: { color: '#f1f5f9', fontSize: 20, fontWeight: '800', marginTop: 2 },
-  classTag: { color: '#3b82f6', fontSize: 12, fontWeight: '700', marginTop: 4 },
-  logoutBtn: { padding: 8, backgroundColor: '#1e293b', borderRadius: 10 },
+  greeting: { color: theme.textSub, fontSize: 13 },
+  name: { color: theme.text, fontSize: 20, fontWeight: '800', marginTop: 2 },
+  classPill: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, backgroundColor: theme.amberBg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: theme.amberBorder, alignSelf: 'flex-start' },
+  classText: { color: theme.amber, fontSize: 11, fontWeight: '700' },
+  logoutBtn: { padding: 8, backgroundColor: theme.errorBg, borderRadius: 10, borderWidth: 1, borderColor: '#fca5a5' },
   statRow: { flexDirection: 'row', paddingHorizontal: 16, gap: 10, marginBottom: 16 },
-  statCard: { flex: 1, backgroundColor: '#1e293b', borderRadius: 16, padding: 14, alignItems: 'center', borderWidth: 1, gap: 6 },
-  statIcon: { width: 40, height: 40, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+  statCard: { flex: 1, borderRadius: 14, padding: 14, alignItems: 'center', gap: 6, borderWidth: 1 },
   statValue: { fontSize: 22, fontWeight: '900' },
-  statLabel: { color: '#64748b', fontSize: 10, fontWeight: '600' },
+  statLabel: { color: theme.textSub, fontSize: 10, fontWeight: '600' },
   section: { marginHorizontal: 16 },
-  sectionTitle: { color: '#94a3b8', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 },
-  annCard: { backgroundColor: '#1e293b', borderRadius: 16, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: '#334155' },
-  annTitle: { color: '#f1f5f9', fontWeight: '700', fontSize: 14, marginBottom: 4 },
-  annBody: { color: '#94a3b8', fontSize: 13, lineHeight: 18 },
+  sectionTitle: { color: theme.textSub, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10 },
+  annCard: { backgroundColor: theme.surface, borderRadius: theme.radius, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: theme.border, flexDirection: 'row', gap: 12, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+  annStripe: { width: 3, borderRadius: 2, backgroundColor: theme.amber },
+  annTitle: { color: theme.text, fontWeight: '700', fontSize: 14, marginBottom: 4 },
+  annBody: { color: theme.textSub, fontSize: 13, lineHeight: 18 },
 });

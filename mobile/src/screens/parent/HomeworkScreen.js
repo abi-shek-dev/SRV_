@@ -8,13 +8,14 @@ import axios from 'axios';
 import * as DocumentPicker from 'expo-document-picker';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
+import theme from '../../config/theme';
 
 export default function HomeworkScreen() {
   const { authHeaders } = useAuth();
   const [homeworkList, setHomeworkList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [uploading, setUploading] = useState(null); // homework id being uploaded
+  const [uploading, setUploading] = useState(null);
 
   const fetchHomework = async () => {
     try {
@@ -33,17 +34,13 @@ export default function HomeworkScreen() {
       const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf' });
       if (result.canceled) return;
       const file = result.assets[0];
-
       setUploading(hw._id);
-
       const formData = new FormData();
       formData.append('file', { uri: file.uri, name: file.name, type: 'application/pdf' });
       formData.append('homeworkId', hw._id);
-
       await axios.post(`${API_URL}/api/parent/homework/submit`, formData, {
         headers: { ...authHeaders(), 'Content-Type': 'multipart/form-data' },
       });
-
       Alert.alert('Submitted!', 'Your PDF has been submitted successfully.');
       fetchHomework();
     } catch (err) {
@@ -54,14 +51,14 @@ export default function HomeworkScreen() {
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator color="#6366f1" size="large" /></View>;
+    return <View style={styles.center}><ActivityIndicator color={theme.emerald} size="large" /></View>;
   }
 
   return (
     <ScrollView
       style={styles.root}
       contentContainerStyle={{ paddingBottom: 24 }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366f1" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={theme.emerald} />}
     >
       <View style={styles.header}>
         <Text style={styles.title}>Homework</Text>
@@ -70,7 +67,7 @@ export default function HomeworkScreen() {
 
       {homeworkList.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons name="book-outline" size={48} color="#334155" />
+          <Ionicons name="book-outline" size={48} color={theme.border} />
           <Text style={styles.emptyText}>No homework assigned yet</Text>
         </View>
       ) : (
@@ -80,25 +77,29 @@ export default function HomeworkScreen() {
           return (
             <View key={hw._id} style={styles.card}>
               <View style={styles.cardHeader}>
-                <Text style={styles.subject}>{hw.subject}</Text>
-                <View style={[styles.badge,
-                  isPast ? styles.badgePast : styles.badgeActive
-                ]}>
-                  <Text style={styles.badgeText}>{isPast ? 'Past due' : 'Active'}</Text>
+                <View style={styles.subjectPill}>
+                  <Text style={styles.subjectText}>{hw.subject}</Text>
+                </View>
+                <View style={[styles.statusBadge,
+                  { backgroundColor: isPast ? theme.bg : theme.emeraldBg,
+                    borderColor: isPast ? theme.border : theme.emeraldBorder }]}>
+                  <Text style={[styles.statusText, { color: isPast ? theme.textMuted : theme.emerald }]}>
+                    {isPast ? 'Past due' : 'Active'}
+                  </Text>
                 </View>
               </View>
               <Text style={styles.hwTitle}>{hw.title}</Text>
               {hw.description ? <Text style={styles.hwDesc}>{hw.description}</Text> : null}
               {hw.deadline && (
-                <View style={styles.row}>
-                  <Ionicons name="calendar-outline" size={13} color="#64748b" />
-                  <Text style={styles.meta}>Due: {new Date(hw.deadline).toLocaleDateString()}</Text>
+                <View style={styles.metaRow}>
+                  <Ionicons name="calendar-outline" size={13} color={theme.textMuted} />
+                  <Text style={styles.metaText}>Due: {new Date(hw.deadline).toLocaleDateString()}</Text>
                 </View>
               )}
               {hw.fileUrl && (
                 <TouchableOpacity style={styles.linkBtn} onPress={() => Linking.openURL(hw.fileUrl)}>
-                  <Ionicons name="download-outline" size={14} color="#6366f1" />
-                  <Text style={styles.linkText}>Download Homework File</Text>
+                  <Ionicons name="download-outline" size={14} color={theme.emerald} />
+                  <Text style={styles.linkText}>Download File</Text>
                 </TouchableOpacity>
               )}
               {hw.allowPdfSubmission && !hasSubmission && !isPast && (
@@ -109,16 +110,13 @@ export default function HomeworkScreen() {
                 >
                   {uploading === hw._id
                     ? <ActivityIndicator size="small" color="#fff" />
-                    : <>
-                        <Ionicons name="cloud-upload-outline" size={14} color="#fff" />
-                        <Text style={styles.submitBtnText}>Submit PDF</Text>
-                      </>
+                    : <><Ionicons name="cloud-upload-outline" size={14} color="#fff" /><Text style={styles.submitBtnText}>Submit PDF</Text></>
                   }
                 </TouchableOpacity>
               )}
               {hasSubmission && (
                 <View style={styles.submittedBadge}>
-                  <Ionicons name="checkmark-circle" size={14} color="#4ade80" />
+                  <Ionicons name="checkmark-circle" size={14} color={theme.emerald} />
                   <Text style={styles.submittedText}>Submitted</Text>
                 </View>
               )}
@@ -131,40 +129,42 @@ export default function HomeworkScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#0f172a' },
-  center: { flex: 1, backgroundColor: '#0f172a', justifyContent: 'center', alignItems: 'center' },
+  root: { flex: 1, backgroundColor: theme.bg },
+  center: { flex: 1, backgroundColor: theme.bg, justifyContent: 'center', alignItems: 'center' },
   header: { padding: 20, paddingTop: 56 },
-  title: { color: '#f1f5f9', fontSize: 24, fontWeight: '800' },
-  subtitle: { color: '#64748b', fontSize: 13, marginTop: 2 },
-  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 12 },
-  emptyText: { color: '#475569', fontSize: 14 },
+  title: { color: theme.text, fontSize: 24, fontWeight: '800' },
+  subtitle: { color: theme.textSub, fontSize: 13, marginTop: 2 },
+  empty: { alignItems: 'center', paddingTop: 80, gap: 12 },
+  emptyText: { color: theme.textMuted, fontSize: 14 },
   card: {
-    margin: 16, marginTop: 0, backgroundColor: '#1e293b',
-    borderRadius: 20, padding: 16, borderWidth: 1, borderColor: '#334155',
+    margin: 16, marginTop: 0, backgroundColor: theme.surface,
+    borderRadius: theme.radius, padding: 16, borderWidth: 1, borderColor: theme.border,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1,
+    marginBottom: 12,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  subject: { color: '#6366f1', fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
-  badgeActive: { backgroundColor: '#1d4ed8' },
-  badgePast: { backgroundColor: '#374151' },
-  badgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  hwTitle: { color: '#f1f5f9', fontWeight: '700', fontSize: 15, marginBottom: 4 },
-  hwDesc: { color: '#94a3b8', fontSize: 13, lineHeight: 18, marginBottom: 8 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 4 },
-  meta: { color: '#64748b', fontSize: 12 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  subjectPill: { backgroundColor: theme.emeraldBg, borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1, borderColor: theme.emeraldBorder },
+  subjectText: { color: theme.emerald, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
+  statusText: { fontSize: 10, fontWeight: '700' },
+  hwTitle: { color: theme.text, fontWeight: '700', fontSize: 15, marginBottom: 4 },
+  hwDesc: { color: theme.textSub, fontSize: 13, lineHeight: 18, marginBottom: 8 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 4 },
+  metaText: { color: theme.textMuted, fontSize: 12 },
   linkBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10,
-    padding: 10, backgroundColor: '#0f172a', borderRadius: 10, borderWidth: 1, borderColor: '#334155',
+    padding: 10, backgroundColor: theme.emeraldBg, borderRadius: 10, borderWidth: 1, borderColor: theme.emeraldBorder,
   },
-  linkText: { color: '#6366f1', fontSize: 13, fontWeight: '600' },
+  linkText: { color: theme.emerald, fontSize: 13, fontWeight: '600' },
   submitBtn: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: '#6366f1', borderRadius: 12, paddingVertical: 10, marginTop: 10,
+    backgroundColor: theme.emerald, borderRadius: 12, paddingVertical: 10, marginTop: 10,
   },
   submitBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
   submittedBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10,
-    backgroundColor: '#14532d', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start',
+    backgroundColor: theme.successBg, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6, alignSelf: 'flex-start',
+    borderWidth: 1, borderColor: theme.emeraldBorder,
   },
-  submittedText: { color: '#4ade80', fontSize: 12, fontWeight: '700' },
+  submittedText: { color: theme.emerald, fontSize: 12, fontWeight: '700' },
 });

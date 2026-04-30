@@ -26,12 +26,21 @@ export function AuthProvider({ children }) {
   }, []);
 
   const login = async (srvNumber, password, role) => {
-    const res = await axios.post(`${API_URL}/api/auth/login`, { srvNumber, password, role });
-    const { token: t, user: u } = res.data;
+    const url = `${API_URL}/api/auth/login`;
+    console.log('[LOGIN] Attempting login...');
+    console.log('[LOGIN] URL:', url);
+    console.log('[LOGIN] Payload:', { srvNumber, password: '***' });
+    const res = await axios.post(url, { srvNumber, password });
+    // Server returns: { _id, name, srvNumber, role, token, assignedGrade, assignedSection }
+    console.log('[LOGIN] Response status:', res.status);
+    console.log('[LOGIN] Response data:', JSON.stringify(res.data));
+    const { token: t, ...userData } = res.data;
+    const u = userData;
     await AsyncStorage.setItem('schoolToken', t);
     await AsyncStorage.setItem('schoolUser', JSON.stringify(u));
     setToken(t);
     setUser(u);
+    console.log('[LOGIN] Success! Role:', u.role);
     return u;
   };
 
