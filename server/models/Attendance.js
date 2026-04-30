@@ -11,6 +11,7 @@ const row2log = async (r) => {
     grade: r.grade,
     section: r.section,
     date: r.date,
+    academicYear: r.academic_year,
     records: recs.map(rec => ({
       _id: rec.id,
       studentId: rec.student_id,
@@ -38,7 +39,7 @@ export async function findById(id) {
 }
 
 export async function find(where = {}) {
-  const colMap = { facultyId: 'faculty_id', grade: 'grade', section: 'section' };
+  const colMap = { facultyId: 'faculty_id', grade: 'grade', section: 'section', academicYear: 'academic_year' };
   let sql = 'SELECT * FROM attendance_logs';
   const vals = [];
   const keys = Object.keys(where);
@@ -51,10 +52,10 @@ export async function find(where = {}) {
 }
 
 export async function create(data) {
-  const { facultyId, grade, section, date, records = [] } = data;
+  const { facultyId, grade, section, date, academicYear, records = [] } = data;
   const [result] = await pool.query(
-    'INSERT INTO attendance_logs (faculty_id, grade, section, date) VALUES (?, ?, ?, ?)',
-    [facultyId, grade, section, date]
+    'INSERT INTO attendance_logs (faculty_id, grade, section, date, academic_year) VALUES (?, ?, ?, ?, ?)',
+    [facultyId, grade, section, date, academicYear || null]
   );
   const logId = result.insertId;
   await _setRecords(logId, records);
@@ -63,8 +64,8 @@ export async function create(data) {
 
 export async function save(obj) {
   await pool.query(
-    'UPDATE attendance_logs SET grade=?, section=? WHERE id=?',
-    [obj.grade, obj.section, obj._id]
+    'UPDATE attendance_logs SET grade=?, section=?, academic_year=? WHERE id=?',
+    [obj.grade, obj.section, obj.academicYear || null, obj._id]
   );
   await _setRecords(obj._id, obj.records || []);
   return findById(obj._id);

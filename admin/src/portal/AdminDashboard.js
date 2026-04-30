@@ -82,6 +82,11 @@ export function AdminDashboard({ section = 'home' }) {
   const [feeAlerts, setFeeAlerts] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
 
+  // Academic Year State
+  const [academicYear, setAcademicYear] = useState({ start: '', end: '' });
+  const [academicYearMsg, setAcademicYearMsg] = useState({ text: '', type: '' });
+  const [savingAcademicYear, setSavingAcademicYear] = useState(false);
+
   // Password Requests
   const [pwRequests, setPwRequests] = useState([]);
   const [resettingPwFor, setResettingPwFor] = useState(null);
@@ -127,6 +132,8 @@ export function AdminDashboard({ section = 'home' }) {
   const fetchSettingsAndAlerts = (token) => {
     axios.get(`${API_URL}/api/admin/settings/fee-toggle`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setIsOnlineFeeEnabled(res.data.isOnlineFeeEnabled)).catch(console.error);
+    axios.get(`${API_URL}/api/admin/settings/academic-year`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => setAcademicYear({ start: res.data.start || '', end: res.data.end || '' })).catch(console.error);
     axios.get(`${API_URL}/api/admin/notifications`, { headers: { Authorization: `Bearer ${token}` } })
       .then(res => setFeeAlerts(res.data)).catch(console.error);
     axios.get(`${API_URL}/api/admin/password-requests`, { headers: { Authorization: `Bearer ${token}` } })
@@ -145,6 +152,30 @@ export function AdminDashboard({ section = 'home' }) {
       setIsOnlineFeeEnabled(newStatus);
     } catch (err) {
       Swal.fire('Error', 'Failed to update fee setting', 'error');
+    }
+  };
+
+  const handleSaveAcademicYear = async () => {
+    if (!academicYear.start || !academicYear.end) {
+      setAcademicYearMsg({ text: 'Both start and end dates are required.', type: 'error' });
+      return;
+    }
+    if (new Date(academicYear.end) <= new Date(academicYear.start)) {
+      setAcademicYearMsg({ text: 'End date must be after start date.', type: 'error' });
+      return;
+    }
+    setSavingAcademicYear(true);
+    try {
+      const token = localStorage.getItem('schoolToken');
+      await axios.put(`${API_URL}/api/admin/settings/academic-year`, academicYear, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setAcademicYearMsg({ text: 'Academic year saved successfully!', type: 'success' });
+      setTimeout(() => setAcademicYearMsg({ text: '', type: '' }), 3000);
+    } catch (err) {
+      setAcademicYearMsg({ text: 'Failed to save academic year.', type: 'error' });
+    } finally {
+      setSavingAcademicYear(false);
     }
   };
 
@@ -741,6 +772,56 @@ export function AdminDashboard({ section = 'home' }) {
                   </button>
                 </div>
               </div>
+
+              {/* Academic Year Card */}
+              <div className="rounded-[1.75rem] border border-white/15 bg-white/10 p-5 backdrop-blur mt-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100">Academic Calendar</p>
+                    <h3 className="mt-2 text-xl font-display font-bold">Academic Year</h3>
+                    <p className="mt-2 text-sm text-emerald-50/85">Set the start and end dates. Attendance will be tagged to this year automatically.</p>
+                  </div>
+                  <CalendarDays className="shrink-0 text-emerald-100" size={20} />
+                </div>
+                <div className="mt-4 space-y-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-emerald-100 mb-1">Start Date</label>
+                    <input
+                      type="date"
+                      value={academicYear.start}
+                      onChange={e => setAcademicYear(p => ({ ...p, start: e.target.value }))}
+                      className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-emerald-100 mb-1">End Date</label>
+                    <input
+                      type="date"
+                      value={academicYear.end}
+                      onChange={e => setAcademicYear(p => ({ ...p, end: e.target.value }))}
+                      className="w-full rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-white/30"
+                    />
+                  </div>
+                  {academicYearMsg.text && (
+                    <p className={`text-xs font-semibold ${academicYearMsg.type === 'error' ? 'text-red-300' : 'text-emerald-200'}`}>
+                      {academicYearMsg.text}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleSaveAcademicYear}
+                    disabled={savingAcademicYear}
+                    className="w-full rounded-xl bg-white/20 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-white/30 active:scale-95 disabled:opacity-50"
+                  >
+                    {savingAcademicYear ? 'Saving…' : 'Save Academic Year'}
+                  </button>
+                  {academicYear.start && academicYear.end && (
+                    <p className="text-center text-xs text-emerald-100/70">
+                      Active: {new Date(academicYear.start).toLocaleDateString('en-IN')} → {new Date(academicYear.end).toLocaleDateString('en-IN')}
+                    </p>
+                  )}
+                </div>
+              </div>
             </div>
 
             <div className="mt-8 grid grid-cols-2 gap-4 xl:grid-cols-6">
@@ -943,22 +1024,24 @@ export function AdminDashboard({ section = 'home' }) {
                 className="w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" 
               />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <input 
-                  type="text" 
-                  placeholder="Grade" 
+                <select 
                   required
                   value={facultyForm.assignedGrade}
                   onChange={e => setFacultyForm({...facultyForm, assignedGrade: e.target.value})}
                   className="w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" 
-                />
-                <input 
-                  type="text" 
-                  placeholder="Section" 
+                >
+                  <option value="">Select Grade</option>
+                  {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+                <select 
                   required
                   value={facultyForm.assignedSection}
                   onChange={e => setFacultyForm({...facultyForm, assignedSection: e.target.value})}
                   className="w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-emerald-500" 
-                />
+                >
+                  <option value="">Select Section</option>
+                  {['A', 'B', 'C'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
                 <input 
                   type="text" 
                   placeholder="Mobile" 
@@ -1006,22 +1089,24 @@ export function AdminDashboard({ section = 'home' }) {
                 className="w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 font-mono focus:outline-none focus:ring-2 focus:ring-amber-500" 
               />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <input 
-                  type="text" 
-                  placeholder="Grade" 
+                <select 
                   required
                   value={studentForm.grade}
                   onChange={e => setStudentForm({...studentForm, grade: e.target.value, group: ''})}
                   className="w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500" 
-                />
-                <input 
-                  type="text" 
-                  placeholder="Section" 
+                >
+                  <option value="">Select Grade</option>
+                  {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+                <select 
                   required
                   value={studentForm.section}
                   onChange={e => setStudentForm({...studentForm, section: e.target.value})}
                   className="w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500" 
-                />
+                >
+                  <option value="">Select Section</option>
+                  {['A', 'B', 'C'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
                 <input 
                   type="text" 
                   placeholder="DOB (DDMMYYYY)" 
@@ -1227,20 +1312,22 @@ export function AdminDashboard({ section = 'home' }) {
 
               {announcementForm.targetType === 'class' && (
                 <div className="grid gap-4 md:grid-cols-2">
-                  <input 
-                    type="text" 
-                    placeholder="Grade (e.g., 10)"
+                  <select 
                     value={announcementForm.targetGrade}
                     onChange={e => setAnnouncementForm({...announcementForm, targetGrade: e.target.value})}
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                  <input 
-                    type="text" 
-                    placeholder="Section (e.g., A)"
+                  >
+                    <option value="">Select Grade</option>
+                    {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                  <select 
                     value={announcementForm.targetSection}
                     onChange={e => setAnnouncementForm({...announcementForm, targetSection: e.target.value})}
                     className="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  >
+                    <option value="">Select Section</option>
+                    {['A', 'B', 'C'].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
               )}
 
@@ -1468,8 +1555,14 @@ export function AdminDashboard({ section = 'home' }) {
               <h2 className="text-xl font-display font-bold text-slate-900">View All Students</h2>
             </div>
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-              <input type="text" placeholder="Filter Class (e.g. 10)" value={studentListFilter.grade} onChange={e => setStudentListFilter({...studentListFilter, grade: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500 sm:w-40" />
-              <input type="text" placeholder="Filter Section (e.g. A)" value={studentListFilter.section} onChange={e => setStudentListFilter({...studentListFilter, section: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500 sm:w-40" />
+              <select value={studentListFilter.grade} onChange={e => setStudentListFilter({...studentListFilter, grade: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500 sm:w-40">
+                <option value="">All Grades</option>
+                {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+              <select value={studentListFilter.section} onChange={e => setStudentListFilter({...studentListFilter, section: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500 sm:w-40">
+                <option value="">All Sections</option>
+                {['A', 'B', 'C'].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
             </div>
           </div>
           
@@ -1625,7 +1718,7 @@ export function AdminDashboard({ section = 'home' }) {
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">From Grade</label>
                 <select value={promoteFrom} onChange={e => setPromoteFrom(e.target.value)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-semibold">
                   <option value="">Select Current Grade</option>
-                  {['LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12'].map(g => <option key={g} value={g}>{g}</option>)}
+                  {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
               <span className="text-2xl text-emerald-600 font-bold hidden sm:block mt-4">→</span>
@@ -1633,7 +1726,7 @@ export function AdminDashboard({ section = 'home' }) {
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">To Grade</label>
                 <select value={promoteTo} onChange={e => setPromoteTo(e.target.value)} className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-semibold">
                   <option value="">Select New Grade</option>
-                  {['LKG','UKG','1','2','3','4','5','6','7','8','9','10','11','12','PASSED OUT'].map(g => <option key={g} value={g}>{g}</option>)}
+                  {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'PASSED OUT'].map(g => <option key={g} value={g}>{g}</option>)}
                 </select>
               </div>
               <button onClick={handlePromoteStudents} className="w-full sm:w-auto px-8 py-3 mt-4 sm:mt-5 bg-emerald-600 text-white font-bold rounded-xl hover:bg-emerald-500 transition-colors shadow-lg shadow-emerald-600/20 shrink-0">
@@ -1717,23 +1810,25 @@ export function AdminDashboard({ section = 'home' }) {
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">Grade</label>
-                  <input
-                    type="text"
+                  <select
                     value={editStudentForm.grade}
                     onChange={e => setEditStudentForm({ ...editStudentForm, grade: e.target.value, group: '' })}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="Grade"
-                  />
+                  >
+                    <option value="">Select Grade</option>
+                    {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">Section</label>
-                  <input
-                    type="text"
+                  <select
                     value={editStudentForm.section}
                     onChange={e => setEditStudentForm({ ...editStudentForm, section: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500"
-                    placeholder="Section"
-                  />
+                  >
+                    <option value="">Select Section</option>
+                    {['A', 'B', 'C'].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
               </div>
 
@@ -1906,23 +2001,25 @@ export function AdminDashboard({ section = 'home' }) {
               <div className="grid gap-4 md:grid-cols-3">
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">Grade</label>
-                  <input
-                    type="text"
+                  <select
                     value={editFacultyForm.assignedGrade}
                     onChange={e => setEditFacultyForm({ ...editFacultyForm, assignedGrade: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Grade"
-                  />
+                  >
+                    <option value="">Select Grade</option>
+                    {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">Section</label>
-                  <input
-                    type="text"
+                  <select
                     value={editFacultyForm.assignedSection}
                     onChange={e => setEditFacultyForm({ ...editFacultyForm, assignedSection: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Section"
-                  />
+                  >
+                    <option value="">Select Section</option>
+                    {['A', 'B', 'C'].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
                 <div>
                   <label className="mb-2 block text-sm font-semibold text-slate-700">New Password</label>
@@ -2105,8 +2202,14 @@ function FacultyProfileModal({ faculty, allStudents, onClose, onUpdate }) {
               <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2">
                 {handledClasses.map((hc, idx) => (
                   <div key={idx} className="flex flex-col gap-2 rounded-xl border border-slate-100 bg-slate-50 p-2 sm:flex-row sm:items-center">
-                    <input type="text" placeholder="Grade" value={hc.grade} onChange={e => { const newHc = [...handledClasses]; newHc[idx].grade = e.target.value; setHandledClasses(newHc); }} className="w-full rounded border px-2 py-1 text-sm sm:w-16" />
-                    <input type="text" placeholder="Sec" value={hc.section} onChange={e => { const newHc = [...handledClasses]; newHc[idx].section = e.target.value; setHandledClasses(newHc); }} className="w-full rounded border px-2 py-1 text-sm sm:w-16" />
+                    <select value={hc.grade} onChange={e => { const newHc = [...handledClasses]; newHc[idx].grade = e.target.value; setHandledClasses(newHc); }} className="w-full rounded border px-2 py-1 text-sm sm:w-20">
+                      <option value="">Grade</option>
+                      {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                    <select value={hc.section} onChange={e => { const newHc = [...handledClasses]; newHc[idx].section = e.target.value; setHandledClasses(newHc); }} className="w-full rounded border px-2 py-1 text-sm sm:w-16">
+                      <option value="">Sec</option>
+                      {['A', 'B', 'C'].map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
                     <input type="text" placeholder="Subject" value={hc.subject} onChange={e => { const newHc = [...handledClasses]; newHc[idx].subject = e.target.value; setHandledClasses(newHc); }} className="flex-1 px-2 py-1 border rounded text-sm min-w-0" />
                     <button onClick={() => setHandledClasses(handledClasses.filter((_, i) => i !== idx))} className="text-red-400 hover:text-red-600"><X size={16}/></button>
                   </div>
@@ -2128,9 +2231,15 @@ function FacultyProfileModal({ faculty, allStudents, onClose, onUpdate }) {
                 </div>
              </h3>
              <div className="mb-3 flex flex-col gap-2 sm:flex-row">
-               <input type="text" placeholder="Filter Grade" value={studentFilter.grade} onChange={e => setStudentFilter({...studentFilter, grade: e.target.value})} className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 sm:w-1/2" />
-               <input type="text" placeholder="Filter Sec" value={studentFilter.section} onChange={e => setStudentFilter({...studentFilter, section: e.target.value})} className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 sm:w-1/2" />
-             </div>
+                <select value={studentFilter.grade} onChange={e => setStudentFilter({...studentFilter, grade: e.target.value})} className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 sm:w-1/2">
+                  <option value="">Filter Grade</option>
+                  {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+                <select value={studentFilter.section} onChange={e => setStudentFilter({...studentFilter, section: e.target.value})} className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 sm:w-1/2">
+                  <option value="">Filter Sec</option>
+                  {['A', 'B', 'C'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
              <div className="flex-1 overflow-y-auto border rounded-xl bg-slate-50 p-2 space-y-1">
                 {filteredStudents.map(s => {
                   const isAssignedToMe = assignedIds.includes(s._id);

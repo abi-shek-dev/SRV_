@@ -24,6 +24,13 @@ export function FacultyProgress() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [reviewingSubmission, setReviewingSubmission] = useState(null);
 
+  // Leaderboard password gate
+  const LEADERBOARD_SECRET = 'SRV@LB#2025!xK9';
+  const [leaderboardUnlocked, setLeaderboardUnlocked] = useState(false);
+  const [leaderboardPwInput, setLeaderboardPwInput] = useState('');
+  const [leaderboardPwError, setLeaderboardPwError] = useState('');
+  const [showLeaderboardPw, setShowLeaderboardPw] = useState(false);
+
   // Create task form
   const [taskForm, setTaskForm] = useState({
     title: '', description: '', taskType: 'General', deadline: '', targetAll: true, assignedTo: []
@@ -55,7 +62,7 @@ export function FacultyProgress() {
   }, []);
 
   useEffect(() => {
-    Promise.all([fetchTasks(), fetchLeaderboard(), fetchFaculties()])
+    Promise.all([fetchTasks(), fetchFaculties()])
       .finally(() => setLoading(false));
   }, []);
 
@@ -114,6 +121,27 @@ export function FacultyProgress() {
     navigate('/admin-login');
   };
 
+  const handleLeaderboardTabClick = () => {
+    setActiveTab('leaderboard');
+    // If already unlocked this session, just switch tab
+    if (leaderboardUnlocked) return;
+    // Otherwise show password gate (data not fetched yet)
+  };
+
+  const handleLeaderboardUnlock = async (e) => {
+    e.preventDefault();
+    if (leaderboardPwInput === LEADERBOARD_SECRET) {
+      setLeaderboardUnlocked(true);
+      setLeaderboardPwError('');
+      setLeaderboardPwInput('');
+      // Now fetch leaderboard data
+      await fetchLeaderboard();
+    } else {
+      setLeaderboardPwError('Incorrect password. Access denied.');
+      setLeaderboardPwInput('');
+    }
+  };
+
   const getStatusBadge = (status) => {
     const map = {
       Pending: { bg: 'bg-amber-100 text-amber-800', icon: Clock },
@@ -167,7 +195,7 @@ export function FacultyProgress() {
             return (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => tab.key === 'leaderboard' ? handleLeaderboardTabClick() : setActiveTab(tab.key)}
                 className={`flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold transition-all ${
                   isActive
                     ? 'bg-slate-900 text-white shadow-md'
@@ -175,6 +203,9 @@ export function FacultyProgress() {
                 }`}
               >
                 <Icon size={16} /> {tab.label}
+                {tab.key === 'leaderboard' && !leaderboardUnlocked && (
+                  <span className="ml-1 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-black text-red-600">🔒</span>
+                )}
               </button>
             );
           })}
@@ -375,9 +406,78 @@ export function FacultyProgress() {
         {/* ══════ LEADERBOARD TAB ══════ */}
         {activeTab === 'leaderboard' && (
           <div className="space-y-6">
+
+            {/* ── PASSWORD GATE ── */}
+            {!leaderboardUnlocked ? (
+              <div className="flex items-center justify-center min-h-[60vh]">
+                <div className="w-full max-w-sm">
+                  <div className="rounded-3xl border border-slate-200 bg-white p-8 shadow-xl text-center">
+                    <div className="mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-slate-800 to-slate-900 shadow-lg shadow-slate-400/30">
+                      <Trophy size={36} className="text-amber-400" />
+                    </div>
+                    <h2 className="text-2xl font-display font-black text-slate-900">Confidential Area</h2>
+                    <p className="mt-2 text-sm text-slate-500 leading-relaxed">
+                      The Faculty Leaderboard contains sensitive performance data.<br />
+                      Enter the admin access password to continue.
+                    </p>
+                    <form onSubmit={handleLeaderboardUnlock} className="mt-6 space-y-4 text-left">
+                      <div className="relative">
+                        <label className="text-xs font-bold uppercase tracking-[0.16em] text-slate-600">Access Password</label>
+                        <div className="relative mt-1">
+                          <input
+                            type={showLeaderboardPw ? 'text' : 'password'}
+                            value={leaderboardPwInput}
+                            onChange={e => { setLeaderboardPwInput(e.target.value); setLeaderboardPwError(''); }}
+                            autoFocus
+                            placeholder="Enter leaderboard password"
+                            className={`w-full rounded-xl border px-4 py-3 pr-12 text-sm font-semibold outline-none focus:ring-2 focus:ring-slate-900 ${
+                              leaderboardPwError ? 'border-red-400 bg-red-50 text-red-800' : 'border-slate-200 bg-slate-50 text-slate-900'
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowLeaderboardPw(v => !v)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition"
+                            tabIndex={-1}
+                          >
+                            {showLeaderboardPw ? '🙈' : '👁️'}
+                          </button>
+                        </div>
+                        {leaderboardPwError && (
+                          <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-red-600">
+                            <AlertTriangle size={12} /> {leaderboardPwError}
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        type="submit"
+                        className="w-full rounded-xl bg-slate-900 py-3 text-sm font-black text-white shadow-md shadow-slate-300 transition hover:bg-slate-800 active:scale-95"
+                      >
+                        🔓 Unlock Leaderboard
+                      </button>
+                    </form>
+                    <button
+                      onClick={() => setActiveTab('tasks')}
+                      className="mt-4 text-xs font-semibold text-slate-400 hover:text-slate-600 transition"
+                    >
+                      ← Back to Task Manager
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* ── ACTUAL LEADERBOARD (shown only after unlock) ── */
+              <>
             <div>
-              <h2 className="text-2xl font-display font-bold text-slate-900">Faculty Leaderboard</h2>
-              <p className="text-sm text-slate-500 mt-1">Performance scoring: 40% Tasks • 20% Quality • 20% Feedback • 20% Contribution</p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-display font-bold text-slate-900">Faculty Leaderboard</h2>
+                  <p className="text-sm text-slate-500 mt-1">Performance scoring: 40% Tasks • 20% Quality • 20% Feedback • 20% Contribution</p>
+                </div>
+                <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-bold text-emerald-700">
+                  🔓 Authenticated
+                </span>
+              </div>
             </div>
 
             {/* Top 3 Podium */}
@@ -447,15 +547,9 @@ export function FacultyProgress() {
                           <span className="font-bold text-emerald-700">{entry.completedTasks}/{entry.totalTasks}</span>
                           <span className="block text-[10px] text-slate-400">{entry.taskScore}%</span>
                         </td>
-                        <td className="px-5 py-4 text-center">
-                          <span className="font-bold text-blue-700">{entry.qualityScore}%</span>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <span className="font-bold text-violet-700">{entry.feedbackScore}%</span>
-                        </td>
-                        <td className="px-5 py-4 text-center">
-                          <span className="font-bold text-amber-700">{entry.contributionScore}%</span>
-                        </td>
+                        <td className="px-5 py-4 text-center"><span className="font-bold text-blue-700">{entry.qualityScore}%</span></td>
+                        <td className="px-5 py-4 text-center"><span className="font-bold text-violet-700">{entry.feedbackScore}%</span></td>
+                        <td className="px-5 py-4 text-center"><span className="font-bold text-amber-700">{entry.contributionScore}%</span></td>
                         <td className="px-5 py-4 text-center">
                           <span className={`inline-flex items-center justify-center h-10 w-10 rounded-full font-black text-sm ${
                             entry.finalScore >= 70 ? 'bg-emerald-100 text-emerald-800' : entry.finalScore >= 40 ? 'bg-amber-100 text-amber-800' : 'bg-red-100 text-red-800'
@@ -483,6 +577,8 @@ export function FacultyProgress() {
                 </div>
               )}
             </div>
+            </>
+            )}
           </div>
         )}
 

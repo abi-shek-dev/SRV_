@@ -68,7 +68,7 @@ router.get('/dashboard', protect, parentOnly, async (req, res) => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const todayDayName = days[new Date().getDay()];
 
-    const [records, homework, exactFood, regexFood, weeklyFood, setting, classAttendance, classBehavior] =
+    const [records, homework, exactFood, regexFood, weeklyFood, feeSetting, academicYearSetting, classAttendance, classBehavior] =
       await Promise.all([
         AcademicRecord.find({ studentId: student._id }),
         findHomeworkForStudent({
@@ -79,6 +79,7 @@ router.get('/dashboard', protect, parentOnly, async (req, res) => {
         FoodMenu.findDayByName(todayDayName),
         FoodMenu.find(),
         Setting.findOne({ key: 'onlineFeePayment' }),
+        Setting.findOne({ key: 'academicYear' }),
         Attendance.find({ facultyId: student.facultyId?._id || student.facultyId }),
         Behavior.find({ facultyId: student.facultyId?._id || student.facultyId })
       ]);
@@ -88,12 +89,20 @@ router.get('/dashboard', protect, parentOnly, async (req, res) => {
       food = weeklyFood.find(item => String(item.day || '').trim().toLowerCase() === todayDayName.toLowerCase()) || null;
     }
 
-    const isOnlineFeeEnabled = setting ? setting.value : false;
+    const isOnlineFeeEnabled = feeSetting ? feeSetting.value : false;
 
-    const attendanceFlat = classAttendance.flatMap(doc =>
-      (doc.records || [])
-        .filter(r => r.studentId && r.studentId.toString() === student._id.toString())
-        .map(r => ({ date: doc.date, status: r.status, remarks: r.remarks }))
+    // Build current academic year label to filter attendance
+    let currentAcademicYear = null;
+    if (academicYearSetting?.value?.start && academicYearSetting?.value?.end) {
+      currentAcademicYear = `${academicYearSetting.value.start} to ${academicYearSetting.value.end}`;
+    }
+
+    const attendanceFlat = classAttendance
+      .filter(doc => !currentAcademicYear || doc.academicYear === currentAcademicYear)
+      .flatMap(doc =>
+        (doc.records || [])
+          .filter(r => r.studentId && r.studentId.toString() === student._id.toString())
+          .map(r => ({ date: doc.date, status: r.status, remarks: r.remarks, academicYear: doc.academicYear }))
     );
 
     const behaviorFlat = classBehavior.flatMap(doc =>

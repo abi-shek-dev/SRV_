@@ -13,6 +13,7 @@ import Feedback from '../models/Feedback.js';
 import Event from '../models/Event.js';
 import EventRegistration from '../models/EventRegistration.js';
 import Memory from '../models/Memory.js';
+import Attendance from '../models/Attendance.js';
 import Enquiry from '../models/Enquiry.js';
 import { protect, adminOnly } from '../middleware/auth.js';
 import { hydratePolls } from '../utils/pollService.js';
@@ -195,7 +196,7 @@ router.get('/stats', protect, adminOnly, async (req, res) => {
     const totalFeedback = await Feedback.countDocuments();
     const totalAnnouncements = await Announcement.countDocuments();
     const totalEnquiries = await Enquiry.countDocuments({ status: { $ne: 'Converted' } });
-    
+
     res.json({
       totalStudents,
       totalFaculty,
@@ -332,7 +333,7 @@ router.post('/faculty/:id/assign-students', protect, adminOnly, async (req, res)
     if (idsToAssign.length > 0) {
       await Student.updateMany({ _id: { $in: idsToAssign } }, { $set: { facultyId: faculty._id } });
     }
-    
+
     res.json({ message: `Successfully synced ${idsToAssign.length} students` });
   } catch (error) {
     next(error);
@@ -398,7 +399,7 @@ router.put('/student/:id/fees', protect, adminOnly, async (req, res) => {
 router.put('/student/:id', protect, adminOnly, async (req, res) => {
   const { name, grade, section, group, parentRecoveryQuestion, parentRecoveryAnswer } = req.body;
   try {
-    const student = await Student.findById(req.params.id);
+    let student = await Student.findById(req.params.id);
     if (!student) return res.status(404).json({ message: 'Student not found' });
 
     const familyValidation = validateStudentFamilyDetails({
@@ -424,7 +425,7 @@ router.put('/student/:id', protect, adminOnly, async (req, res) => {
     await syncParentAccountDetails(student, `Parent of ${student.name}`);
 
     if (parentRecoveryQuestion !== undefined || parentRecoveryAnswer !== undefined) {
-      const parentUser = await User.findOne({ role: 'parent', studentId: student._id });
+      let parentUser = await User.findOne({ role: 'parent', student_id: student._id });
       if (parentUser) {
         if (parentRecoveryQuestion !== undefined) {
           parentUser.recoveryQuestion = String(parentRecoveryQuestion || '').trim();
@@ -564,7 +565,7 @@ router.post('/memories', protect, adminOnly, async (req, res) => {
 router.delete('/memories/:id', protect, adminOnly, async (req, res) => {
   try {
     const rawId = req.params.id;
-    
+
     // Support either local DB _id or encoded publicId from Cloudinary
     let publicId, memory;
     if (rawId.includes('___')) {
@@ -586,7 +587,7 @@ router.delete('/memories/:id', protect, adminOnly, async (req, res) => {
           publicId: publicId,
           // Since we might not know resourceType if it's completely missing from DB, we try image by default.
           // In a perfect system we'd know or try both.
-          resourceType: memory ? memory.resourceType : 'image' 
+          resourceType: memory ? memory.resourceType : 'image'
         });
         remoteDeleted = Boolean(remoteResult?.ok);
       } catch (cloudinaryError) {
@@ -739,6 +740,54 @@ router.get('/notifications', protect, adminOnly, async (req, res) => {
     res.status(500).json({ message: 'Error fetching admin notifications' });
   }
 });
+
+// @route   GET /api/admin/attendance/student/:studentId
+// @desc    Get ALL attendance records for a student across ALL academic years (admin only)
+// @access  Private (Admin only)
+router.get('/attendance/student/:studentId', protect, adminOnly, async (req, res) => {
+  try {
+    const { academicYear } = req.query; // optional filter
+    const studentId = req.params.studentId;
+    const query = academicYear ? { academicYear } : {};
+    const allLogs = await Attendance.find(query);
+    // Filter records to only this student's entries
+    const result = allLogs
+      .map(log => {
+        const studentRecords = (log.records || []).filter(
+          r => r.studentId && r.studentId.toString() === studentId.toString()
+        );
+        if (!studentRecords.length) return null;
+        return {
+          date: log.date,
+          academicYear: log.academicYear,
+          grade: log.grade,
+          section: log.section,
+          status: studentRecords[0].status,
+          remarks: studentRecords[0].remarks
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    res.json(result);
+  } catch (error) {
+    console.error('[Admin Attendance Fetch Error]', error);
+    res.status(500).json({ message: 'Error fetching attendance data' });
+  }
+});
+
+// @route   GET /api/admin/attendance/academic-years
+// @desc    Get list of all academic years that have attendance data
+// @access  Private (Admin only)
+router.get('/attendance/academic-years', protect, adminOnly, async (req, res) => {
+  try {
+    const allLogs = await Attendance.find({});
+    const years = [...new Set(allLogs.map(l => l.academicYear).filter(Boolean))];
+    res.json(years);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching academic years' });
+  }
+});
+
 
 // @route   GET /api/admin/password-requests
 // @desc    Get all pending password reset requests
@@ -1036,9 +1085,9 @@ router.delete('/polls/:id', protect, adminOnly, async (req, res) => {
 router.get('/feedback', protect, adminOnly, async (req, res) => {
   try {
     const feedback = await Feedback.find()
-      
-      
-      
+
+
+
       ;
 
     res.json(enrichParentLinkedRecords(feedback));

@@ -13,6 +13,7 @@ import Feedback from '../models/Feedback.js';
 import Event from '../models/Event.js';
 import EventRegistration from '../models/EventRegistration.js';
 import Memory from '../models/Memory.js';
+import Setting from '../models/Setting.js';
 import { protect, facultyOrAdmin } from '../middleware/auth.js';
 import { archiveOldHomework } from '../utils/archiveHomework.js';
 import { buildHomeworkClassFilter, resolveHomeworkAudience } from '../utils/homeworkMatching.js';
@@ -335,6 +336,12 @@ router.post('/attendance', protect, facultyOrAdmin, async (req, res) => {
   try {
     const parsedDate = new Date(date).setHours(0, 0, 0, 0); // Normalize to midnight
 
+    let setting = await Setting.findOne({ key: 'academicYear' });
+    let academicYearStr = null;
+    if (setting && setting.value && setting.value.start && setting.value.end) {
+      academicYearStr = `${setting.value.start} to ${setting.value.end}`;
+    }
+
     let attendanceDoc = await Attendance.findOne({ 
       facultyId: req.user.id, 
       date: new Date(parsedDate) 
@@ -342,6 +349,7 @@ router.post('/attendance', protect, facultyOrAdmin, async (req, res) => {
 
     if (attendanceDoc) {
       attendanceDoc.records = records;
+      attendanceDoc.academicYear = academicYearStr;
       attendanceDoc = await Attendance.save(attendanceDoc);
     } else {
       let gradeStr = req.user.assignedGrade;
@@ -361,6 +369,7 @@ router.post('/attendance', protect, facultyOrAdmin, async (req, res) => {
         grade: gradeStr || 'N/A',
         section: sectionStr || 'N/A',
         date: new Date(parsedDate),
+        academicYear: academicYearStr,
         records
       });
     }

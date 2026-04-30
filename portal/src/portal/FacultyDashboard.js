@@ -1782,20 +1782,22 @@ export function FacultyDashboard({ section = 'dashboard' }) {
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="Student name"
                 />
-                <input
-                  type="text"
+                <select
                   value={studentProfileForm.grade}
                   onChange={e => setStudentProfileForm({ ...studentProfileForm, grade: e.target.value, group: '' })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Grade"
-                />
-                <input
-                  type="text"
+                >
+                  <option value="">Select Grade</option>
+                  {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+                <select
                   value={studentProfileForm.section}
                   onChange={e => setStudentProfileForm({ ...studentProfileForm, section: e.target.value })}
                   className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="Section"
-                />
+                >
+                  <option value="">Select Section</option>
+                  {['A', 'B', 'C'].map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
               </div>
 
               {isSeniorGrade(studentProfileForm.grade) && (
