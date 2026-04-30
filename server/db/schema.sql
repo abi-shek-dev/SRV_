@@ -119,13 +119,14 @@ CREATE TABLE IF NOT EXISTS academic_record_activities (
 -- ATTENDANCE
 -- ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS attendance_logs (
-  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  faculty_id  INT UNSIGNED NOT NULL,
-  grade       VARCHAR(20)  NOT NULL,
-  section     VARCHAR(20)  NOT NULL,
-  date        DATE         NOT NULL,
-  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  faculty_id    INT UNSIGNED NOT NULL,
+  grade         VARCHAR(20)  NOT NULL,
+  section       VARCHAR(20)  NOT NULL,
+  date          DATE         NOT NULL,
+  academic_year VARCHAR(50)  DEFAULT NULL,
+  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_faculty_date (faculty_id, date),
   FOREIGN KEY (faculty_id) REFERENCES users(id) ON DELETE CASCADE
 );
@@ -134,7 +135,7 @@ CREATE TABLE IF NOT EXISTS attendance_records (
   id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
   log_id          INT UNSIGNED NOT NULL,
   student_id      INT UNSIGNED NOT NULL,
-  status          ENUM('Present','Absent','Half-Day') DEFAULT 'Present',
+  status          ENUM('Present','Absent','Late','Half-Day') DEFAULT 'Present',
   remarks         VARCHAR(500) DEFAULT '',
   FOREIGN KEY (log_id)     REFERENCES attendance_logs(id) ON DELETE CASCADE,
   FOREIGN KEY (student_id) REFERENCES students(id)        ON DELETE CASCADE,
@@ -145,13 +146,14 @@ CREATE TABLE IF NOT EXISTS attendance_records (
 -- BEHAVIOR LOGS
 -- ──────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS behavior_logs (
-  id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  faculty_id  INT UNSIGNED NOT NULL,
-  grade       VARCHAR(20)  NOT NULL,
-  section     VARCHAR(20)  NOT NULL,
-  date        DATE         NOT NULL,
-  created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  id            INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  faculty_id    INT UNSIGNED NOT NULL,
+  grade         VARCHAR(20)  NOT NULL,
+  section       VARCHAR(20)  NOT NULL,
+  date          DATE         NOT NULL,
+  academic_year VARCHAR(50)  DEFAULT NULL,
+  created_at    DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at    DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_faculty_date (faculty_id, date),
   FOREIGN KEY (faculty_id) REFERENCES users(id) ON DELETE CASCADE
 );
