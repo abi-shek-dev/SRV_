@@ -372,6 +372,10 @@ export function FacultyDashboard({ section = 'dashboard' }) {
       title: 'Faculty Dashboard',
       description: 'A clean overview with quick mobile access to all teaching tools.'
     },
+    students: {
+      title: 'My Students',
+      description: 'View and manage all students assigned to your class.'
+    },
     homework: {
       title: 'Homework Center',
       description: 'Assign homework and manage the daily homework dashboard.'
@@ -791,6 +795,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
   const recentAnnouncementCount = announcements.length;
 
   const appPages = [
+    { key: 'students', title: 'My Students', subtitle: 'View Class Roster', icon: Users, badge: students.length, gradient: 'from-blue-600 to-indigo-600' },
     { key: 'homework', title: 'Assign Homework', subtitle: 'Assign Homework, Daily Homework Dashboard', icon: BookOpen, badge: assignedHomework.length, gradient: 'from-amber-500 to-orange-500' },
     { key: 'attendance', title: 'Attendance', subtitle: 'Mark Attendance', icon: CheckSquare, badge: students.length, gradient: 'from-emerald-500 to-teal-500' },
     { key: 'behavior', title: 'Log Behavior', subtitle: 'Log Daily Behavior', icon: AlertCircle, badge: 'Daily', gradient: 'from-rose-500 to-orange-500' },
@@ -1150,9 +1155,9 @@ export function FacultyDashboard({ section = 'dashboard' }) {
           </div>
         )}
         
-        <div className={`${activeSection === 'homework' || activeSection === 'attendance' || activeSection === 'behavior' || activeSection === 'announcements' ? 'grid' : 'hidden'} ${activeSection === 'homework' ? 'items-start gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(320px,0.95fr)]' : 'mx-auto max-w-xl gap-6'} sm:gap-8`}>
+        <div className={`${activeSection === 'homework' || activeSection === 'students' || activeSection === 'attendance' || activeSection === 'behavior' || activeSection === 'announcements' ? 'grid' : 'hidden'} ${activeSection === 'homework' || activeSection === 'students' ? 'items-start gap-6 lg:grid-cols-[minmax(0,1.8fr)_minmax(320px,0.95fr)]' : 'mx-auto max-w-xl gap-6'} sm:gap-8`}>
           {/* Main Content - Student List */}
-          <div className={`${activeSection === 'homework' ? 'block min-w-0 space-y-6' : 'hidden'}`}>
+          <div className={`${activeSection === 'students' ? 'block min-w-0 space-y-6' : 'hidden'}`}>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <h2 className="text-2xl font-display font-bold text-slate-900 flex items-center gap-2">
                 <Users className="text-emerald-600" /> My Students
@@ -1249,8 +1254,10 @@ export function FacultyDashboard({ section = 'dashboard' }) {
                 </tbody>
               </table>
             </div>
+          </div>
+          <div className={`${activeSection === 'homework' ? 'block min-w-0 space-y-6' : 'hidden'}`}>
             {/* Homework Dashboard Daily View */}
-            <div className="relative mt-8 overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
+            <div className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
               <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex items-center gap-3">
                   <BookOpen className="text-emerald-500" />
@@ -1566,7 +1573,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
           </div>
 
           {/* Sidebar Actions */}
-          <div className={`${activeSection === 'homework' || activeSection === 'attendance' || activeSection === 'behavior' || activeSection === 'announcements' ? 'block min-w-0 space-y-6' : 'hidden'}`}>
+          <div className={`${activeSection === 'students' || activeSection === 'homework' || activeSection === 'attendance' || activeSection === 'behavior' || activeSection === 'announcements' ? 'block min-w-0 space-y-6' : 'hidden'}`}>
             {/* Upload Homework */}
             <div className={`${activeSection === 'homework' ? 'block' : 'hidden'} w-full min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6`}>
               <div className="flex items-center gap-3 mb-5">
@@ -1618,7 +1625,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
             </div>
 
             {/* Quick Actions */}
-            <div className={`${activeSection === 'attendance' || activeSection === 'behavior' || activeSection === 'homework' ? 'block' : 'hidden'} w-full min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6`}>
+            <div className={`${activeSection === 'students' || activeSection === 'attendance' || activeSection === 'behavior' || activeSection === 'homework' ? 'block' : 'hidden'} w-full min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6`}>
               <h3 className="text-lg font-display font-bold text-slate-900 mb-4">
                 {activeSection === 'attendance' ? 'Mark Attendance' : activeSection === 'behavior' ? 'Log Daily Behavior' : 'Quick Actions'}
               </h3>
