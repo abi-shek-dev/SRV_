@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Users, LogOut, CheckSquare, BookOpen, AlertCircle } from 'lucide-react';
-import srvLogo from '../assest/fav_logo/srv-t.png';
+import srvLogo from '../assets/fav_logo/srv-t.png';
 import API_URL from '../config/api.js';
 
 export function FacultyDashboard() {

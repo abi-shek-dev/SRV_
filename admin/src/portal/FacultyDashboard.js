@@ -10,7 +10,8 @@ import { Logo } from '../components/Logo.js';
 import { PortalHeader } from '../components/PortalHeader.js';
 import { NotificationPanel } from '../components/NotificationPanel.js';
 import { MemoriesSection } from '../components/MemoriesSection.js';
-import Swal from 'sweetalert2';
+
+import Swal from 'sweetalert2';
 
 function MyTasksSection({ token }) {
   const [tasks, setTasks] = useState([]);

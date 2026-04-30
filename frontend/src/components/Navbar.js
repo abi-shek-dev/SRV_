@@ -3,7 +3,7 @@ import { Menu, X, ChevronDown, User } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { twMerge } from 'tailwind-merge';
-import srvLogo from '../assest/fav_logo/srv-t.png';
+import srvLogo from '../assets/fav_logo/srv-t.png';
 
 // Portal Login is intentionally NOT included here — it's a separate CTA button
 const navLinks = [

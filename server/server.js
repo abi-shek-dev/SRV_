@@ -107,7 +107,7 @@ app.use((err, req, res, next) => {
 // ──────────────────────────────────────────────
 // STARTUP — test MySQL pool then listen
 // ──────────────────────────────────────────────
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 (async () => {
   try {

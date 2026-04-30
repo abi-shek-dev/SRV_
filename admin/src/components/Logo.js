@@ -1,4 +1,4 @@
-import srvLogo from '../assest/fav_logo/srv-t.png';
+import srvLogo from '../assets/fav_logo/srv-t.png';
 
 export function Logo({ className = '', imageClassName = '' }) {
   return (

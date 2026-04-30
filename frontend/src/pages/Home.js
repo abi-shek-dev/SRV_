@@ -3,12 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ArrowRight, Building, Monitor, FlaskConical, Trophy, Video, BookOpen, Palette, Bus, MessageSquare, ChevronRight, CheckCircle2, Calendar, Award, Shield, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import heroVideo from '../assest/home/srv_revison4_60_fps.webm';
-import heroImg1 from '../assest/home/home.webp';
-import heroImg2 from '../assest/home/WhatsApp Image 2026-04-04 at 2.48.55 PM.webp';
-import heroImg3 from '../assest/home/DSC08819.webp';
-import heroImg4 from '../assest/home/DSC08691.webp';
-import heroImg5 from '../assest/home/DSC08736.webp';
+import heroVideo from '../assets/home/srv_revison4_60_fps.webm';
+import heroImg1 from '../assets/home/home.webp';
+import heroImg2 from '../assets/home/WhatsApp Image 2026-04-04 at 2.48.55 PM.webp';
+import heroImg3 from '../assets/home/DSC08819.webp';
+import heroImg4 from '../assets/home/DSC08691.webp';
+import heroImg5 from '../assets/home/DSC08736.webp';
 
 const mediaSequence = [
   { type: 'video', src: heroVideo },

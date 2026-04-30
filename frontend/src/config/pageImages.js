@@ -1,9 +1,9 @@
-const academicMods = import.meta.glob('../assest/Academic/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' });
-const admissionsMods = import.meta.glob('../assest/Admissions/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' });
-const coCurricularMods = import.meta.glob('../assest/Co-Curricular/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' });
-const facilitiesMods = import.meta.glob('../assest/Facilites/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' });
-const newsMediaMods = import.meta.glob('../assest/News&Media/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' });
-const skillDevelopmentMods = import.meta.glob('../assest/Skill Development/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' });
+const academicMods = import.meta.glob('../assets/Academic/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' });
+const admissionsMods = import.meta.glob('../assets/Admissions/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' });
+const coCurricularMods = import.meta.glob('../assets/Co-Curricular/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' });
+const facilitiesMods = import.meta.glob('../assets/Facilites/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' });
+const newsMediaMods = import.meta.glob('../assets/News&Media/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' });
+const skillDevelopmentMods = import.meta.glob('../assets/Skill Development/*.{webp,jpg,jpeg,png}', { eager: true, query: '?url', import: 'default' });
 
 const mapMods = (mods) => Object.keys(mods).map((filePath) => {
   const fileName = filePath.split('/').pop().replace(/\.[^/.]+$/, "");

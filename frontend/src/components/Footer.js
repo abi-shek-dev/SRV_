@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { MapPin, Phone, Mail, Instagram, Facebook, Twitter, Youtube, ArrowRight, BookOpen } from 'lucide-react';
-import srvLogo from '../assest/fav_logo/srv-t.png';
+import srvLogo from '../assets/fav_logo/srv-t.png';
 
 export function Footer() {
   return (

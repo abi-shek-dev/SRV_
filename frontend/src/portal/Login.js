@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User, LogIn, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
-import srvLogo from '../assest/fav_logo/srv-t.png';
+import srvLogo from '../assets/fav_logo/srv-t.png';
 import axios from 'axios';
 
 export function Login() {

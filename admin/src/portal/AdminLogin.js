@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, LogIn, AlertCircle } from 'lucide-react';
 import { motion } from 'motion/react';
-import srvLogo from '../assest/fav_logo/srv-t.png';
+import srvLogo from '../assets/fav_logo/srv-t.png';
 import axios from 'axios';
 import API_URL from '../config/api';
 
