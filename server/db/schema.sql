@@ -469,10 +469,12 @@ CREATE TABLE IF NOT EXISTS memories (
   original_filename   VARCHAR(255) DEFAULT '',
   folder              VARCHAR(255) DEFAULT '',
   uploaded_by         INT UNSIGNED NOT NULL,
-  created_by_role     ENUM('admin') DEFAULT 'admin',
+  created_by_role     ENUM('admin', 'faculty') DEFAULT 'admin',
+  student_id          INT UNSIGNED DEFAULT NULL,
   created_at          DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at          DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE CASCADE
+  FOREIGN KEY (uploaded_by) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (student_id)  REFERENCES students(id) ON DELETE CASCADE
 );
 
 -- ──────────────────────────────────────────────────────────

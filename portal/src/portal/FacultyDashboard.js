@@ -325,6 +325,80 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     setBhvMsg({ text: '', type: '' });
   };
 
+  // Memory Upload State
+  const [uploadMemoryStudent, setUploadMemoryStudent] = useState(null);
+  const [memoryUploadForm, setMemoryUploadForm] = useState({ title: '', description: '', file: null });
+  const [memoryUploadMsg, setMemoryUploadMsg] = useState({ text: '', type: '' });
+  const [isUploadingMemory, setIsUploadingMemory] = useState(false);
+
+  const openMemoryUpload = (student) => {
+    setUploadMemoryStudent(student);
+    setMemoryUploadForm({ title: '', description: '', file: null });
+    setMemoryUploadMsg({ text: '', type: '' });
+  };
+
+  const submitMemoryUpload = async (e) => {
+    e.preventDefault();
+    if (!memoryUploadForm.file) {
+      return setMemoryUploadMsg({ text: 'Please select a photo to upload.', type: 'error' });
+    }
+    setIsUploadingMemory(true);
+    setMemoryUploadMsg({ text: 'Starting upload...', type: 'info' });
+
+    try {
+      const token = localStorage.getItem('schoolToken');
+
+      // 1. Get config
+      const confRes = await axios.get(`${API_URL}/api/faculty/memories/upload-config`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const { cloudName, apiKey, folder } = confRes.data;
+
+      // 2. Get signature
+      const sigRes = await axios.post(`${API_URL}/api/faculty/memories/upload-signature`, { folder }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const { timestamp, signature } = sigRes.data;
+
+      // 3. Upload to Cloudinary directly
+      const formData = new FormData();
+      formData.append('file', memoryUploadForm.file);
+      formData.append('api_key', apiKey);
+      formData.append('timestamp', timestamp);
+      formData.append('signature', signature);
+      formData.append('folder', folder);
+
+      setMemoryUploadMsg({ text: 'Uploading to cloud...', type: 'info' });
+      const cloudRes = await axios.post(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, formData);
+      const cData = cloudRes.data;
+
+      // 4. Save metadata to our DB
+      setMemoryUploadMsg({ text: 'Saving memory...', type: 'info' });
+      await axios.post(`${API_URL}/api/faculty/memories`, {
+        title: memoryUploadForm.title || memoryUploadForm.file.name,
+        description: memoryUploadForm.description,
+        secureUrl: cData.secure_url,
+        publicId: cData.public_id,
+        resourceType: cData.resource_type,
+        bytes: cData.bytes,
+        format: cData.format,
+        originalFilename: cData.original_filename,
+        folder: cData.folder,
+        studentId: uploadMemoryStudent._id
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      setMemoryUploadMsg({ text: 'Memory uploaded successfully!', type: 'success' });
+      setTimeout(() => setUploadMemoryStudent(null), 2000);
+    } catch (error) {
+      console.error(error);
+      setMemoryUploadMsg({ text: error.response?.data?.message || 'Error uploading memory', type: 'error' });
+    } finally {
+      setIsUploadingMemory(false);
+    }
+  };
+
   const submitAttendance = async (e) => {
     e.preventDefault();
     try {
@@ -1194,6 +1268,13 @@ export function FacultyDashboard({ section = 'dashboard' }) {
                     >
                       Edit Profile
                     </button>
+                    <button
+                      onClick={() => openMemoryUpload(s)}
+                      className="rounded-lg bg-purple-100 px-3 py-2 text-xs font-bold text-purple-700"
+                    >
+                      <ImageIcon size={14} className="inline mr-1" />
+                      Upload Memory
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1234,12 +1315,20 @@ export function FacultyDashboard({ section = 'dashboard' }) {
                           >
                             Evaluate EC Skills & Marks
                           </button>
-                          <button
-                            onClick={() => openStudentProfileEditor(s)}
-                            className="text-blue-600 font-semibold text-sm hover:underline"
-                          >
-                            Edit Profile
-                          </button>
+                          <div className="flex gap-4">
+                            <button
+                              onClick={() => openStudentProfileEditor(s)}
+                              className="text-blue-600 font-semibold text-sm hover:underline"
+                            >
+                              Edit Profile
+                            </button>
+                            <button
+                              onClick={() => openMemoryUpload(s)}
+                              className="text-purple-600 font-semibold text-sm hover:underline flex items-center gap-1"
+                            >
+                              <ImageIcon size={14} /> Upload Memory
+                            </button>
+                          </div>
                         </div>
                       </td>
                     </tr>
@@ -2365,6 +2454,77 @@ export function FacultyDashboard({ section = 'dashboard' }) {
               Cancel
             </button>
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  {/* Memory Upload Modal */}
+  {
+    uploadMemoryStudent && (
+      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+        <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl relative">
+          <button onClick={() => setUploadMemoryStudent(null)} className="absolute right-5 top-5 z-10 font-bold text-slate-400 hover:text-slate-700">✕</button>
+          
+          <div className="flex items-center gap-3 mb-6">
+            <div className="h-10 w-10 shrink-0 flex items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-fuchsia-500 shadow">
+              <ImageIcon size={18} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-lg font-display font-bold text-slate-900 leading-tight">Upload Memory</h3>
+              <p className="text-sm text-slate-500">For {uploadMemoryStudent.name}</p>
+            </div>
+          </div>
+
+          {memoryUploadMsg.text && (
+            <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-semibold ${memoryUploadMsg.type === 'success' ? 'bg-emerald-100 text-emerald-800' : memoryUploadMsg.type === 'error' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
+              {memoryUploadMsg.text}
+            </div>
+          )}
+
+          <form onSubmit={submitMemoryUpload} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Title</label>
+              <input 
+                type="text" 
+                required 
+                value={memoryUploadForm.title} 
+                onChange={e => setMemoryUploadForm({...memoryUploadForm, title: e.target.value})}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-purple-500" 
+                placeholder="e.g. Won 1st Prize in Science Fair"
+              />
+            </div>
+            
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Description <span className="font-normal text-slate-400">(Optional)</span></label>
+              <textarea 
+                rows="2"
+                value={memoryUploadForm.description} 
+                onChange={e => setMemoryUploadForm({...memoryUploadForm, description: e.target.value})}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-purple-500" 
+                placeholder="Add a few words about this memory..."
+              ></textarea>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">Photo/Video</label>
+              <input 
+                type="file" 
+                accept="image/*,video/*"
+                required
+                onChange={e => setMemoryUploadForm({...memoryUploadForm, file: e.target.files[0]})}
+                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-purple-100 file:text-purple-700 hover:file:bg-purple-200" 
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={isUploadingMemory}
+              className={`w-full py-3.5 mt-2 text-white font-bold rounded-xl shadow-lg transition-all ${isUploadingMemory ? 'bg-purple-400 cursor-not-allowed' : 'bg-purple-600 hover:bg-purple-700 hover:-translate-y-0.5'}`}
+            >
+              {isUploadingMemory ? 'Uploading...' : 'Upload Memory'}
+            </button>
+          </form>
         </div>
       </div>
     )

@@ -26,6 +26,11 @@ import { archivePastEvents } from '../utils/archiveEvents.js';
 import { applyStudentFamilyDetails, validateStudentFamilyDetails } from '../utils/studentFamilyDetails.js';
 import { buildParentDisplayName, enrichParentLinkedRecord, enrichParentLinkedRecords } from '../utils/parentProfile.js';
 import { normalizeParentMobileNumber, syncParentAccountDetails } from '../utils/parentContact.js';
+import {
+  buildCloudinaryUploadConfig,
+  buildCloudinaryUploadSignature,
+  getCloudinaryGalleryFolder
+} from '../utils/cloudinary.js';
 
 const router = express.Router();
 
@@ -116,6 +121,95 @@ router.get('/memories', protect, facultyOrAdmin, async (req, res) => {
     res.json(memories);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching memories' });
+  }
+});
+
+// @route   GET /api/faculty/memories/upload-config
+// @desc    Get Cloudinary upload configuration for direct browser uploads
+// @access  Private (Faculty only)
+router.get('/memories/upload-config', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    res.json(buildCloudinaryUploadConfig({
+      folder: getCloudinaryGalleryFolder()
+    }));
+  } catch (error) {
+    res.status(500).json({ message: 'Error loading upload configuration' });
+  }
+});
+
+// @route   POST /api/faculty/memories/upload-signature
+// @desc    Create signed Cloudinary upload params for browser uploads
+// @access  Private (Faculty only)
+router.post('/memories/upload-signature', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    res.json(buildCloudinaryUploadSignature({
+      folder: req.body?.folder || getCloudinaryGalleryFolder()
+    }));
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Unable to create upload signature.' });
+  }
+});
+
+// @route   POST /api/faculty/memories
+// @desc    Save uploaded memory metadata specifically for a student
+// @access  Private (Faculty only)
+router.post('/memories', protect, facultyOrAdmin, async (req, res) => {
+  const {
+    title,
+    description,
+    secureUrl,
+    publicId,
+    resourceType,
+    bytes,
+    format,
+    originalFilename,
+    folder,
+    studentId
+  } = req.body;
+
+  try {
+    const normalizedResourceType = String(resourceType || '').trim().toLowerCase();
+    const normalizedTitle = String(title || originalFilename || 'School Memory').trim();
+
+    if (!studentId) {
+      return res.status(400).json({ message: 'Student ID is required.' });
+    }
+
+    if (!normalizedTitle) {
+      return res.status(400).json({ message: 'Memory title is required.' });
+    }
+
+    if (!secureUrl) {
+      return res.status(400).json({ message: 'Uploaded media URL is required.' });
+    }
+
+    if (!['image', 'video'].includes(normalizedResourceType)) {
+      return res.status(400).json({ message: 'Only images and videos are supported.' });
+    }
+
+    const fileBytes = Number(bytes) || 0;
+    if (normalizedResourceType === 'image' && fileBytes > 5 * 1024 * 1024) {
+      return res.status(400).json({ message: 'Photo uploads must be under 5 MB.' });
+    }
+
+    const memory = await Memory.create({
+      title: normalizedTitle,
+      description: String(description || '').trim(),
+      secureUrl: String(secureUrl).trim(),
+      publicId: String(publicId || '').trim(),
+      resourceType: normalizedResourceType,
+      bytes: fileBytes,
+      format: String(format || '').trim(),
+      originalFilename: String(originalFilename || '').trim(),
+      folder: String(folder || '').trim(),
+      uploadedBy: req.user.id,
+      createdByRole: 'faculty',
+      studentId: studentId
+    });
+
+    res.status(201).json({ message: 'Memory saved successfully.', memory });
+  } catch (error) {
+    res.status(500).json({ message: 'Error saving memory.' });
   }
 });
 

@@ -133,9 +133,19 @@ router.get('/notifications', protect, parentOnly, async (req, res) => {
 // @route   GET /api/parent/memories
 router.get('/memories', protect, parentOnly, async (req, res) => {
   try {
-    const memories = await Memory.find();
+    const parentUser = await User.findById(req.user.id);
+    const studentId = parentUser.studentId;
+    
+    let memories;
+    if (studentId) {
+      memories = await Memory.find({ $or: [{ studentId: null }, { studentId }] });
+    } else {
+      memories = await Memory.find({ studentId: null });
+    }
+    
     res.json(memories);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Error fetching memories' });
   }
 });

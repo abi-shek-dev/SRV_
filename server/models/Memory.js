@@ -7,12 +7,49 @@ const r2m = (r) => !r ? null : {
   resourceType: r.resource_type, bytes: r.bytes,
   format: r.format, originalFilename: r.original_filename,
   folder: r.folder, uploadedBy: r.uploaded_by, createdByRole: r.created_by_role,
+  studentId: r.student_id,
   createdAt: r.created_at, updatedAt: r.updated_at
 };
 
 export async function find(where = {}, opts = {}) {
-  let sql = 'SELECT * FROM memories ORDER BY created_at DESC';
-  const [rows] = await pool.query(sql);
+  let sql = 'SELECT * FROM memories';
+  const vals = [];
+  
+  // Clone where to safely remove $or
+  const whereClone = { ...where };
+  const orCond = whereClone.$or;
+  delete whereClone.$or;
+
+  const keys = Object.keys(whereClone);
+  if (keys.length > 0) {
+    const colMap = { studentId: 'student_id', uploadedBy: 'uploaded_by' };
+    const conds = keys.map(k => {
+      if (whereClone[k] === null) return `\`${colMap[k] || k}\` IS NULL`;
+      return `\`${colMap[k] || k}\` = ?`;
+    });
+    sql += ' WHERE ' + conds.join(' AND ');
+    vals.push(...keys.filter(k => whereClone[k] !== null).map(k => whereClone[k]));
+  }
+  
+  // Custom $or support
+  if (orCond) {
+    const orConds = orCond.map(cond => {
+      const k = Object.keys(cond)[0];
+      const colMap = { studentId: 'student_id' };
+      if (cond[k] === null) return `\`${colMap[k] || k}\` IS NULL`;
+      vals.push(cond[k]);
+      return `\`${colMap[k] || k}\` = ?`;
+    });
+    const orStr = '(' + orConds.join(' OR ') + ')';
+    if (sql.includes('WHERE')) {
+      sql += ' AND ' + orStr;
+    } else {
+      sql += ' WHERE ' + orStr;
+    }
+  }
+
+  sql += ' ORDER BY created_at DESC';
+  const [rows] = await pool.query(sql, vals);
   return rows.map(r2m);
 }
 
@@ -31,13 +68,13 @@ export async function findOne(where) {
 
 export async function create(data) {
   const { title, description = '', secureUrl, publicId = '', resourceType,
-          bytes = 0, format = '', originalFilename = '', folder = '', uploadedBy, createdByRole = 'admin' } = data;
+          bytes = 0, format = '', originalFilename = '', folder = '', uploadedBy, createdByRole = 'admin', studentId = null } = data;
   const [result] = await pool.query(
     `INSERT INTO memories (title, description, secure_url, public_id, resource_type,
-      bytes, format, original_filename, folder, uploaded_by, created_by_role)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      bytes, format, original_filename, folder, uploaded_by, created_by_role, student_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [title, description, secureUrl, publicId, resourceType,
-     bytes, format, originalFilename, folder, uploadedBy, createdByRole]
+     bytes, format, originalFilename, folder, uploadedBy, createdByRole, studentId]
   );
   return findById(result.insertId);
 }

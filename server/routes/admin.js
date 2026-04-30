@@ -515,7 +515,8 @@ router.post('/memories', protect, adminOnly, async (req, res) => {
     bytes,
     format,
     originalFilename,
-    folder
+    folder,
+    studentId
   } = req.body;
 
   try {
@@ -550,7 +551,8 @@ router.post('/memories', protect, adminOnly, async (req, res) => {
       originalFilename: String(originalFilename || '').trim(),
       folder: String(folder || '').trim(),
       uploadedBy: req.user.id,
-      createdByRole: 'admin'
+      createdByRole: 'admin',
+      studentId: studentId || null
     });
 
     res.status(201).json({ message: 'Memory saved successfully.', memory });
