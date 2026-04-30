@@ -667,7 +667,8 @@ export function FacultyDashboard({ section = 'dashboard' }) {
       motherName: student.motherName || '',
       fatherName: student.fatherName || '',
       guardianName: student.guardianName || '',
-      parentMobileNumber: student.parentMobileNumber || ''
+      parentMobileNumber: student.parentMobileNumber || '',
+      dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split('T')[0] : ''
     });
     setProfileMsg({ text: '', type: '' });
   };
@@ -1914,6 +1915,16 @@ export function FacultyDashboard({ section = 'dashboard' }) {
                 className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Student name"
               />
+              <div className="relative">
+                <input
+                  type="date"
+                  value={studentProfileForm.dateOfBirth || ''}
+                  onChange={e => setStudentProfileForm({ ...studentProfileForm, dateOfBirth: e.target.value })}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Date of Birth"
+                  title="Date of Birth"
+                />
+              </div>
               <select
                 value={studentProfileForm.grade}
                 onChange={e => setStudentProfileForm({ ...studentProfileForm, grade: e.target.value, group: '' })}

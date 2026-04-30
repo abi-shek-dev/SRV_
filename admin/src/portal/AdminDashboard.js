@@ -397,7 +397,8 @@ export function AdminDashboard({ section = 'home' }) {
       guardianName: student.guardianName || '',
       parentMobileNumber: student.parentMobileNumber || '',
       parentRecoveryQuestion: '',
-      parentRecoveryAnswer: ''
+      parentRecoveryAnswer: '',
+      dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split('T')[0] : ''
     });
   };
 
@@ -1806,6 +1807,16 @@ export function AdminDashboard({ section = 'home' }) {
                     onChange={e => setEditStudentForm({ ...editStudentForm, name: e.target.value })}
                     className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500"
                     placeholder="Student name"
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Date of Birth</label>
+                  <input
+                    type="date"
+                    value={editStudentForm.dateOfBirth || ''}
+                    onChange={e => setEditStudentForm({ ...editStudentForm, dateOfBirth: e.target.value })}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500"
+                    title="Date of Birth"
                   />
                 </div>
                 <div>

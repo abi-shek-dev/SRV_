@@ -427,6 +427,9 @@ router.put('/student/:id', protect, adminOnly, async (req, res) => {
     if (grade !== undefined) student.grade = grade;
     if (section !== undefined) student.section = section;
     if (group !== undefined) student.group = group;
+    if (req.body.dateOfBirth !== undefined) {
+      student.dateOfBirth = req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : null;
+    }
     if (req.body.parentMobileNumber !== undefined) {
       student.parentMobileNumber = normalizeParentMobileNumber(req.body.parentMobileNumber);
     }
