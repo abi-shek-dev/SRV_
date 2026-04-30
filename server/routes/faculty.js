@@ -98,7 +98,8 @@ router.put('/student/:id', protect, facultyOrAdmin, async (req, res) => {
     if (section !== undefined) student.section = section;
     if (group !== undefined) student.group = group;
     if (req.body.dateOfBirth !== undefined) {
-      student.dateOfBirth = req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : null;
+      // Pass raw yyyy-mm-dd string to MySQL to avoid timezone shifts
+      student.dateOfBirth = req.body.dateOfBirth ? String(req.body.dateOfBirth).split('T')[0] : null;
     }
     if (req.body.parentMobileNumber !== undefined) {
       student.parentMobileNumber = normalizeParentMobileNumber(req.body.parentMobileNumber);
@@ -110,8 +111,8 @@ router.put('/student/:id', protect, facultyOrAdmin, async (req, res) => {
 
     res.json({ message: 'Student profile updated successfully', student });
   } catch (error) {
-    console.error('[Faculty Edit Student Error]', error);
-    res.status(500).json({ message: 'Error updating student profile' });
+    console.error('[Faculty Edit Student Error]', error.message || error);
+    res.status(500).json({ message: error.message || 'Error updating student profile' });
   }
 });
 

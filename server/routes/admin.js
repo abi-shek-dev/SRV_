@@ -156,10 +156,11 @@ router.post('/student', protect, adminOnly, async (req, res) => {
     
     let defaultPassword;
     if (dateOfBirth) {
-      const dobDate = new Date(dateOfBirth);
-      const dd = String(dobDate.getDate()).padStart(2, '0');
-      const mm = String(dobDate.getMonth() + 1).padStart(2, '0');
-      const yyyy = dobDate.getFullYear();
+      // Parse directly from string to avoid timezone shifts (yyyy-mm-dd)
+      const parts = String(dateOfBirth).split('T')[0].split('-');
+      const yyyy = parts[0] || '';
+      const mm   = parts[1] || '';
+      const dd   = parts[2] || '';
       defaultPassword = `${dd}${mm}${yyyy}`;
     } else {
       defaultPassword = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 6);
@@ -428,7 +429,8 @@ router.put('/student/:id', protect, adminOnly, async (req, res) => {
     if (section !== undefined) student.section = section;
     if (group !== undefined) student.group = group;
     if (req.body.dateOfBirth !== undefined) {
-      student.dateOfBirth = req.body.dateOfBirth ? new Date(req.body.dateOfBirth) : null;
+      // Pass raw yyyy-mm-dd string to MySQL to avoid timezone shifts
+      student.dateOfBirth = req.body.dateOfBirth ? String(req.body.dateOfBirth).split('T')[0] : null;
     }
     if (req.body.parentMobileNumber !== undefined) {
       student.parentMobileNumber = normalizeParentMobileNumber(req.body.parentMobileNumber);

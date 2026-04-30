@@ -30,8 +30,9 @@ const row2student = (r) => {
 };
 
 export async function findOne(where) {
+  const colMap = { _id: 'id', facultyId: 'faculty_id', srvNumber: 'srv_number' };
   const keys = Object.keys(where);
-  const conds = keys.map(k => `\`${k}\` = ?`).join(' AND ');
+  const conds = keys.map(k => `\`${colMap[k] || k}\` = ?`).join(' AND ');
   const [rows] = await pool.query(`SELECT * FROM students WHERE ${conds} LIMIT 1`, Object.values(where));
   return row2student(rows[0]);
 }
