@@ -153,7 +153,18 @@ router.post('/student', protect, adminOnly, async (req, res) => {
 
     // 3. Automatically create the Parent login account
     const salt = await bcrypt.genSalt(10);
-    const defaultPassword = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 6);
+    
+    let defaultPassword;
+    if (dateOfBirth) {
+      const dobDate = new Date(dateOfBirth);
+      const dd = String(dobDate.getDate()).padStart(2, '0');
+      const mm = String(dobDate.getMonth() + 1).padStart(2, '0');
+      const yyyy = dobDate.getFullYear();
+      defaultPassword = `${dd}${mm}${yyyy}`;
+    } else {
+      defaultPassword = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 6);
+    }
+    
     const hashedPassword = await bcrypt.hash(defaultPassword, salt);
 
     const parentUser = await User.create({
