@@ -294,6 +294,14 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     setAttMsg({ text: '', type: '' });
   };
 
+  const markAllPresent = () => {
+    const initialRecords = {};
+    students.forEach(s => {
+      initialRecords[s._id] = 'Present';
+    });
+    setAttRecords(initialRecords);
+  };
+
   // Behavior Form State
   const [showBhvModal, setShowBhvModal] = useState(false);
   const [bhvDate, setBhvDate] = useState(new Date().toISOString().split('T')[0]);
@@ -1854,8 +1862,21 @@ export function FacultyDashboard({ section = 'dashboard' }) {
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
           <div className="relative mx-auto my-3 flex max-h-[calc(100vh-1.5rem)] w-full max-w-lg flex-col rounded-3xl bg-white p-5 shadow-2xl sm:my-8 sm:max-h-[90vh] sm:p-8">
             <button onClick={() => setShowAttModal(false)} className="absolute right-5 top-5 z-10 font-bold text-slate-400 hover:text-slate-700 sm:right-6 sm:top-6">✕</button>
-            <h3 className="mb-6 shrink-0 pr-10 text-2xl font-display font-bold text-slate-900">Daily Register</h3>
             
+            <div className="mb-6 flex items-center justify-between shrink-0 pr-10">
+              <div>
+                <h3 className="text-2xl font-display font-bold text-slate-900">Daily Register</h3>
+                <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{students.length} Students Total</p>
+              </div>
+              <button 
+                type="button" 
+                onClick={markAllPresent}
+                className="text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 px-3 py-2 rounded-xl hover:bg-emerald-200 transition-all active:scale-95 shadow-sm"
+              >
+                Mark All Present
+              </button>
+            </div>
+            
             {attMsg.text && (
               <div className={`mb-4 px-4 py-3 shrink-0 rounded-xl text-sm font-semibold ${attMsg.type === 'success' ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
                 {attMsg.text}
@@ -1871,20 +1892,34 @@ export function FacultyDashboard({ section = 'dashboard' }) {
               <div className="space-y-2 overflow-y-auto pr-2 mb-6">
                 <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Student Roster</label>
                 {students.map(s => (
-                  <div key={s._id} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl">
+                  <div key={s._id} className="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-2xl transition-all hover:bg-white hover:shadow-sm">
                     <div className="flex flex-col">
                       <span className="font-bold text-slate-800 text-sm">{s.name}</span>
-                      <span className="text-xs font-mono text-slate-500">{s.srvNumber}</span>
+                      <span className="text-[10px] font-bold text-slate-400">{s.srvNumber}</span>
                     </div>
-                    <select 
-                      value={attRecords[s._id] || 'Present'} 
-                      onChange={e => setAttRecords({...attRecords, [s._id]: e.target.value})}
-                      className={`text-sm font-bold border rounded-lg px-2 py-1 outline-none ${attRecords[s._id] === 'Absent' ? 'bg-red-100 text-red-700 border-red-200' : attRecords[s._id] === 'Half-Day' ? 'bg-amber-100 text-amber-700 border-amber-200' : 'bg-emerald-100 text-emerald-700 border-emerald-200'}`}
-                    >
-                      <option value="Present">Present</option>
-                      <option value="Half-Day">Half-Day</option>
-                      <option value="Absent">Absent</option>
-                    </select>
+                    <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                       <button 
+                         type="button"
+                         onClick={() => setAttRecords({...attRecords, [s._id]: 'Present'})}
+                         className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${attRecords[s._id] === 'Present' || !attRecords[s._id] ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20' : 'text-slate-400 hover:bg-slate-50'}`}
+                       >
+                         P
+                       </button>
+                       <button 
+                         type="button"
+                         onClick={() => setAttRecords({...attRecords, [s._id]: 'Absent'})}
+                         className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${attRecords[s._id] === 'Absent' ? 'bg-red-500 text-white shadow-md shadow-red-500/20' : 'text-slate-400 hover:bg-slate-50'}`}
+                       >
+                         A
+                       </button>
+                       <button 
+                         type="button"
+                         onClick={() => setAttRecords({...attRecords, [s._id]: 'Half-Day'})}
+                         className={`px-4 py-1.5 rounded-lg text-xs font-black transition-all ${attRecords[s._id] === 'Half-Day' ? 'bg-amber-500 text-white shadow-md shadow-amber-500/20' : 'text-slate-400 hover:bg-slate-50'}`}
+                       >
+                         H
+                       </button>
+                    </div>
                   </div>
                 ))}
               </div>
