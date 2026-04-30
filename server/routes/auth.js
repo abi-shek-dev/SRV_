@@ -37,7 +37,7 @@ const validateLoginInput = (srvNumber, password) => {
 // @route   POST /api/auth/login
 // @desc    Auth user & get token (Faculty, Parent)
 // @access  Public (Rate limited)
-router.post('/login', loginLimiter, async (req, res) => {
+router.post('/login', loginLimiter, async (req, res, next) => {
   const { srvNumber, password } = req.body;
 
   // Validate input
@@ -71,21 +71,22 @@ router.post('/login', loginLimiter, async (req, res) => {
         name: displayName,
         srvNumber: user.srvNumber,
         role: user.role,
-        token: generateToken(user._id, user.role, user.srvNumber),
+        assignedGrade: user.assignedGrade,
+        assignedSection: user.assignedSection,
+        token: generateToken(user._id, user.role, user.srvNumber),
       });
     } else {
       return res.status(401).json({ message: 'Invalid ID or password.' });
     }
   } catch (error) {
-    console.error(`[LOGIN ERROR] ${new Date().toISOString()} | ${error.message}`);
-    return res.status(500).json({ message: 'Server error during login.' });
+    next(error);
   }
 });
 
 // @route   POST /api/auth/admin-login
 // @desc    Auth admin & get token
 // @access  Public (Rate limited)
-router.post('/admin-login', loginLimiter, async (req, res) => {
+router.post('/admin-login', loginLimiter, async (req, res, next) => {
   const { srvNumber, password } = req.body;
 
   const validationError = validateLoginInput(srvNumber, password);
@@ -109,15 +110,14 @@ router.post('/admin-login', loginLimiter, async (req, res) => {
       token: generateToken(user._id, user.role, user.srvNumber),
     });
   } catch (error) {
-    console.error(`[ADMIN LOGIN ERROR] ${new Date().toISOString()} | ${error.message}`);
-    return res.status(500).json({ message: 'Server error during admin login.' });
+    next(error);
   }
 });
 
 // @route   GET /api/auth/recovery-question/:srvNumber
 // @desc    Get recovery question for a login ID
 // @access  Public
-router.get('/recovery-question/:srvNumber', async (req, res) => {
+router.get('/recovery-question/:srvNumber', async (req, res, next) => {
   try {
     const srvNumber = String(req.params.srvNumber || '').trim();
     if (!srvNumber || srvNumber.length > 50) {
@@ -139,15 +139,14 @@ router.get('/recovery-question/:srvNumber', async (req, res) => {
       recoveryQuestion: user.recoveryQuestion
     });
   } catch (error) {
-    console.error(`[RECOVERY-QUESTION ERROR] ${new Date().toISOString()} | ${error.message}`);
-    return res.status(500).json({ message: 'Server error loading recovery question.' });
+    next(error);
   }
 });
 
 // @route   POST /api/auth/reset-password-with-answer
 // @desc    Reset password using a security answer
 // @access  Public
-router.post('/reset-password-with-answer', async (req, res) => {
+router.post('/reset-password-with-answer', async (req, res, next) => {
   const { srvNumber, answer, newPassword } = req.body;
 
   if (!srvNumber || typeof srvNumber !== 'string' || srvNumber.trim().length === 0) {
@@ -187,8 +186,7 @@ router.post('/reset-password-with-answer', async (req, res) => {
 
     return res.json({ message: 'Password reset successful. Please log in with your new password.' });
   } catch (error) {
-    console.error(`[RESET-WITH-ANSWER ERROR] ${new Date().toISOString()} | ${error.message}`);
-    return res.status(500).json({ message: 'Server error resetting password.' });
+    next(error);
   }
 });
 

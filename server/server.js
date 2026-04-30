@@ -61,6 +61,13 @@ app.use((req, res, next) => {
 
 app.use(cors(corsOptions));
 app.use(helmet());
+
+// Simple Request Logger
+app.use((req, res, next) => {
+  console.log(`[REQUEST] ${new Date().toISOString()} | ${req.method} ${req.originalUrl}`);
+  next();
+});
+
 app.use(express.json({ limit: '10kb' }));
 
 // Global rate limiter
@@ -90,18 +97,62 @@ app.get('/', (req, res) => {
 });
 
 // ──────────────────────────────────────────────
-// CENTRALIZED ERROR HANDLER
+// ERROR LOGGING & 404 HANDLING
 // ──────────────────────────────────────────────
+
+// Catch 404 and forward to error handler
+app.use((req, res, next) => {
+  const err = new Error(`Not Found - ${req.originalUrl}`);
+  err.status = 404;
+  next(err);
+});
+
+// Centralized Error Handler
 app.use((err, req, res, next) => {
-  console.error(`[ERROR] ${new Date().toISOString()} | ${req.method} ${req.originalUrl} | ${err.message}`);
+  const statusCode = err.status || 500;
+  
+  // Detailed logging to terminal
+  console.error(`\n[ERROR LOG] ${new Date().toISOString()}`);
+  console.error(`Method:  ${req.method}`);
+  console.error(`URL:     ${req.originalUrl}`);
+  console.error(`Status:  ${statusCode}`);
+  console.error(`Message: ${err.message}`);
+  
+  if (process.env.NODE_ENV !== 'production') {
+    console.error(`Stack:   ${err.stack}`);
+  }
+  
+  if (req.body && Object.keys(req.body).length > 0) {
+    // Log body but exclude passwords
+    const safeBody = { ...req.body };
+    ['password', 'token', 'secret'].forEach(k => delete safeBody[k]);
+    console.error(`Body:    ${JSON.stringify(safeBody)}`);
+  }
+  console.error('--------------------------------------------------\n');
+
   if (err.message === 'Not allowed by CORS') {
     return res.status(418).json({ message: 'CORS policy: Origin not allowed.' });
   }
-  res.status(err.status || 500).json({
-    message: process.env.NODE_ENV === 'production'
+
+  res.status(statusCode).json({
+    message: process.env.NODE_ENV === 'production' && statusCode === 500
       ? 'An unexpected error occurred.'
-      : err.message || 'Internal Server Error'
+      : err.message || 'Internal Server Error',
+    ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
   });
+});
+
+// Catch unhandled rejections and uncaught exceptions
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('\n[UNHANDLED REJECTION] at:', promise, 'reason:', reason);
+  // Optional: process.exit(1);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('\n[UNCAUGHT EXCEPTION]:', err.message);
+  console.error(err.stack);
+  console.error('--------------------------------------------------\n');
+  // Optional: process.exit(1);
 });
 
 // ──────────────────────────────────────────────

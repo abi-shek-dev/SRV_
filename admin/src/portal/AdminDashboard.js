@@ -1995,6 +1995,39 @@ function FacultyProfileModal({ faculty, allStudents, onClose, onUpdate }) {
   const [studentFilter, setStudentFilter] = useState({ grade: '', section: '' });
   const [saving, setSaving] = useState(false);
 
+  const autoAssign = () => {
+    if (!faculty.assignedGrade || !faculty.assignedSection) {
+      Swal.fire('Missing Data', 'Please ensure this faculty has an assigned Grade and Section before auto-matching.', 'warning');
+      return;
+    }
+    
+    // Find matching students regardless of case and trim whitespace
+    const matchingStudents = allStudents.filter(s => 
+      String(s.grade).trim().toLowerCase() === String(faculty.assignedGrade).trim().toLowerCase() && 
+      String(s.section).trim().toLowerCase() === String(faculty.assignedSection).trim().toLowerCase()
+    );
+    
+    if (matchingStudents.length === 0) {
+      Swal.fire('No Matches', `No students found in Grade ${faculty.assignedGrade} Section ${faculty.assignedSection}.`, 'info');
+      return;
+    }
+
+    const matchingIds = matchingStudents.map(s => s._id);
+    const newAssignedIds = Array.from(new Set([...assignedIds, ...matchingIds]));
+
+    if (newAssignedIds.length > maxStudents) {
+      Swal.fire({
+        title: 'Limit Reached', 
+        text: `Found ${matchingIds.length} students, but assigning them exceeds the tracking limit (${maxStudents}). Added up to the limit.`, 
+        icon: 'warning'
+      });
+      setAssignedIds(newAssignedIds.slice(0, maxStudents));
+    } else {
+      setAssignedIds(newAssignedIds);
+      Swal.fire('Auto-Assigned', `Added ${matchingIds.length} matching students. Don't forget to click 'Save Profile & Assignments'.`, 'success');
+    }
+  };
+
   const toggleStudent = (id) => {
     setAssignedIds(prev => {
       if (prev.includes(id)) return prev.filter(i => i !== id);
@@ -2085,9 +2118,14 @@ function FacultyProfileModal({ faculty, allStudents, onClose, onUpdate }) {
 
           {/* Right Column: Assign Students */}
           <div className="flex min-h-[320px] flex-col md:h-[500px]">
-             <h3 className="font-bold text-slate-800 mb-2 border-b pb-2 flex justify-between">
+             <h3 className="font-bold text-slate-800 mb-2 border-b pb-2 flex justify-between items-center">
                 <span>Assign Tracking Students</span>
-                <span className={`text-sm ${assignedIds.length > maxStudents ? 'text-red-500' : 'text-emerald-600'}`}>{assignedIds.length} / {maxStudents}</span>
+                <div className="flex items-center gap-3">
+                  <button onClick={autoAssign} className="text-xs bg-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded hover:bg-indigo-200 shadow-sm transition-colors">
+                    Auto-Match Class
+                  </button>
+                  <span className={`text-sm ${assignedIds.length > maxStudents ? 'text-red-500' : 'text-emerald-600'}`}>{assignedIds.length} / {maxStudents}</span>
+                </div>
              </h3>
              <div className="mb-3 flex flex-col gap-2 sm:flex-row">
                <input type="text" placeholder="Filter Grade" value={studentFilter.grade} onChange={e => setStudentFilter({...studentFilter, grade: e.target.value})} className="w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 sm:w-1/2" />

@@ -134,7 +134,7 @@ export async function findByIdAndDelete(id) {
 export async function updateMany(where, update) {
   // where: { facultyId: x } or { grade: x }
   // update: { $set: { facultyId: null } } or { $set: { grade: y } }
-  const colMap = { facultyId: 'faculty_id', grade: 'grade', section: 'section' };
+  const colMap = { _id: 'id', facultyId: 'faculty_id', grade: 'grade', section: 'section' };
   const setData = update['$set'] || update;
   const fields = {};
   for (const [k, v] of Object.entries(setData)) { fields[colMap[k] || k] = v; }

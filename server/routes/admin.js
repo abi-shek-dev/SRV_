@@ -272,10 +272,10 @@ router.get('/faculty', protect, adminOnly, async (req, res) => {
 // @route   PUT /api/admin/faculty/:id
 // @desc    Update faculty assignment and/or password
 // @access  Private (Admin only)
-router.put('/faculty/:id', protect, adminOnly, async (req, res) => {
+router.put('/faculty/:id', protect, adminOnly, async (req, res, next) => {
   const { name, mobileNumber, assignedGrade, assignedSection, maxStudents, handledClasses, password, recoveryQuestion, recoveryAnswer } = req.body;
   try {
-    const faculty = await User.findById(req.params.id);
+    let faculty = await User.findById(req.params.id);
     if (!faculty || faculty.role !== 'faculty') {
       return res.status(404).json({ message: 'Faculty not found' });
     }
@@ -309,7 +309,7 @@ router.put('/faculty/:id', protect, adminOnly, async (req, res) => {
 
     res.json({ message: 'Faculty updated successfully', faculty });
   } catch (error) {
-    res.status(500).json({ message: 'Error updating faculty' });
+    next(error);
   }
 });
 
@@ -335,7 +335,7 @@ router.post('/faculty/:id/assign-students', protect, adminOnly, async (req, res)
     
     res.json({ message: `Successfully synced ${idsToAssign.length} students` });
   } catch (error) {
-    res.status(500).json({ message: 'Error assigning students' });
+    next(error);
   }
 });
 
