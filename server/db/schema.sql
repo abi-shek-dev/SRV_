@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
   max_students        INT          DEFAULT 30,
   -- Parent field
   student_id          INT UNSIGNED DEFAULT NULL,
+  expo_push_token     VARCHAR(255) DEFAULT NULL,
   created_at          DATETIME     DEFAULT CURRENT_TIMESTAMP,
   updated_at          DATETIME     DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_role (role),
@@ -616,6 +617,103 @@ CREATE TABLE IF NOT EXISTS settings (
   value       TEXT         NOT NULL,
   created_at  DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at  DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- ──────────────────────────────────────────────────────────
+-- TIMETABLES (Class Schedules)
+-- ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS timetables (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  grade           VARCHAR(20) NOT NULL,
+  section         VARCHAR(20) NOT NULL,
+  day_of_week     ENUM('MON','TUE','WED','THU','FRI','SAT') NOT NULL,
+  period_number   TINYINT NOT NULL,
+  start_time      VARCHAR(10) DEFAULT '',
+  end_time        VARCHAR(10) DEFAULT '',
+  subject         VARCHAR(100) DEFAULT '',
+  teacher_name    VARCHAR(255) DEFAULT '',
+  room            VARCHAR(50) DEFAULT '',
+  created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_class_day_period (grade, section, day_of_week, period_number),
+  INDEX idx_grade_section (grade, section)
+);
+
+-- ──────────────────────────────────────────────────────────
+-- LEAVE REQUESTS
+-- ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS leave_requests (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  student_id      INT UNSIGNED NOT NULL,
+  parent_id       INT UNSIGNED DEFAULT NULL,
+  leave_type      ENUM('SICK','PERSONAL','FAMILY','OTHER') DEFAULT 'OTHER',
+  start_date      DATE NOT NULL,
+  end_date        DATE NOT NULL,
+  reason          TEXT DEFAULT '',
+  status          ENUM('PENDING','APPROVED','REJECTED') DEFAULT 'PENDING',
+  reviewed_by     INT UNSIGNED DEFAULT NULL,
+  review_note     TEXT DEFAULT '',
+  created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+  FOREIGN KEY (parent_id) REFERENCES users(id) ON DELETE SET NULL,
+  FOREIGN KEY (reviewed_by) REFERENCES users(id) ON DELETE SET NULL,
+  INDEX idx_student_id (student_id),
+  INDEX idx_status (status)
+);
+
+-- ──────────────────────────────────────────────────────────
+-- CIRCULARS
+-- ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS circulars (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  title           VARCHAR(500) NOT NULL,
+  description     TEXT DEFAULT '',
+  file_url        TEXT DEFAULT '',
+  target_type     ENUM('GLOBAL','CLASS') DEFAULT 'GLOBAL',
+  target_grade    VARCHAR(20) DEFAULT NULL,
+  target_section  VARCHAR(20) DEFAULT NULL,
+  created_by      INT UNSIGNED NOT NULL,
+  created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_target (target_type, target_grade, target_section)
+);
+
+-- ──────────────────────────────────────────────────────────
+-- TRANSPORT ROUTES
+-- ──────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS transport_routes (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  route_name      VARCHAR(255) NOT NULL,
+  bus_number      VARCHAR(50) DEFAULT '',
+  driver_name     VARCHAR(255) DEFAULT '',
+  driver_phone    VARCHAR(20) DEFAULT '',
+  helper_name     VARCHAR(255) DEFAULT '',
+  helper_phone    VARCHAR(20) DEFAULT '',
+  is_active       TINYINT(1) DEFAULT 1,
+  created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS transport_stops (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  route_id        INT UNSIGNED NOT NULL,
+  stop_name       VARCHAR(255) NOT NULL,
+  pickup_time     VARCHAR(10) DEFAULT '',
+  drop_time       VARCHAR(10) DEFAULT '',
+  sort_order      INT DEFAULT 0,
+  FOREIGN KEY (route_id) REFERENCES transport_routes(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS student_transport (
+  id              INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  student_id      INT UNSIGNED NOT NULL UNIQUE,
+  route_id        INT UNSIGNED NOT NULL,
+  stop_id         INT UNSIGNED DEFAULT NULL,
+  FOREIGN KEY (student_id) REFERENCES students(id) ON DELETE CASCADE,
+  FOREIGN KEY (route_id) REFERENCES transport_routes(id) ON DELETE CASCADE,
+  FOREIGN KEY (stop_id) REFERENCES transport_stops(id) ON DELETE SET NULL
 );
 
 SET FOREIGN_KEY_CHECKS = 1;

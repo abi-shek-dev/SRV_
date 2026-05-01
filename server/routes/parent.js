@@ -16,6 +16,10 @@ import Event from '../models/Event.js';
 import EventRegistration from '../models/EventRegistration.js';
 import Memory from '../models/Memory.js';
 import HomeworkSubmission from '../models/HomeworkSubmission.js';
+import LeaveRequest from '../models/LeaveRequest.js';
+import Circular from '../models/Circular.js';
+import Transport from '../models/Transport.js';
+import Library from '../models/Library.js';
 import { protect } from '../middleware/auth.js';
 import { archiveOldHomework } from '../utils/archiveHomework.js';
 import { buildHomeworkClassFilter } from '../utils/homeworkMatching.js';
@@ -566,6 +570,170 @@ router.post('/events/:id/register', protect, parentOnly, async (req, res) => {
     res.json({ message: 'Event acknowledgement saved successfully.', registration });
   } catch (error) {
     res.status(500).json({ message: error.message || 'Error saving event acknowledgement' });
+  }
+});
+
+// @route   POST /api/parent/leave
+router.post('/leave', protect, parentOnly, async (req, res) => {
+  const { leaveType, startDate, endDate, reason } = req.body;
+  try {
+    const parentUser = await User.findById(req.user.id);
+    if (!parentUser.studentId) return res.status(404).json({ message: 'No student linked to this account' });
+
+    if (!startDate || !endDate) return res.status(400).json({ message: 'Start and end dates are required.' });
+    if (new Date(endDate) < new Date(startDate)) return res.status(400).json({ message: 'End date must be after start date.' });
+
+    const leave = await LeaveRequest.create({
+      studentId: parentUser.studentId,
+      parentId: req.user.id,
+      leaveType: leaveType || 'OTHER',
+      startDate, endDate,
+      reason: String(reason || '').trim()
+    });
+
+    res.status(201).json({ message: 'Leave request submitted.', leave });
+  } catch (error) {
+    console.error('[Leave Request Error]', error);
+    res.status(500).json({ message: 'Error submitting leave request' });
+  }
+});
+
+// @route   GET /api/parent/leave
+router.get('/leave', protect, parentOnly, async (req, res) => {
+  try {
+    const parentUser = await User.findById(req.user.id);
+    if (!parentUser.studentId) return res.status(404).json({ message: 'No student linked' });
+
+    const leaves = await LeaveRequest.findByStudent(parentUser.studentId);
+    res.json(leaves);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching leave requests' });
+  }
+});
+
+// @route   GET /api/parent/report-card
+router.get('/report-card', protect, parentOnly, async (req, res) => {
+  try {
+    const parentUser = await User.findById(req.user.id);
+    if (!parentUser?.studentId) return res.status(404).json({ message: 'No student linked' });
+
+    const student = await Student.findById(parentUser.studentId);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    // Get all academic records for this student
+    const records = await AcademicRecord.find({ studentId: student._id });
+
+    // Get attendance summary
+    const allLogs = await Attendance.find();
+    let totalDays = 0, presentDays = 0;
+    allLogs.forEach(log => {
+      (log.records || []).forEach(r => {
+        if (String(r.studentId) === String(student._id)) {
+          totalDays++;
+          if (r.status === 'Present') presentDays++;
+        }
+      });
+    });
+
+    // Get behavior average
+    const behaviorLogs = await Behavior.find();
+    let behaviorSum = 0, behaviorCount = 0;
+    behaviorLogs.forEach(log => {
+      (log.records || []).forEach(r => {
+        if (String(r.studentId) === String(student._id) && r.score != null) {
+          behaviorSum += r.score;
+          behaviorCount++;
+        }
+      });
+    });
+
+    res.json({
+      student: {
+        name: student.name,
+        srvNumber: student.srvNumber,
+        grade: student.grade,
+        section: student.section,
+        dateOfBirth: student.dateOfBirth,
+        fatherName: student.fatherName,
+        motherName: student.motherName
+      },
+      academics: records,
+      attendance: {
+        totalDays,
+        presentDays,
+        percentage: totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0
+      },
+      behavior: {
+        average: behaviorCount > 0 ? Math.round((behaviorSum / behaviorCount) * 10) / 10 : 0,
+        totalEntries: behaviorCount
+      }
+    });
+  } catch (error) {
+    console.error('[Report Card Error]', error);
+    res.status(500).json({ message: 'Error generating report card data' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// CIRCULARS
+// ══════════════════════════════════════════════════
+router.get('/circulars', protect, parentOnly, async (req, res) => {
+  try {
+    const student = await Student.findOne({ parentUserId: req.user.id });
+    const filters = student ? { targetGrade: student.grade, targetSection: student.section } : {};
+    const circulars = await Circular.findAll(filters);
+    res.json(circulars);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching circulars' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// TRANSPORT INFO
+// ══════════════════════════════════════════════════
+router.get('/transport', protect, parentOnly, async (req, res) => {
+  try {
+    const student = await Student.findOne({ parentUserId: req.user.id });
+    if (!student) return res.json(null);
+    const transport = await Transport.findByStudent(student._id);
+    res.json(transport);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching transport info' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// LIBRARY — My Books
+// ══════════════════════════════════════════════════
+router.get('/library', protect, parentOnly, async (req, res) => {
+  try {
+    const student = await Student.findOne({ parentUserId: req.user.id });
+    if (!student) return res.json([]);
+    const issues = await Library.findByStudent(student._id);
+    res.json(issues);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching library info' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// TEACHER WHATSAPP & CONTACT
+// ══════════════════════════════════════════════════
+router.get('/teacher-contact', protect, parentOnly, async (req, res) => {
+  try {
+    const student = await Student.findOne({ parentUserId: req.user.id });
+    if (!student) return res.json(null);
+    // Find class teacher (faculty assigned to this grade+section)
+    const pool = (await import('../db/pool.js')).default;
+    const [rows] = await pool.query(
+      `SELECT name, whatsapp_link, contact_number, assigned_grade, assigned_section FROM users WHERE role = 'faculty' AND assigned_grade = ? AND assigned_section = ? LIMIT 1`,
+      [student.grade, student.section]
+    );
+    if (!rows[0]) return res.json(null);
+    const t = rows[0];
+    res.json({ teacherName: t.name, whatsappLink: t.whatsapp_link || '', contactNumber: t.contact_number || '', grade: t.assigned_grade, section: t.assigned_section });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching teacher contact' });
   }
 });
 

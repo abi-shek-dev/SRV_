@@ -15,6 +15,8 @@ import EventRegistration from '../models/EventRegistration.js';
 import Memory from '../models/Memory.js';
 import Setting from '../models/Setting.js';
 import HomeworkSubmission from '../models/HomeworkSubmission.js';
+import LeaveRequest from '../models/LeaveRequest.js';
+import { notifyAttendanceAbsent, notifyHomeworkAssigned, notifyLeaveStatusChanged } from '../services/pushNotification.js';
 import { protect, facultyOrAdmin } from '../middleware/auth.js';
 import { archiveOldHomework } from '../utils/archiveHomework.js';
 import { buildHomeworkClassFilter, resolveHomeworkAudience } from '../utils/homeworkMatching.js';
@@ -338,6 +340,9 @@ router.post('/homework', protect, facultyOrAdmin, async (req, res) => {
     }
 
     res.status(201).json({ message: 'Homework added successfully', homework });
+
+    // Push notification (fire-and-forget)
+    notifyHomeworkAssigned(audience.grade, audience.section, subject, title).catch(() => {});
   } catch (error) {
     res.status(500).json({ message: 'Server error adding homework' });
   }
@@ -587,6 +592,15 @@ router.post('/attendance', protect, facultyOrAdmin, async (req, res) => {
     }
 
     res.json({ message: 'Attendance recorded for ' + dateStr, attendanceDoc });
+
+    // Push notifications for absent students (fire-and-forget)
+    try {
+      const absentRecords = (records || []).filter(r => r.status === 'Absent');
+      for (const rec of absentRecords) {
+        const stu = await Student.findById(rec.studentId);
+        if (stu) notifyAttendanceAbsent(stu._id, stu.name, dateStr).catch(() => {});
+      }
+    } catch (_) { /* non-blocking */ }
   } catch (error) {
     console.error('[ATTENDANCE ERROR]', error.message);
     // Handle duplicate entry — record exists with slightly different date (old timezone bug)
@@ -1046,6 +1060,69 @@ router.delete('/events/:id', protect, async (req, res) => {
     res.json({ message: 'Event deleted successfully.' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting event' });
+  }
+});
+
+// @route   GET /api/faculty/leave-requests
+router.get('/leave-requests', protect, async (req, res) => {
+  if (req.user.role !== 'faculty') return res.status(403).json({ message: 'Faculty only' });
+  try {
+    const faculty = await User.findById(req.user.id);
+    if (!faculty?.assignedGrade || !faculty?.assignedSection) {
+      return res.json([]);
+    }
+    const leaves = await LeaveRequest.findByClass(faculty.assignedGrade, faculty.assignedSection);
+    res.json(leaves);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching leave requests' });
+  }
+});
+
+// @route   PUT /api/faculty/leave-requests/:id
+router.put('/leave-requests/:id', protect, async (req, res) => {
+  if (req.user.role !== 'faculty') return res.status(403).json({ message: 'Faculty only' });
+  const { status, reviewNote } = req.body;
+  if (!['APPROVED', 'REJECTED'].includes(status)) return res.status(400).json({ message: 'Invalid status' });
+  try {
+    await LeaveRequest.updateStatus(req.params.id, { status, reviewNote, reviewedBy: req.user.id });
+    res.json({ message: `Leave request ${status.toLowerCase()}.` });
+
+    // Push notification (fire-and-forget)
+    const leave = await LeaveRequest.findById(req.params.id);
+    if (leave) notifyLeaveStatusChanged(leave.studentId, leave.studentName || 'Student', status).catch(() => {});
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating leave request' });
+  }
+});
+});
+
+// ══════════════════════════════════════════════════
+// WHATSAPP GROUP LINK & CONTACT
+// ══════════════════════════════════════════════════
+router.get('/whatsapp-info', protect, async (req, res) => {
+  try {
+    const faculty = await User.findById(req.user.id);
+    res.json({ whatsappLink: faculty?.whatsapp_link || '', contactNumber: faculty?.contact_number || '' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching WhatsApp info' });
+  }
+});
+
+router.put('/whatsapp-info', protect, facultyOrAdmin, async (req, res) => {
+  const { whatsappLink, contactNumber } = req.body;
+  try {
+    const pool = (await import('../db/pool.js')).default;
+    const fields = [];
+    const params = [];
+    if (whatsappLink !== undefined) { fields.push('whatsapp_link = ?'); params.push(whatsappLink || null); }
+    if (contactNumber !== undefined) { fields.push('contact_number = ?'); params.push(contactNumber || null); }
+    if (fields.length) {
+      params.push(req.user.id);
+      await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, params);
+    }
+    res.json({ message: 'WhatsApp info updated' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating WhatsApp info' });
   }
 });
 

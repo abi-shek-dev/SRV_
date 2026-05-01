@@ -47,4 +47,19 @@ async function _setRecords(logId, records) {
   await pool.query('INSERT INTO behavior_records (log_id, student_id, score, remarks) VALUES ?', [rows]);
 }
 
-export default { findOne, findById, create, save };
+export async function find(where = {}) {
+  const keys = Object.keys(where);
+  let sql = 'SELECT * FROM behavior_logs';
+  const params = [];
+  if (keys.length > 0) {
+    const colMap = { facultyId: 'faculty_id' };
+    const conds = keys.map(k => `\`${colMap[k] || k}\` = ?`);
+    sql += ' WHERE ' + conds.join(' AND ');
+    params.push(...Object.values(where));
+  }
+  sql += ' ORDER BY date DESC';
+  const [rows] = await pool.query(sql, params);
+  return Promise.all(rows.map(r => row2log(r)));
+}
+
+export default { findOne, findById, find, create, save };

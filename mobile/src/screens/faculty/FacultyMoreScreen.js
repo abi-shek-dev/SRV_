@@ -7,7 +7,7 @@ import API_URL from '../../config/api';
 import theme from '../../config/theme';
 
 export default function FacultyMoreScreen() {
-  const { logout, authHeaders } = useAuth();
+  const { logout, authHeaders, user, token } = useAuth();
   const [activeTab, setActiveTab] = useState('behavior');
   const [students, setStudents] = useState([]);
   const [events, setEvents] = useState([]);
@@ -25,6 +25,27 @@ export default function FacultyMoreScreen() {
   const [showAnnForm, setShowAnnForm] = useState(false);
   const [annForm, setAnnForm] = useState({ title: '', body: '' });
 
+  // Tasks state
+  const [tasks, setTasks] = useState([]);
+  const [performance, setPerformance] = useState(null);
+  const [submittingTaskId, setSubmittingTaskId] = useState(null);
+  const [submitForm, setSubmitForm] = useState({ proofUrl: '', proofType: 'link', comments: '' });
+
+  // Feedback state
+  const [feedbackList, setFeedbackList] = useState([]);
+  const [feedbackDrafts, setFeedbackDrafts] = useState({});
+
+  // Leave requests
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [leaveReviewNote, setLeaveReviewNote] = useState('');
+
+  // Timetable
+  const [timetable, setTimetable] = useState([]);
+  const [ttDay, setTtDay] = useState('');
+
+  // Profile settings
+  const [waInfo, setWaInfo] = useState({ whatsappLink: '', contactNumber: '' });
+
   useEffect(() => {
     const h = authHeaders();
     axios.get(`${API_URL}/api/faculty/students`, { headers: h }).then(r => setStudents(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -32,6 +53,24 @@ export default function FacultyMoreScreen() {
     axios.get(`${API_URL}/api/faculty/polls`, { headers: h }).then(r => setPolls(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     axios.get(`${API_URL}/api/faculty/memories`, { headers: h }).then(r => setMemories(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     axios.get(`${API_URL}/api/faculty/announcements`, { headers: h }).then(r => setAnnouncements(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    axios.get(`${API_URL}/api/tasks`, { headers: h }).then(r => setTasks(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    axios.get(`${API_URL}/api/performance/me`, { headers: h }).then(r => setPerformance(r.data)).catch(() => {});
+    axios.get(`${API_URL}/api/faculty/feedback`, { headers: h }).then(r => {
+      const list = Array.isArray(r.data) ? r.data : [];
+      setFeedbackList(list);
+      setFeedbackDrafts(list.reduce((a, fb) => ({ ...a, [fb._id]: { status: fb.status, staffNote: fb.staffNote || '' } }), {}));
+    }).catch(() => {});
+    axios.get(`${API_URL}/api/faculty/leave-requests`, { headers: h }).then(r => setLeaveRequests(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    axios.get(`${API_URL}/api/faculty/whatsapp-info`, { headers: h }).then(r => setWaInfo(r.data)).catch(() => {});
+    // Load timetable for faculty's assigned class
+    if (user?.assignedGrade && user?.assignedSection) {
+      axios.get(`${API_URL}/api/timetable/${user.assignedGrade}/${user.assignedSection}`, { headers: h })
+        .then(r => {
+          setTimetable(r.data.periods || []);
+          const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+          setTtDay(days[new Date().getDay()]);
+        }).catch(() => {});
+    }
   }, []);
 
   const submitBehavior = async () => {
@@ -49,6 +88,41 @@ export default function FacultyMoreScreen() {
     } finally { setSubmitting(false); }
   };
 
+  const submitTaskProof = async (taskId) => {
+    try {
+      setSubmitting(true);
+      await axios.post(`${API_URL}/api/tasks/${taskId}/submit`, submitForm, { headers: authHeaders() });
+      Alert.alert('Success', 'Proof submitted!');
+      setSubmittingTaskId(null);
+      setSubmitForm({ proofUrl: '', proofType: 'link', comments: '' });
+      const r = await axios.get(`${API_URL}/api/tasks`, { headers: authHeaders() });
+      setTasks(Array.isArray(r.data) ? r.data : []);
+      const p = await axios.get(`${API_URL}/api/performance/me`, { headers: authHeaders() });
+      setPerformance(p.data);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to submit.');
+    } finally { setSubmitting(false); }
+  };
+
+  const getMySubmission = (task) => {
+    const userId = user?._id || user?.id;
+    return task.submissions?.find(s => (s.facultyId?._id || s.facultyId) === userId);
+  };
+
+  const saveFeedback = async (fbId) => {
+    try {
+      setSubmitting(true);
+      await axios.put(`${API_URL}/api/faculty/feedback/${fbId}`, feedbackDrafts[fbId], { headers: authHeaders() });
+      Alert.alert('Saved', 'Feedback status updated.');
+      const r = await axios.get(`${API_URL}/api/faculty/feedback`, { headers: authHeaders() });
+      const list = Array.isArray(r.data) ? r.data : [];
+      setFeedbackList(list);
+      setFeedbackDrafts(list.reduce((a, fb) => ({ ...a, [fb._id]: { status: fb.status, staffNote: fb.staffNote || '' } }), {}));
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Could not update.');
+    } finally { setSubmitting(false); }
+  };
+
   const submitAnnouncement = async () => {
     if (!annForm.title.trim() || !annForm.body.trim()) return Alert.alert('Missing fields', 'Title and body are required.');
     try {
@@ -62,12 +136,27 @@ export default function FacultyMoreScreen() {
     } finally { setSubmitting(false); }
   };
 
+  const updateWaInfo = async () => {
+    setSubmitting(true);
+    try {
+      await axios.put(`${API_URL}/api/faculty/whatsapp-info`, waInfo, { headers: authHeaders() });
+      Alert.alert('Success', 'Contact settings updated!');
+    } catch (err) {
+      Alert.alert('Error', 'Failed to update settings');
+    } finally { setSubmitting(false); }
+  };
+
   const TABS = [
     { id: 'behavior', label: 'Behavior', icon: 'star-outline' },
+    { id: 'mytasks', label: 'Tasks', icon: 'trophy-outline' },
+    { id: 'feedback', label: 'Feedback', icon: 'chatbubble-ellipses-outline' },
     { id: 'announcements', label: 'Posts', icon: 'megaphone-outline' },
     { id: 'events', label: 'Events', icon: 'calendar-outline' },
     { id: 'polls', label: 'Polls', icon: 'bar-chart-outline' },
     { id: 'memories', label: 'Memories', icon: 'images-outline' },
+    { id: 'leaves', label: 'Leave', icon: 'calendar-outline' },
+    { id: 'timetable', label: 'Schedule', icon: 'time-outline' },
+    { id: 'profile', label: 'Profile', icon: 'person-outline' },
   ];
 
   return (
@@ -189,7 +278,216 @@ export default function FacultyMoreScreen() {
             </View>
           ))
         )}
+        {/* MY TASKS */}
+        {activeTab === 'mytasks' && (
+          <View style={{ gap: 14 }}>
+            {performance && (
+              <View style={styles.perfCard}>
+                <Text style={styles.perfTitle}>My Performance Score</Text>
+                <Text style={styles.perfSub}>Based on tasks, quality, feedback & contributions</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                  <View style={styles.perfPill}><Text style={styles.perfPillNum}>{performance.finalScore}</Text><Text style={styles.perfPillLabel}>Overall</Text></View>
+                  <View style={styles.perfPill}><Text style={styles.perfPillNum}>{performance.taskScore}%</Text><Text style={styles.perfPillLabel}>Tasks</Text></View>
+                  <View style={styles.perfPill}><Text style={styles.perfPillNum}>{performance.qualityScore}%</Text><Text style={styles.perfPillLabel}>Quality</Text></View>
+                  <View style={styles.perfPill}><Text style={styles.perfPillNum}>{performance.feedbackScore}%</Text><Text style={styles.perfPillLabel}>Feedback</Text></View>
+                  <View style={styles.perfPill}><Text style={styles.perfPillNum}>{performance.contributionScore}%</Text><Text style={styles.perfPillLabel}>Contrib.</Text></View>
+                </View>
+                <View style={{ flexDirection: 'row', gap: 8, marginTop: 10 }}>
+                  <View style={styles.perfBadge}><Text style={styles.perfBadgeText}>✅ {performance.completedTasks}/{performance.totalTasks} done</Text></View>
+                  {performance.pendingTasks > 0 && <View style={[styles.perfBadge, { backgroundColor: 'rgba(245,158,11,0.2)' }]}><Text style={[styles.perfBadgeText, { color: '#fbbf24' }]}>⏳ {performance.pendingTasks} pending</Text></View>}
+                </View>
+              </View>
+            )}
+            <Text style={[styles.formTitle, { marginTop: 4 }]}>Assigned Tasks ({tasks.length})</Text>
+            {tasks.length === 0 ? <EmptyState icon="trophy-outline" text="No tasks assigned yet" /> :
+              tasks.map((task, i) => {
+                const mySub = getMySubmission(task);
+                const isOverdue = new Date(task.deadline) < new Date() && !mySub;
+                return (
+                  <View key={task._id || i} style={styles.formCard}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                      <Text style={styles.cardTitle}>{task.title}</Text>
+                      <View style={[styles.chip, { backgroundColor: theme.bg }]}><Text style={styles.chipText}>{task.taskType}</Text></View>
+                      {isOverdue && <View style={[styles.chip, { backgroundColor: theme.errorBg }]}><Text style={[styles.chipText, { color: theme.error }]}>Overdue</Text></View>}
+                    </View>
+                    <Text style={styles.cardDesc}>{task.description}</Text>
+                    <Text style={[styles.cardDesc, { fontSize: 11, marginTop: 4, fontWeight: '600' }]}>⏰ Due: {new Date(task.deadline).toLocaleDateString()}</Text>
+                    {mySub ? (
+                      <View style={{ marginTop: 10, alignItems: 'flex-start', gap: 4 }}>
+                        <View style={[styles.chip, { backgroundColor: mySub.status === 'Approved' ? theme.emeraldBg : mySub.status === 'Rejected' ? theme.errorBg : theme.amberBg }]}>
+                          <Text style={[styles.chipText, { color: mySub.status === 'Approved' ? theme.emerald : mySub.status === 'Rejected' ? theme.error : theme.amber }]}>{mySub.status}</Text>
+                        </View>
+                        {mySub.qualityScore > 0 && <Text style={[styles.cardDesc, { fontSize: 11 }]}>Quality: {mySub.qualityScore}/100</Text>}
+                        {mySub.adminFeedback ? <Text style={[styles.cardDesc, { fontSize: 11, fontStyle: 'italic' }]}>"{mySub.adminFeedback}"</Text> : null}
+                      </View>
+                    ) : (
+                      <View style={{ marginTop: 10 }}>
+                        {submittingTaskId === task._id ? (
+                          <View style={{ gap: 8 }}>
+                            <Text style={styles.fieldLabel}>Proof URL</Text>
+                            <TextInput style={styles.input} value={submitForm.proofUrl} onChangeText={v => setSubmitForm(f => ({ ...f, proofUrl: v }))} placeholder="https://..." placeholderTextColor={theme.textMuted} />
+                            <Text style={styles.fieldLabel}>Comments</Text>
+                            <TextInput style={[styles.input, { height: 60, textAlignVertical: 'top' }]} value={submitForm.comments} onChangeText={v => setSubmitForm(f => ({ ...f, comments: v }))} placeholder="Any notes..." placeholderTextColor={theme.textMuted} multiline />
+                            <View style={{ flexDirection: 'row', gap: 8 }}>
+                              <TouchableOpacity style={[styles.submitBtn, { flex: 1 }, submitting && { opacity: 0.6 }]} onPress={() => submitTaskProof(task._id)} disabled={submitting}>
+                                {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Submit</Text>}
+                              </TouchableOpacity>
+                              <TouchableOpacity style={[styles.submitBtn, { flex: 1, backgroundColor: theme.border }]} onPress={() => setSubmittingTaskId(null)}>
+                                <Text style={[styles.submitBtnText, { color: theme.text }]}>Cancel</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
+                        ) : (
+                          <TouchableOpacity style={[styles.submitBtn, { alignSelf: 'flex-start', paddingHorizontal: 16 }]} onPress={() => setSubmittingTaskId(task._id)}>
+                            <Text style={styles.submitBtnText}>Submit Proof</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
+                  </View>
+                );
+              })
+            }
+          </View>
+        )}
+
+        {/* FEEDBACK INBOX */}
+        {activeTab === 'feedback' && (
+          <View style={{ gap: 10 }}>
+            <Text style={styles.formTitle}>Parent Feedback Inbox</Text>
+            {feedbackList.length === 0 ? <EmptyState icon="chatbubble-ellipses-outline" text="No parent feedback yet" /> :
+              feedbackList.map((fb, i) => {
+                const draft = feedbackDrafts[fb._id] || { status: fb.status, staffNote: '' };
+                const statusColor = fb.status === 'RESOLVED' ? theme.emerald : fb.status === 'IN_REVIEW' ? theme.amber : theme.error;
+                const statusBg = fb.status === 'RESOLVED' ? theme.emeraldBg : fb.status === 'IN_REVIEW' ? theme.amberBg : theme.errorBg;
+                return (
+                  <View key={fb._id || i} style={styles.formCard}>
+                    <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+                      <View style={[styles.chip, { backgroundColor: statusBg }]}><Text style={[styles.chipText, { color: statusColor }]}>{fb.status}</Text></View>
+                      <View style={[styles.chip, { backgroundColor: theme.bg }]}><Text style={styles.chipText}>{fb.category}</Text></View>
+                      <View style={[styles.chip, { backgroundColor: theme.infoBg }]}><Text style={[styles.chipText, { color: theme.info }]}>{fb.grade}-{fb.section}</Text></View>
+                    </View>
+                    <Text style={styles.cardTitle}>{fb.subject}</Text>
+                    <Text style={[styles.cardDesc, { fontSize: 12, marginBottom: 4 }]}>Parent: {fb.parentId?.name || 'Parent'} • Student: {fb.studentName || 'Student'}</Text>
+                    <View style={{ backgroundColor: theme.bg, borderRadius: 10, padding: 10, marginVertical: 6, borderWidth: 1, borderColor: theme.border }}>
+                      <Text style={styles.cardDesc}>{fb.message}</Text>
+                    </View>
+                    <Text style={styles.fieldLabel}>Status</Text>
+                    <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+                      {['OPEN', 'IN_REVIEW', 'RESOLVED'].map(s => (
+                        <TouchableOpacity key={s} style={[styles.chip, draft.status === s && styles.chipActive]} onPress={() => setFeedbackDrafts(d => ({ ...d, [fb._id]: { ...draft, status: s } }))}>
+                          <Text style={[styles.chipText, draft.status === s && styles.chipTextActive]}>{s.replace('_', ' ')}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                    <Text style={styles.fieldLabel}>Review Note</Text>
+                    <TextInput style={[styles.input, { height: 60, textAlignVertical: 'top' }]} value={draft.staffNote} onChangeText={v => setFeedbackDrafts(d => ({ ...d, [fb._id]: { ...draft, staffNote: v } }))} placeholder="Add notes..." placeholderTextColor={theme.textMuted} multiline />
+                    <TouchableOpacity style={[styles.submitBtn, { marginTop: 8 }, submitting && { opacity: 0.6 }]} onPress={() => saveFeedback(fb._id)} disabled={submitting}>
+                      {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Save</Text>}
+                    </TouchableOpacity>
+                    <Text style={[styles.cardDesc, { fontSize: 10, marginTop: 6 }]}>Submitted {new Date(fb.createdAt).toLocaleDateString()}</Text>
+                  </View>
+                );
+              })
+            }
+          </View>
+        )}
+
       </ScrollView>
+
+        {/* LEAVE REQUESTS */}
+        {activeTab === 'leaves' && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 8 }}>Student Leave Requests</Text>
+            {leaveRequests.length === 0 ? <View style={styles.card}><Text style={styles.cardDesc}>No leave requests for your class.</Text></View> :
+              leaveRequests.map((lv, i) => {
+                const statusColor = lv.status === 'APPROVED' ? theme.emerald : lv.status === 'REJECTED' ? theme.error : theme.amber;
+                const statusBg = lv.status === 'APPROVED' ? theme.emeraldBg : lv.status === 'REJECTED' ? theme.errorBg : theme.amberBg;
+                return (
+                  <View key={lv._id || i} style={styles.card}>
+                    <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+                      <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 16, backgroundColor: statusBg }}><Text style={{ color: statusColor, fontSize: 11, fontWeight: '700' }}>{lv.status}</Text></View>
+                      <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 16, backgroundColor: theme.bg }}><Text style={{ color: theme.textSub, fontSize: 11, fontWeight: '600' }}>{lv.leaveType}</Text></View>
+                    </View>
+                    <Text style={styles.cardTitle}>{lv.studentName}</Text>
+                    <Text style={styles.cardDesc}>{new Date(lv.startDate).toLocaleDateString()} → {new Date(lv.endDate).toLocaleDateString()}</Text>
+                    {lv.reason ? <Text style={{ color: theme.textSub, fontSize: 12, fontStyle: 'italic', marginTop: 4 }}>{lv.reason}</Text> : null}
+                    {lv.status === 'PENDING' && (
+                      <View style={{ marginTop: 10, gap: 8 }}>
+                        <TextInput style={{ backgroundColor: theme.bg, borderRadius: 10, borderWidth: 1, borderColor: theme.border, paddingHorizontal: 12, paddingVertical: 8, color: theme.text, fontSize: 13 }} value={leaveReviewNote} onChangeText={setLeaveReviewNote} placeholder="Optional note..." placeholderTextColor={theme.textMuted} />
+                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                          <TouchableOpacity style={{ flex: 1, backgroundColor: theme.emerald, borderRadius: 10, paddingVertical: 10, alignItems: 'center' }} onPress={async () => {
+                            try {
+                              await axios.put(`${API_URL}/api/faculty/leave-requests/${lv._id}`, { status: 'APPROVED', reviewNote: leaveReviewNote }, { headers: authHeaders() });
+                              Alert.alert('Approved', 'Leave approved.');
+                              setLeaveReviewNote('');
+                              setLeaveRequests(prev => prev.map(l => l._id === lv._id ? { ...l, status: 'APPROVED', reviewNote: leaveReviewNote } : l));
+                            } catch (err) { Alert.alert('Error', err.response?.data?.message || 'Failed.'); }
+                          }}><Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Approve</Text></TouchableOpacity>
+                          <TouchableOpacity style={{ flex: 1, backgroundColor: theme.error, borderRadius: 10, paddingVertical: 10, alignItems: 'center' }} onPress={async () => {
+                            try {
+                              await axios.put(`${API_URL}/api/faculty/leave-requests/${lv._id}`, { status: 'REJECTED', reviewNote: leaveReviewNote }, { headers: authHeaders() });
+                              Alert.alert('Rejected', 'Leave rejected.');
+                              setLeaveReviewNote('');
+                              setLeaveRequests(prev => prev.map(l => l._id === lv._id ? { ...l, status: 'REJECTED', reviewNote: leaveReviewNote } : l));
+                            } catch (err) { Alert.alert('Error', err.response?.data?.message || 'Failed.'); }
+                          }}><Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Reject</Text></TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })
+            }
+          </ScrollView>
+        )}
+
+        {/* TIMETABLE */}
+        {activeTab === 'timetable' && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Class Schedule</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 8 }}>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {['MON','TUE','WED','THU','FRI','SAT'].map(d => (
+                  <TouchableOpacity key={d} onPress={() => setTtDay(d)} style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 16, backgroundColor: ttDay === d ? theme.primary : theme.bg }}>
+                    <Text style={{ color: ttDay === d ? '#fff' : theme.textSub, fontSize: 12, fontWeight: '700' }}>{d}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+            {timetable.filter(p => p.dayOfWeek === ttDay).length === 0 ? (
+              <View style={styles.card}><Text style={styles.cardDesc}>No classes scheduled for {ttDay}.</Text></View>
+            ) : timetable.filter(p => p.dayOfWeek === ttDay).sort((a, b) => a.periodNumber - b.periodNumber).map((p, i) => (
+              <View key={i} style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: theme.primaryBg || '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: theme.primary, fontSize: 14, fontWeight: '800' }}>P{p.periodNumber}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle}>{p.subject || 'Free'}</Text>
+                  {p.teacherName ? <Text style={styles.cardDesc}>{p.teacherName}</Text> : null}
+                  {p.startTime || p.endTime ? <Text style={{ color: theme.textMuted, fontSize: 11 }}>{p.startTime} – {p.endTime}</Text> : null}
+                </View>
+              </View>
+            ))}
+          </ScrollView>
+        )}
+
+        {/* PROFILE SETTINGS */}
+        {activeTab === 'profile' && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Contact Settings</Text>
+            <View style={styles.card}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardDesc}>Parents will see these details in their portal to contact you or join your class group.</Text>
+                <TextInput style={[styles.input, { marginTop: 12 }]} placeholder="WhatsApp Group Link (e.g. https://chat.whatsapp.com/...)" value={waInfo.whatsappLink} onChangeText={t => setWaInfo({ ...waInfo, whatsappLink: t })} />
+                <TextInput style={[styles.input, { marginTop: 8 }]} placeholder="Contact Phone Number" keyboardType="phone-pad" value={waInfo.contactNumber} onChangeText={t => setWaInfo({ ...waInfo, contactNumber: t })} />
+                <TouchableOpacity style={[styles.submitBtn, { marginTop: 12 }]} onPress={updateWaInfo} disabled={submitting}>
+                  <Text style={styles.submitBtnText}>{submitting ? 'Saving...' : 'Save Settings'}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </ScrollView>
+        )}
     </View>
   );
 }
@@ -234,4 +532,12 @@ const styles = StyleSheet.create({
   pollCount: { color: theme.textMuted, fontSize: 12 },
   memCard: { backgroundColor: theme.surface, borderRadius: theme.radius, overflow: 'hidden', borderWidth: 1, borderColor: theme.border, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
   memImage: { width: '100%', height: 180 },
+  perfCard: { borderRadius: theme.radius, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 4, backgroundColor: '#4338ca', overflow: 'hidden' },
+  perfTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  perfSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 },
+  perfPill: { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12, alignItems: 'center', minWidth: 60 },
+  perfPillNum: { color: '#fff', fontSize: 18, fontWeight: '900' },
+  perfPillLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 9, fontWeight: '700', textTransform: 'uppercase', marginTop: 2 },
+  perfBadge: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
+  perfBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
 });
