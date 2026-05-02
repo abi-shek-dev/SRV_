@@ -21,6 +21,115 @@ import { ParentLibrarySection } from '../components/ParentLibrarySection.js';
 import { CircularsSection } from '../components/CircularsSection.js';
 import { Bus, Megaphone } from 'lucide-react';
 
+// Report Card Template for PDF Generation
+const ReportCardPDF = ({ data, latestRecord, marksData, overallAcademicPercentage, attendancePercentage }) => {
+  return (
+    <div className="bg-white p-12 w-[210mm] min-h-[297mm] font-serif border-[12px] border-double border-slate-200 text-slate-900">
+      <div className="text-center mb-8 border-b-2 border-slate-100 pb-8">
+        <div className="flex justify-center mb-4">
+          <Logo className="w-16 h-16" />
+        </div>
+        <h1 className="text-3xl font-black uppercase tracking-widest">SRV Matriculation School</h1>
+        <p className="text-sm text-slate-500 font-bold mt-1">Nurturing Excellence, Shaping Futures</p>
+        <p className="text-xs text-slate-400 mt-1 italic">Academic Year 2025-26 • Official Report Card</p>
+      </div>
+
+      <div className="bg-slate-50 rounded-2xl p-6 mb-8 grid grid-cols-2 gap-4 border border-slate-100">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Student Name</p>
+          <p className="text-xl font-bold">{data.student?.name}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">SRV Number</p>
+          <p className="text-lg font-bold">{data.student?.srvNumber}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Grade & Section</p>
+          <p className="text-lg font-bold">{data.student?.grade}-{data.student?.section}</p>
+        </div>
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">Academic Term</p>
+          <p className="text-lg font-bold text-indigo-700">{latestRecord?.term || 'Quarterly'}</p>
+        </div>
+      </div>
+
+      <h3 className="text-lg font-black uppercase tracking-widest mb-4 border-l-4 border-slate-900 pl-3">Subject Performance</h3>
+      <table className="w-full border-collapse mb-8 border border-slate-200">
+        <thead>
+          <tr className="bg-slate-900 text-white">
+            <th className="border border-slate-300 p-3 text-left uppercase text-xs tracking-wider">Subject</th>
+            <th className="border border-slate-300 p-3 text-center uppercase text-xs tracking-wider">Maximum</th>
+            <th className="border border-slate-300 p-3 text-center uppercase text-xs tracking-wider">Marks Obtained</th>
+            <th className="border border-slate-300 p-3 text-center uppercase text-xs tracking-wider">Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          {marksData.map((item, idx) => (
+            <tr key={idx} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
+              <td className="border border-slate-200 p-3 text-sm font-bold">{item.subject}</td>
+              <td className="border border-slate-200 p-3 text-center text-sm">100</td>
+              <td className="border border-slate-200 p-3 text-center text-sm font-black">{item.marks}</td>
+              <td className="border border-slate-200 p-3 text-center text-xs font-bold">
+                <span className={item.marks >= 35 ? 'text-emerald-600' : 'text-rose-600'}>
+                  {item.marks >= 35 ? 'PASS' : 'FAIL'}
+                </span>
+              </td>
+            </tr>
+          ))}
+          <tr className="bg-slate-100 font-black">
+            <td className="border border-slate-300 p-4 text-sm uppercase">Overall Total</td>
+            <td className="border border-slate-300 p-4 text-center text-sm">{marksData.length * 100}</td>
+            <td className="border border-slate-300 p-4 text-center text-lg text-indigo-700">
+              {marksData.reduce((acc, curr) => acc + curr.marks, 0)}
+            </td>
+            <td className="border border-slate-300 p-4 text-center text-sm text-indigo-700">{overallAcademicPercentage}%</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div className="grid grid-cols-2 gap-8 mb-12">
+        <div className="border border-slate-200 rounded-2xl p-5">
+          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Attendance Record</h4>
+          <div className="flex items-end gap-3">
+            <p className="text-3xl font-black">{attendancePercentage}%</p>
+            <p className="text-xs text-slate-500 mb-1">Presence</p>
+          </div>
+        </div>
+        <div className="border border-slate-200 rounded-2xl p-5">
+          <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-3">Behavior & Conduct</h4>
+          <p className="text-lg font-bold text-emerald-600 uppercase">{latestRecord?.behaviour || 'Good'}</p>
+        </div>
+      </div>
+
+      <div className="mb-16">
+        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Teacher&apos;s Remarks</h4>
+        <p className="text-sm text-slate-700 leading-relaxed italic p-4 bg-slate-50 rounded-xl border-l-4 border-indigo-200 min-h-[80px]">
+          {latestRecord?.performanceRemarks || "Student is showing consistent progress. Participation in class activities is commendable. Focus on subject areas can be improved for better overall scores."}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-12 mt-20 pt-10 border-t border-slate-100">
+        <div className="text-center">
+          <div className="h-px bg-slate-300 w-full mb-2"></div>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Class Teacher</p>
+        </div>
+        <div className="text-center">
+          <div className="h-px bg-slate-300 w-full mb-2"></div>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Parent Signature</p>
+        </div>
+        <div className="text-center">
+          <div className="h-px bg-slate-300 w-full mb-2"></div>
+          <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Principal</p>
+        </div>
+      </div>
+      
+      <div className="mt-12 text-center">
+        <p className="text-[8px] text-slate-300 uppercase tracking-[0.3em]">Computer Generated Report Card • Verified by SRV School Admin</p>
+      </div>
+    </div>
+  );
+};
+
 const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6'];
 
 function SummaryCard({ icon: Icon, title, value, subtitle, tone, onClick }) {
@@ -106,6 +215,7 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
   const navigate = useNavigate();
   const { subject: subjectParam } = useParams();
   const reportRef = useRef();
+  const reportCardRef = useRef();
   const activeSection = section || 'dashboard';
   const selectedHomeworkSubject = activeSection === 'homework' && subjectParam ? decodeURIComponent(subjectParam) : '';
 
@@ -252,17 +362,26 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
   };
 
   const downloadReportCard = async () => {
-    const input = reportRef.current;
+    const input = reportCardRef.current;
     if (!input) return;
     
-    html2canvas(input, { scale: 2 }).then((canvas) => {
+    // Temporarily make it visible for capture (off-screen)
+    const originalStyle = input.style.display;
+    input.style.display = 'block';
+
+    html2canvas(input, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then((canvas) => {
       const imgData = canvas.toDataURL('image/png');
       const pdf = new jsPDF('p', 'mm', 'a4');
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
       
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${data.student?.name}_ReportCard.pdf`);
+      pdf.save(`${data.student?.name || 'Student'}_ReportCard.pdf`);
+      
+      input.style.display = originalStyle;
+    }).catch(err => {
+      console.error('Report card generation error:', err);
+      input.style.display = originalStyle;
     });
   };
 
@@ -2103,6 +2222,19 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
           </div>
         )}
 
+      </div>
+
+      {/* Hidden Report Card for PDF generation */}
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', pointerEvents: 'none', display: 'none' }}>
+        <div ref={reportCardRef}>
+          <ReportCardPDF 
+            data={data} 
+            latestRecord={latestRecord} 
+            marksData={marksData} 
+            overallAcademicPercentage={overallAcademicPercentage}
+            attendancePercentage={finalAttendancePercentage}
+          />
+        </div>
       </div>
     </div>
   );
