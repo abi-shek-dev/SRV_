@@ -269,6 +269,9 @@ router.post('/:id/convert', protect, adminOnly, async (req, res) => {
     enquiry.leadTemperature = 'Hot';
     await Enquiry.save(enquiry);
 
+    // Sync faculty mapping so the new student gets assigned to their class faculty immediately
+    await Student.syncFacultyMappings();
+
     res.json({
       message: 'Enquiry converted to admission successfully!',
       student,

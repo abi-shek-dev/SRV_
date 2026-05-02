@@ -185,8 +185,28 @@ export async function findLastBySrvPrefix(prefix) {
   return row2student(rows[0]);
 }
 
+export async function syncFacultyMappings() {
+  // 1. Assign correct faculty ID where grade and section match
+  const sqlAssign = `
+    UPDATE students s
+    JOIN users u ON u.role = 'faculty' AND u.assigned_grade = s.grade AND u.assigned_section = s.section
+    SET s.faculty_id = u.id
+  `;
+  await pool.query(sqlAssign);
+
+  // 2. Clear faculty ID if the assigned faculty no longer matches (or no faculty exists)
+  const sqlClear = `
+    UPDATE students s
+    LEFT JOIN users u ON u.role = 'faculty' AND u.assigned_grade = s.grade AND u.assigned_section = s.section
+    SET s.faculty_id = NULL
+    WHERE u.id IS NULL AND s.faculty_id IS NOT NULL
+  `;
+  await pool.query(sqlClear);
+}
+
 export default {
   findOne, findById, find, findOneByField, countDocuments,
   create, updateById, save, findByIdAndDelete, updateMany,
-  findWithFaculty, findLastBySrvPrefix
+  findWithFaculty, findLastBySrvPrefix,
+  syncFacultyMappings
 };

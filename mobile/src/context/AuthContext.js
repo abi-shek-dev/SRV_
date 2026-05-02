@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import API_URL from '../config/api';
+import { registerForPushNotifications, savePushTokenToServer, removePushTokenFromServer } from '../utils/pushNotifications';
 
 const AuthContext = createContext(null);
 
@@ -18,6 +19,10 @@ export function AuthProvider({ children }) {
         if (storedToken && storedUser) {
           setToken(storedToken);
           setUser(JSON.parse(storedUser));
+          // Re-register push token on app restore
+          registerForPushNotifications().then(pushToken => {
+            if (pushToken) savePushTokenToServer(storedToken, pushToken);
+          }).catch(() => {});
         }
       } catch (_) {}
       setLoading(false);
@@ -41,10 +46,18 @@ export function AuthProvider({ children }) {
     setToken(t);
     setUser(u);
     console.log('[LOGIN] Success! Role:', u.role);
+
+    // Register push notifications after successful login
+    registerForPushNotifications().then(pushToken => {
+      if (pushToken) savePushTokenToServer(t, pushToken);
+    }).catch(() => {});
+
     return u;
   };
 
   const logout = async () => {
+    // Remove push token from server before clearing auth
+    if (token) removePushTokenFromServer(token).catch(() => {});
     await AsyncStorage.removeItem('schoolToken');
     await AsyncStorage.removeItem('schoolUser');
     setToken(null);

@@ -10,6 +10,14 @@ import { Logo } from '../components/Logo.js';
 import { PortalHeader } from '../components/PortalHeader.js';
 import { NotificationPanel } from '../components/NotificationPanel.js';
 import { MemoriesSection } from '../components/MemoriesSection.js';
+import { FacultyMyLeavesSection } from '../components/FacultyMyLeavesSection.js';
+import { FacultyStudentLeavesSection } from '../components/FacultyStudentLeavesSection.js';
+import { FacultyTimetableSection } from '../components/FacultyTimetableSection.js';
+import { FacultyTransportSection } from '../components/FacultyTransportSection.js';
+import { FacultyLibrarySection } from '../components/FacultyLibrarySection.js';
+import { FacultyMarksSection } from '../components/FacultyMarksSection.js';
+import { CircularsSection } from '../components/CircularsSection.js';
+import { Bus, BookMarked } from 'lucide-react';
 
 import Swal from 'sweetalert2';
 
@@ -237,10 +245,6 @@ export function FacultyDashboard({ section = 'dashboard' }) {
   const [editingStudentProfile, setEditingStudentProfile] = useState(null);
   const [studentProfileForm, setStudentProfileForm] = useState({ name: '', grade: '', section: '', group: '', motherName: '', fatherName: '', guardianName: '', parentMobileNumber: '' });
   const [profileMsg, setProfileMsg] = useState({ text: '', type: '' });
-  const [transportRoutes, setTransportRoutes] = useState([]);
-  const [editStudentRoute, setEditStudentRoute] = useState('');
-  const [editStudentStop, setEditStudentStop] = useState('');
-  const [assigningTransport, setAssigningTransport] = useState(false);
   const [assignedHomework, setAssignedHomework] = useState([]);
 
   // Grading Form State
@@ -489,6 +493,40 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     mytasks: {
       title: 'My Tasks & Performance',
       description: 'View assigned tasks, submit proof, and track your performance score.'
+    },
+    'my-leaves': {
+      title: 'My Leaves',
+      description: 'Request leave from admin and track your leave request statuses.',
+      icon: CalIcon,
+      badge: 'Leaves',
+      gradient: 'from-blue-500 to-indigo-500'
+    },
+    'student-leaves': {
+      title: 'Student Leaves',
+      description: 'Review and manage leave requests submitted by your students.',
+      icon: CalIcon,
+      badge: 'Student Leaves',
+      gradient: 'from-fuchsia-500 to-pink-500'
+    },
+    'timetable': {
+      title: 'Class Timetable',
+      description: 'View the weekly class schedule for your assigned class.'
+    },
+    'marks': {
+      title: 'Marks Entry',
+      description: 'Enter and update subject marks for your class.'
+    },
+    'library': {
+      title: 'Class Library',
+      description: 'Issue and manage library books for your class.'
+    },
+    'transport': {
+      title: 'Class Transport',
+      description: 'View bus routes and pickup points for your students.'
+    },
+    'circulars': {
+      title: 'Circulars & Notices',
+      description: 'Official announcements and documents from the school.'
     }
   };
 
@@ -557,7 +595,6 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     // Auth is handled by ProtectedRoute — just fetch data
     const token = localStorage.getItem('schoolToken');
     fetchStudents(token);
-    loadTransportRoutes(token);
 
     fetchHomework();
     fetchAnnouncements(token);
@@ -568,53 +605,6 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     axios.get(`${API_URL}/api/faculty/students`, {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => setStudents(res.data)).catch(console.error);
-  };
-
-  const loadTransportRoutes = (token) => {
-    axios.get(`${API_URL}/api/faculty/transport/routes`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(res => setTransportRoutes(res.data)).catch(console.error);
-  };
-
-  const fetchStudentTransport = async (studentId) => {
-    try {
-      const token = localStorage.getItem('schoolToken');
-      const res = await axios.get(`${API_URL}/api/faculty/transport/student/${studentId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setEditStudentRoute(res.data.routeId ? String(res.data.routeId) : '');
-      setEditStudentStop(res.data.stopId ? String(res.data.stopId) : '');
-    } catch (error) {
-      setEditStudentRoute('');
-      setEditStudentStop('');
-    }
-  };
-
-  const handleAssignStudentTransport = async () => {
-    if (!editingStudentProfile) return;
-    if (!editStudentRoute) {
-      setProfileMsg({ text: 'Select a route before assigning the student.', type: 'error' });
-      return;
-    }
-
-    setAssigningTransport(true);
-    try {
-      const token = localStorage.getItem('schoolToken');
-      await axios.post(`${API_URL}/api/faculty/transport/assign`, {
-        studentId: editingStudentProfile._id,
-        routeId: editStudentRoute,
-        stopId: editStudentStop || null
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setProfileMsg({ text: 'Bus route assigned successfully.', type: 'success' });
-      fetchStudents(token);
-      closeStudentProfileEditor();
-    } catch (err) {
-      setProfileMsg({ text: err.response?.data?.message || 'Failed to assign bus route.', type: 'error' });
-    } finally {
-      setAssigningTransport(false);
-    }
   };
 
   const fetchHomework = async () => {
@@ -722,17 +712,12 @@ export function FacultyDashboard({ section = 'dashboard' }) {
       parentMobileNumber: student.parentMobileNumber || '',
       dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split('T')[0] : ''
     });
-    setEditStudentRoute('');
-    setEditStudentStop('');
     setProfileMsg({ text: '', type: '' });
-    fetchStudentTransport(student._id);
   };
 
   const closeStudentProfileEditor = () => {
     setEditingStudentProfile(null);
     setProfileMsg({ text: '', type: '' });
-    setEditStudentRoute('');
-    setEditStudentStop('');
   };
 
   const closeStudentEvaluation = () => {
@@ -761,18 +746,8 @@ export function FacultyDashboard({ section = 'dashboard' }) {
       setSelectedStudent(prev => (
         prev && prev._id === res.data.student._id ? { ...prev, ...res.data.student } : prev
       ));
-      if (editStudentRoute) {
-        await axios.post(`${API_URL}/api/faculty/transport/assign`, {
-          studentId: editingStudentProfile._id,
-          routeId: editStudentRoute,
-          stopId: editStudentStop || null
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      }
       setProfileMsg({ text: 'Student profile updated successfully.', type: 'success' });
       fetchStudents(token);
-      closeStudentProfileEditor();
     } catch (err) {
       setProfileMsg({ text: err.response?.data?.message || 'Failed to update student profile.', type: 'error' });
     }
@@ -946,7 +921,14 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     { key: 'events', title: 'Events', subtitle: 'Upcoming Events, Event Acknowledgements', icon: CalIcon, badge: 'Live', gradient: 'from-fuchsia-500 to-pink-500' },
     { key: 'polls', title: 'Poll Center', subtitle: 'Opinion Poll Center, Poll Analytics', icon: ClipboardList, badge: 'Polls', gradient: 'from-violet-500 to-indigo-500' },
     { key: 'feedback', title: 'Feedback', subtitle: 'Parent Feedback Inbox', icon: MessageSquareMore, badge: unreadCount, gradient: 'from-slate-700 to-slate-900' },
-    { key: 'mytasks', title: 'My Tasks', subtitle: 'Tasks, Performance Score', icon: Trophy, badge: 'Live', gradient: 'from-indigo-500 to-purple-600' }
+    { key: 'mytasks', title: 'My Tasks', subtitle: 'Tasks, Performance Score', icon: Trophy, badge: 'Live', gradient: 'from-indigo-500 to-purple-600' },
+    { key: 'my-leaves', title: 'My Leaves', subtitle: 'Request Leave', icon: CalIcon, badge: 'Leaves', gradient: 'from-blue-500 to-indigo-500' },
+    { key: 'student-leaves', title: 'Student Leaves', subtitle: 'Review Leaves', icon: CalIcon, badge: 'Leaves', gradient: 'from-fuchsia-500 to-pink-500' },
+    { key: 'timetable', title: 'Class Timetable', subtitle: 'Weekly Class Schedule', icon: ClipboardList, badge: 'Schedule', gradient: 'from-teal-500 to-cyan-500' },
+    { key: 'marks', title: 'Marks Entry', subtitle: 'Enter Subject Marks', icon: Trophy, badge: 'Academics', gradient: 'from-blue-600 to-purple-600' },
+    { key: 'library', title: 'Class Library', subtitle: 'Issue & Return Books', icon: BookMarked, badge: 'Library', gradient: 'from-indigo-500 to-purple-500' },
+    { key: 'transport', title: 'Class Transport', subtitle: 'Student Bus Routes', icon: Bus, badge: 'Transport', gradient: 'from-amber-500 to-orange-500' },
+    { key: 'circulars', title: 'Circulars', subtitle: 'Official Notices', icon: Megaphone, badge: 'Notices', gradient: 'from-cyan-500 to-blue-500' }
   ];
 
   const notificationAction = (
@@ -1934,11 +1916,18 @@ export function FacultyDashboard({ section = 'dashboard' }) {
         </div>
 
       </div>
-      <div className={`${activeSection === 'events' || activeSection === 'polls' || activeSection === 'feedback' || activeSection === 'memories' ? 'block' : 'hidden'} max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10`}>
+      <div className={`${['events', 'polls', 'feedback', 'memories', 'my-leaves', 'student-leaves', 'timetable', 'marks', 'library', 'transport', 'circulars'].includes(activeSection) ? 'block' : 'hidden'} max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10`}>
         {activeSection === 'events' && <UpcomingEventsSection role="faculty" />}
         {activeSection === 'polls' && <OpinionPollSection role="faculty" />}
         {activeSection === 'feedback' && <FeedbackInboxSection role="faculty" />}
         {activeSection === 'memories' && <MemoriesSection role="faculty" />}
+        {activeSection === 'my-leaves' && <FacultyMyLeavesSection />}
+        {activeSection === 'student-leaves' && <FacultyStudentLeavesSection />}
+        {activeSection === 'timetable' && <FacultyTimetableSection grade={user.assignedGrade} section={user.assignedSection} />}
+        {activeSection === 'marks' && <FacultyMarksSection />}
+        {activeSection === 'library' && <FacultyLibrarySection />}
+        {activeSection === 'transport' && <FacultyTransportSection />}
+        {activeSection === 'circulars' && <CircularsSection role="faculty" />}
       </div>
 
       {/* ══════ MY TASKS & PERFORMANCE SECTION ══════ */ }
@@ -2054,50 +2043,9 @@ export function FacultyDashboard({ section = 'dashboard' }) {
               placeholder="Parent mobile number"
             />
 
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Bus Route</label>
-                <select
-                  value={editStudentRoute}
-                  onChange={e => {
-                    setEditStudentRoute(e.target.value);
-                    setEditStudentStop('');
-                  }}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Select route</option>
-                  {transportRoutes.map(route => (
-                    <option key={route._id} value={route._id}>{route.routeName}{route.busNumber ? ` (${route.busNumber})` : ''}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="mb-2 block text-sm font-semibold text-slate-700">Pickup/Drop Stop</label>
-                <select
-                  value={editStudentStop}
-                  onChange={e => setEditStudentStop(e.target.value)}
-                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={!editStudentRoute}
-                >
-                  <option value="">Select stop</option>
-                  {transportRoutes.find(route => String(route._id) === String(editStudentRoute))?.stops?.map(stop => (
-                    <option key={stop._id} value={stop._id}>{stop.stopName}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
             <p className="text-sm text-slate-500">Enter mother and father names together, or fill only the guardian field. Add the parent mobile here if it is still missing.</p>
 
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-              <button
-                type="button"
-                onClick={handleAssignStudentTransport}
-                disabled={!editStudentRoute || assigningTransport}
-                className="w-full rounded-xl bg-sky-600 px-6 py-3 font-bold text-white transition-colors hover:bg-sky-700 sm:w-auto disabled:opacity-50"
-              >
-                {assigningTransport ? 'Assigning...' : 'Assign Bus'}
-              </button>
               <button type="submit" className="w-full rounded-xl bg-blue-600 px-6 py-3 font-bold text-white transition-colors hover:bg-blue-700 sm:w-auto">
                 Save Profile
               </button>

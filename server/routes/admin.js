@@ -776,44 +776,6 @@ router.put('/settings/fee-toggle', protect, adminOnly, async (req, res) => {
   }
 });
 
-// @route   GET /api/admin/settings/academic-year
-// @desc    Get the current academic year (start & end dates)
-// @access  Private (Admin only)
-router.get('/settings/academic-year', protect, adminOnly, async (req, res) => {
-  try {
-    const setting = await Setting.findOne({ key: 'academicYear' });
-    const value = setting?.value || { start: '', end: '' };
-    res.json(value);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching academic year setting' });
-  }
-});
-
-// @route   PUT /api/admin/settings/academic-year
-// @desc    Save the academic year (start & end dates)
-// @access  Private (Admin only)
-router.put('/settings/academic-year', protect, adminOnly, async (req, res) => {
-  const { start, end } = req.body;
-  if (!start || !end) {
-    return res.status(400).json({ message: 'Both start and end dates are required.' });
-  }
-  if (new Date(end) <= new Date(start)) {
-    return res.status(400).json({ message: 'End date must be after start date.' });
-  }
-  try {
-    let setting = await Setting.findOne({ key: 'academicYear' });
-    if (!setting) {
-      setting = await Setting.create({ key: 'academicYear', value: { start, end } });
-    } else {
-      setting.value = { start, end };
-      setting = await Setting.save(setting);
-    }
-    res.json({ message: 'Academic year saved successfully.', start, end });
-  } catch (error) {
-    res.status(500).json({ message: 'Error saving academic year setting' });
-  }
-});
-
 // @route   GET /api/admin/notifications
 // @desc    Get system notifications (FEE_ALERTs)
 // @access  Private (Admin only)
@@ -1703,15 +1665,6 @@ router.post('/transport/assign', protect, adminOnly, async (req, res) => {
     res.json({ message: 'Student assigned to transport route' });
   } catch (error) {
     res.status(500).json({ message: 'Error assigning student' });
-  }
-});
-
-router.get('/transport/student/:id', protect, adminOnly, async (req, res) => {
-  try {
-    const transport = await Transport.findByStudent(req.params.id);
-    res.json(transport || {});
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching student transport details' });
   }
 });
 

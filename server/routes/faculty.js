@@ -1203,53 +1203,6 @@ router.get('/transport', protect, facultyOrAdmin, async (req, res) => {
   }
 });
 
-router.get('/transport/routes', protect, facultyOrAdmin, async (req, res) => {
-  try {
-    const routes = await Transport.findAllRoutes();
-    res.json(routes);
-  } catch (error) {
-    console.error('[Faculty Transport Routes]', error);
-    res.status(500).json({ message: 'Error fetching transport routes' });
-  }
-});
-
-router.get('/transport/student/:id', protect, facultyOrAdmin, async (req, res) => {
-  try {
-    const query = req.user.role === 'admin'
-      ? { _id: req.params.id }
-      : { _id: req.params.id, facultyId: req.user.id };
-
-    const student = await Student.findOne(query);
-    if (!student) return res.status(404).json({ message: 'Student not found or not assigned to this faculty' });
-
-    const transport = await Transport.findByStudent(req.params.id);
-    res.json(transport || {});
-  } catch (error) {
-    console.error('[Faculty Student Transport]', error);
-    res.status(500).json({ message: 'Error fetching student transport details' });
-  }
-});
-
-router.post('/transport/assign', protect, facultyOrAdmin, async (req, res) => {
-  const { studentId, routeId, stopId } = req.body;
-  if (!studentId || !routeId) return res.status(400).json({ message: 'Student and route are required' });
-
-  try {
-    const query = req.user.role === 'admin'
-      ? { _id: studentId }
-      : { _id: studentId, facultyId: req.user.id };
-
-    const student = await Student.findOne(query);
-    if (!student) return res.status(404).json({ message: 'Student not found or not assigned to this faculty' });
-
-    await Transport.assignStudent(studentId, routeId, stopId);
-    res.json({ message: 'Student assigned to transport route' });
-  } catch (error) {
-    console.error('[Faculty Transport Assign]', error);
-    res.status(500).json({ message: 'Error assigning student transport' });
-  }
-});
-
 // ══════════════════════════════════════════════════
 // LIBRARY
 // ══════════════════════════════════════════════════

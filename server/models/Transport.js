@@ -103,17 +103,10 @@ const Transport = {
     if (!rows[0]) return null;
     const r = rows[0];
     return {
-      routeId: r.route_id,
-      stopId: r.stop_id,
-      routeName: r.route_name,
-      busNumber: r.bus_number,
-      driverName: r.driver_name,
-      driverPhone: r.driver_phone,
-      helperName: r.helper_name,
-      helperPhone: r.helper_phone,
-      stopName: r.stop_name,
-      pickupTime: r.pickup_time,
-      dropTime: r.drop_time
+      routeName: r.route_name, busNumber: r.bus_number,
+      driverName: r.driver_name, driverPhone: r.driver_phone,
+      helperName: r.helper_name, helperPhone: r.helper_phone,
+      stopName: r.stop_name, pickupTime: r.pickup_time, dropTime: r.drop_time
     };
   },
 

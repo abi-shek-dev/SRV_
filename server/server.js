@@ -12,6 +12,7 @@ import publicRoutes      from './routes/public.js';
 import taskRoutes        from './routes/tasks.js';
 import performanceRoutes from './routes/performance.js';
 import enquiryRoutes     from './routes/enquiry.js';
+import timetableRoutes   from './routes/timetable.js';
 
 const app = express();
 
@@ -94,6 +95,7 @@ app.use('/api/parent',      parentRoutes);
 app.use('/api/tasks',       taskRoutes);
 app.use('/api/performance', performanceRoutes);
 app.use('/api/enquiry',     enquiryRoutes);
+app.use('/api/timetable',   timetableRoutes);
 
 app.get('/', (req, res) => {
   res.send('SRV School Management API — MySQL backend running.');

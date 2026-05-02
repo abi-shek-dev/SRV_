@@ -6,6 +6,8 @@ import PasswordReset from '../models/PasswordReset.js';
 import loginLimiter from '../middleware/loginLimiter.js';
 import Student from '../models/Student.js';
 import { buildParentDisplayName } from '../utils/parentProfile.js';
+import { savePushToken, removePushToken } from '../services/pushNotification.js';
+import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 const normalizeRecoveryAnswer = (value) => String(value || '').trim().toLowerCase();
@@ -187,6 +189,31 @@ router.post('/reset-password-with-answer', async (req, res, next) => {
     return res.json({ message: 'Password reset successful. Please log in with your new password.' });
   } catch (error) {
     next(error);
+  }
+});
+
+// @route   POST /api/auth/push-token
+// @desc    Save expo push token for the logged-in user
+router.post('/push-token', protect, async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ message: 'Token is required' });
+    await savePushToken(req.user.id, token);
+    res.json({ message: 'Push token saved' });
+  } catch (error) {
+    console.error('[Push Token Save]', error);
+    res.status(500).json({ message: 'Error saving push token' });
+  }
+});
+
+// @route   DELETE /api/auth/push-token
+// @desc    Remove push token on logout
+router.delete('/push-token', protect, async (req, res) => {
+  try {
+    await removePushToken(req.user.id);
+    res.json({ message: 'Push token removed' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error removing push token' });
   }
 });
 

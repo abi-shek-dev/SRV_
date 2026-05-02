@@ -13,9 +13,6 @@ import { MemoriesSection } from '../components/MemoriesSection.js';
 import { AnalyticsDashboard } from '../components/AnalyticsDashboard.js';
 import { FacultyLeavesAdminSection } from '../components/FacultyLeavesAdminSection.js';
 import { TimetableManagement } from '../components/TimetableManagement.js';
-import TransportManagement from '../components/TransportManagement.js';
-import CircularsManagement from '../components/CircularsManagement.js';
-import LibraryManagement from '../components/LibraryManagement.js';
 
 export function AdminDashboard({ section = 'home' }) {
   const hasValidFamilyDetails = (profile) => Boolean(
@@ -84,12 +81,6 @@ export function AdminDashboard({ section = 'home' }) {
   const [manageStudentMsg, setManageStudentMsg] = useState({ text: '', type: '' });
   const [syncingFaculty, setSyncingFaculty] = useState(false);
 
-  // Transport assignment state for student editor
-  const [transportRoutes, setTransportRoutes] = useState([]);
-  const [editStudentRoute, setEditStudentRoute] = useState('');
-  const [editStudentStop, setEditStudentStop] = useState('');
-  const [assigningTransport, setAssigningTransport] = useState(false);
-
   // Fees and Settings State
   const [isOnlineFeeEnabled, setIsOnlineFeeEnabled] = useState(false);
   const [feeAlerts, setFeeAlerts] = useState([]);
@@ -136,8 +127,6 @@ export function AdminDashboard({ section = 'home' }) {
     fetchWeeklyMenu(token);
     // Fetch all students for the new tracking table
     fetchStudents(token);
-    // Fetch transport routes for student bus assignment
-    loadTransportRoutes(token);
     // Fetch settings and alerts
     fetchSettingsAndAlerts(token);
     // Fetch announcements
@@ -245,26 +234,6 @@ export function AdminDashboard({ section = 'home' }) {
     axios.get(`${API_URL}/api/admin/students`, {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => setAllStudents(res.data)).catch(console.error);
-  };
-
-  const loadTransportRoutes = (token) => {
-    axios.get(`${API_URL}/api/admin/transport/routes`, {
-      headers: { Authorization: `Bearer ${token}` }
-    }).then(res => setTransportRoutes(res.data)).catch(console.error);
-  };
-
-  const fetchStudentTransport = async (studentId) => {
-    try {
-      const token = localStorage.getItem('schoolToken');
-      const res = await axios.get(`${API_URL}/api/admin/transport/student/${studentId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setEditStudentRoute(res.data.routeId ? String(res.data.routeId) : '');
-      setEditStudentStop(res.data.stopId ? String(res.data.stopId) : '');
-    } catch (error) {
-      setEditStudentRoute('');
-      setEditStudentStop('');
-    }
   };
 
   const fetchAnnouncements = (token) => {
@@ -433,48 +402,11 @@ export function AdminDashboard({ section = 'home' }) {
       await axios.put(`${API_URL}/api/admin/student/${id}`, editStudentForm, {
         headers: { Authorization: `Bearer ${token}` }
       });
-
-      if (editStudentRoute) {
-        await axios.post(`${API_URL}/api/admin/transport/assign`, {
-          studentId: id,
-          routeId: editStudentRoute,
-          stopId: editStudentStop || null
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      }
-
       Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Student updated!', showConfirmButton: false, timer: 2000});
       closeStudentEditor();
       fetchStudents(token);
     } catch (err) {
       Swal.fire('Error', err.response?.data?.message || 'Failed to update student', 'error');
-    }
-  };
-
-  const handleAssignStudentTransport = async () => {
-    if (!editingStudentId) return;
-    if (!editStudentRoute) {
-      Swal.fire('Missing Bus Route', 'Select a bus route before assigning.', 'warning');
-      return;
-    }
-
-    setAssigningTransport(true);
-    try {
-      const token = localStorage.getItem('schoolToken');
-      await axios.post(`${API_URL}/api/admin/transport/assign`, {
-        studentId: editingStudentId,
-        routeId: editStudentRoute,
-        stopId: editStudentStop || null
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Bus assigned to student!', showConfirmButton: false, timer: 2000 });
-      fetchStudents(token);
-    } catch (err) {
-      Swal.fire('Error', err.response?.data?.message || 'Failed to assign bus to student', 'error');
-    } finally {
-      setAssigningTransport(false);
     }
   };
 
@@ -523,16 +455,11 @@ export function AdminDashboard({ section = 'home' }) {
       parentRecoveryAnswer: '',
       dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split('T')[0] : ''
     });
-    setEditStudentRoute('');
-    setEditStudentStop('');
-    fetchStudentTransport(student._id);
   };
 
   const closeStudentEditor = () => {
     setEditingStudentId(null);
     setEditStudentForm({ admissionNumber: '', name: '', grade: '', section: '', group: '', motherName: '', fatherName: '', guardianName: '', parentMobileNumber: '', parentRecoveryQuestion: '', parentRecoveryAnswer: '' });
-    setEditStudentRoute('');
-    setEditStudentStop('');
   };
 
   const handleUpdateFaculty = async (id) => {
@@ -1317,6 +1244,7 @@ export function AdminDashboard({ section = 'home' }) {
       try {
         const token = localStorage.getItem('schoolToken');
         await axios.delete(`${API_URL}/api/admin/circulars/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Circular deleted!', showConfirmButton: false, timer: 2000 });
         loadCirculars();
       } catch {}
     };
@@ -2736,9 +2664,9 @@ export function AdminDashboard({ section = 'home' }) {
         {activeSection === 'timetable' && <TimetableManagement />}
         {activeSection === 'report-card' && <ReportCardAdmin />}
         {activeSection === 'promotion' && <StudentPromotion />}
-        {activeSection === 'circulars' && <CircularsManagement />}
-        {activeSection === 'transport' && <TransportManagement allStudents={allStudents} />}
-        {activeSection === 'library' && <LibraryManagement />}
+        {activeSection === 'circulars' && <CircularsAdmin />}
+        {activeSection === 'transport' && <TransportAdmin />}
+        {activeSection === 'library' && <LibraryAdmin />}
       </div>
       
       {selectedFacultyProfile && (
@@ -2920,45 +2848,9 @@ export function AdminDashboard({ section = 'home' }) {
                 </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Bus Route</label>
-                  <select
-                    value={editStudentRoute}
-                    onChange={e => {
-                      setEditStudentRoute(e.target.value);
-                      setEditStudentStop('');
-                    }}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500"
-                  >
-                    <option value="">Select route</option>
-                    {transportRoutes.map(route => (
-                      <option key={route._id} value={route._id}>{route.routeName}{route.busNumber ? ` (${route.busNumber})` : ''}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="mb-2 block text-sm font-semibold text-slate-700">Pickup/Drop Stop</label>
-                  <select
-                    value={editStudentStop}
-                    onChange={e => setEditStudentStop(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500"
-                    disabled={!editStudentRoute}
-                  >
-                    <option value="">Select stop</option>
-                    {transportRoutes.find(route => String(route._id) === String(editStudentRoute))?.stops?.map(stop => (
-                      <option key={stop._id} value={stop._id}>{stop.stopName}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
               <p className="text-sm text-slate-500">Enter mother and father names together, or fill only the guardian field. Add the parent mobile here if it was missing during admission. You can also set a parent recovery question and answer for self-service password reset.</p>
 
               <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center">
-                <button type="button" onClick={handleAssignStudentTransport} disabled={!editStudentRoute || assigningTransport} className="w-full rounded-xl bg-sky-600 px-6 py-3 font-bold text-white transition-colors hover:bg-sky-700 sm:w-auto disabled:opacity-50">
-                  {assigningTransport ? 'Assigning...' : 'Assign Bus'}
-                </button>
                 <button type="submit" className="w-full rounded-xl bg-purple-600 px-6 py-3 font-bold text-white transition-colors hover:bg-purple-700 sm:w-auto">
                   Save Student
                 </button>
