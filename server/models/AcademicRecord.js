@@ -14,8 +14,13 @@ const row2record = async (r) => {
     facultyId: r.faculty_id,
     term: r.term,
     marks: {
-      english: Number(r.mark_english), tamil: Number(r.mark_tamil), hindi: Number(r.mark_hindi),
-      math: Number(r.mark_math), science: Number(r.mark_science), socialScience: Number(r.mark_social_science)
+      english: Number(r.mark_english || 0),
+      tamil: Number(r.mark_tamil || 0),
+      hindi: Number(r.mark_hindi || 0),
+      math: Number(r.mark_math || 0),
+      science: Number(r.mark_science || 0),
+      socialScience: Number(r.mark_social_science || 0),
+      computerScience: Number(r.mark_computer_science || 0)
     },
     totalWorkingDays: r.total_working_days,
     daysPresent: r.days_present,
@@ -27,6 +32,25 @@ const row2record = async (r) => {
     createdAt: r.created_at,
     updatedAt: r.updated_at
   };
+};
+
+const normalizeMarks = (marks = {}) => {
+  const result = {
+    english: 0, tamil: 0, hindi: 0, math: 0, science: 0, socialScience: 0, computerScience: 0
+  };
+  
+  for (const [key, value] of Object.entries(marks)) {
+    const k = key.toLowerCase().replace(/\s+/g, '');
+    if (k === 'english') result.english = Number(value);
+    else if (k === 'tamil') result.tamil = Number(value);
+    else if (k === 'hindi') result.hindi = Number(value);
+    else if (k === 'math' || k === 'mathematics') result.math = Number(value);
+    else if (k === 'science') result.science = Number(value);
+    else if (k === 'socialscience') result.socialScience = Number(value);
+    else if (k === 'computerscience') result.computerScience = Number(value);
+    else if (k === 'language') result.tamil = Number(value); // Fallback
+  }
+  return result;
 };
 
 export async function findOne(where) {
@@ -60,15 +84,17 @@ export async function create(data) {
   const { studentId, facultyId, term, marks = {}, totalWorkingDays = 0, daysPresent = 0,
     performanceRemarks, behaviour = 'Good', extraActivities = [], ecSkills = {} } = data;
 
+  const nMarks = normalizeMarks(marks);
+
   const [result] = await pool.query(
     `INSERT INTO academic_records
      (student_id, faculty_id, term, mark_english, mark_tamil, mark_hindi, mark_math,
-      mark_science, mark_social_science, total_working_days, days_present,
+      mark_science, mark_social_science, mark_computer_science, total_working_days, days_present,
       performance_remarks, behaviour, ec_cdc, ec_suits, ec_srv_skill_dev)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [studentId, facultyId, term,
-     marks.english ?? 0, marks.tamil ?? 0, marks.hindi ?? 0, marks.math ?? 0,
-     marks.science ?? 0, marks.socialScience ?? 0,
+     nMarks.english, nMarks.tamil, nMarks.hindi, nMarks.math,
+     nMarks.science, nMarks.socialScience, nMarks.computerScience,
      totalWorkingDays, daysPresent, performanceRemarks || null, behaviour,
      ecSkills?.cdc ?? 0, ecSkills?.suits ?? 0, ecSkills?.srvSkillDevelopment ?? 0]
   );
@@ -79,14 +105,16 @@ export async function create(data) {
 
 export async function save(obj) {
   const { _id, marks = {}, ecSkills = {}, extraActivities = [] } = obj;
+  const nMarks = normalizeMarks(marks);
+
   await pool.query(
     `UPDATE academic_records SET
-      mark_english=?, mark_tamil=?, mark_hindi=?, mark_math=?, mark_science=?, mark_social_science=?,
+      mark_english=?, mark_tamil=?, mark_hindi=?, mark_math=?, mark_science=?, mark_social_science=?, mark_computer_science=?,
       total_working_days=?, days_present=?, performance_remarks=?, behaviour=?,
       ec_cdc=?, ec_suits=?, ec_srv_skill_dev=?
      WHERE id=?`,
-    [marks.english ?? 0, marks.tamil ?? 0, marks.hindi ?? 0, marks.math ?? 0,
-     marks.science ?? 0, marks.socialScience ?? 0,
+    [nMarks.english, nMarks.tamil, nMarks.hindi, nMarks.math,
+     nMarks.science, nMarks.socialScience, nMarks.computerScience,
      obj.totalWorkingDays ?? 0, obj.daysPresent ?? 0,
      obj.performanceRemarks || null, obj.behaviour || 'Good',
      ecSkills?.cdc ?? 0, ecSkills?.suits ?? 0, ecSkills?.srvSkillDevelopment ?? 0, _id]

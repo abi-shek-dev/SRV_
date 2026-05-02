@@ -264,9 +264,9 @@ router.post('/marks', protect, facultyOrAdmin, async (req, res) => {
 
     // --- NOTIFICATIONS ---
     // Check if attendance is below 75%
-    if (record.attendancePercentage < 75) {
+    if (Number(record.attendancePercentage) < 75 && record.totalWorkingDays > 0) {
       // Find parent user
-      const parentUser = await import('../models/User.js').then(m => m.default.findOne({ studentId }));
+      const parentUser = await User.findOne({ student_id: studentId });
       if (parentUser) {
         await Notification.create({
           userId: parentUser._id,
@@ -277,7 +277,7 @@ router.post('/marks', protect, facultyOrAdmin, async (req, res) => {
     }
 
     // Notify of marks updated
-    const parentUser = await import('../models/User.js').then(m => m.default.findOne({ studentId }));
+    const parentUser = await User.findOne({ student_id: studentId });
     if (parentUser) {
       await Notification.create({
         userId: parentUser._id,
