@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Users, UserPlus, BookOpen, LogOut, CheckCircle2, Coffee, Trash2, Edit2, Save, X, Megaphone, GraduationCap, CalendarDays, ClipboardList, MessageSquareMore, BellRing, ArrowUpCircle, UtensilsCrossed, LayoutDashboard, ShieldAlert, ChevronLeft, Image as ImageIcon, Trophy, Target, ClipboardCheck, BarChart3, Download, FileSpreadsheet, Clock, FileText, Bus, ScrollText, ArrowUpRight, Library } from 'lucide-react';
+import { Users, UserPlus, BookOpen, LogOut, CheckCircle2, Coffee, Trash2, Edit2, Save, X, Megaphone, GraduationCap, CalendarDays, ClipboardList, MessageSquareMore, BellRing, ArrowUpCircle, UtensilsCrossed, LayoutDashboard, ShieldAlert, ChevronLeft, Image as ImageIcon, Trophy, Target, ClipboardCheck, BarChart3, Download, FileSpreadsheet, Clock, FileText, Bus, ScrollText, ArrowUpRight, Library, RefreshCw } from 'lucide-react';
 import API_URL from '../config/api.js';
 import Swal from 'sweetalert2';
 import { OpinionPollSection } from '../components/OpinionPollSection.js';
@@ -79,6 +79,7 @@ export function AdminDashboard({ section = 'home' }) {
   // Manage Students State
   const [selectedStudentForFees, setSelectedStudentForFees] = useState(null);
   const [manageStudentMsg, setManageStudentMsg] = useState({ text: '', type: '' });
+  const [syncingFaculty, setSyncingFaculty] = useState(false);
 
   // Fees and Settings State
   const [isOnlineFeeEnabled, setIsOnlineFeeEnabled] = useState(false);
@@ -362,6 +363,22 @@ export function AdminDashboard({ section = 'home' }) {
     } catch (err) {
       console.error('[Delete Student Error]', err.response?.data || err.message || err);
       setManageStudentMsg({ text: err.response?.data?.message || 'Failed to delete student', type: 'error' });
+    }
+  };
+
+  const handleSyncFacultyMappings = async () => {
+    setSyncingFaculty(true);
+    try {
+      const token = localStorage.getItem('schoolToken');
+      const res = await axios.post(`${API_URL}/api/admin/students/sync-faculty`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      Swal.fire('Success', res.data.message || 'Faculty mappings synchronized.', 'success');
+      fetchStudents(token); // Refresh the UI
+    } catch (err) {
+      Swal.fire('Error', 'Failed to synchronize faculty mappings', 'error');
+    } finally {
+      setSyncingFaculty(false);
     }
   };
 
@@ -2444,6 +2461,14 @@ export function AdminDashboard({ section = 'home' }) {
               <h2 className="text-xl font-display font-bold text-slate-900">View All Students</h2>
             </div>
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+              <button
+                onClick={handleSyncFacultyMappings}
+                disabled={syncingFaculty}
+                className="flex items-center justify-center gap-2 rounded-lg bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-600 hover:bg-indigo-100 transition disabled:opacity-50"
+              >
+                <RefreshCw size={16} className={syncingFaculty ? "animate-spin" : ""} />
+                {syncingFaculty ? 'Syncing...' : 'Sync Class Mappings'}
+              </button>
               <select value={studentListFilter.grade} onChange={e => setStudentListFilter({...studentListFilter, grade: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500 sm:w-40">
                 <option value="">All Grades</option>
                 {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}

@@ -80,6 +80,9 @@ router.post('/faculty', protect, adminOnly, async (req, res) => {
       mobileNumber
     });
 
+    // Sync faculty mappings so existing students get assigned to this new faculty
+    await Student.syncFacultyMappings();
+
     res.status(201).json({
       message: 'Faculty created successfully',
       faculty: {
@@ -183,6 +186,9 @@ router.post('/student', protect, adminOnly, async (req, res) => {
       studentId: student._id,
       mobileNumber: parentMobileNumber
     });
+
+    // Sync faculty mapping for the newly created student
+    await Student.syncFacultyMappings();
 
     res.status(201).json({
       message: 'Student and Parent account created successfully',
@@ -466,9 +472,9 @@ router.put('/student/:id', protect, adminOnly, async (req, res) => {
       }
     }
 
-    res.json({ message: 'Student updated successfully', student });
+    res.json(updated);
   } catch (error) {
-    console.error('[Edit Student Error]', error);
+    console.error('[Update Student Error]', error);
     res.status(500).json({ message: 'Error updating student' });
   }
 });
@@ -651,6 +657,9 @@ router.post('/students/promote', protect, adminOnly, async (req, res) => {
       { $set: { grade: toGrade } }
     );
 
+    // Sync faculty mappings after bulk promotion
+    await Student.syncFacultyMappings();
+
     res.json({
       message: `Successfully promoted ${result.modifiedCount} student(s) from Grade ${fromGrade} to Grade ${toGrade}.`,
       promoted: result.modifiedCount
@@ -658,6 +667,19 @@ router.post('/students/promote', protect, adminOnly, async (req, res) => {
   } catch (error) {
     console.error('[Promote Error]', error);
     res.status(500).json({ message: 'Error promoting students' });
+  }
+});
+
+// @route   POST /api/admin/students/sync-faculty
+// @desc    Auto-assign all students to faculty based on matching grade and section
+// @access  Private (Admin only)
+router.post('/students/sync-faculty', protect, adminOnly, async (req, res) => {
+  try {
+    await Student.syncFacultyMappings();
+    res.json({ message: 'All student-faculty mappings have been synchronized.' });
+  } catch (error) {
+    console.error('[Sync Faculty Mappings Error]', error);
+    res.status(500).json({ message: 'Error synchronizing mappings.' });
   }
 });
 
