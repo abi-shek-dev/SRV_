@@ -64,6 +64,13 @@ export default function FacultyMoreScreen() {
   const [libIssues, setLibIssues] = useState([]);
   const [libSubTab, setLibSubTab] = useState('books');
 
+  // Marks Entry
+  const [marksStudent, setMarksStudent] = useState(null);
+  const [marksTerm, setMarksTerm] = useState('Quarterly');
+  const [marksList, setMarksList] = useState([{ subject: 'English', score: '' }]);
+  const [marksRemarks, setMarksRemarks] = useState('');
+  const [marksSubmitting, setMarksSubmitting] = useState(false);
+
   useEffect(() => {
     const h = authHeaders();
     axios.get(`${API_URL}/api/faculty/students`, { headers: h }).then(r => setStudents(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -184,6 +191,30 @@ export default function FacultyMoreScreen() {
     } finally { setMyLeaveSubmitting(false); }
   };
 
+  const submitMarks = async () => {
+    if (!marksStudent) return Alert.alert('No student selected', 'Please select a student first.');
+    const marksObj = {};
+    for (const item of marksList) {
+      if (item.subject.trim() && item.score !== '') marksObj[item.subject.trim()] = Number(item.score);
+    }
+    if (Object.keys(marksObj).length === 0) return Alert.alert('No marks', 'Add at least one subject with a score.');
+    try {
+      setMarksSubmitting(true);
+      await axios.post(`${API_URL}/api/faculty/marks`, {
+        studentId: marksStudent._id,
+        term: marksTerm,
+        marks: marksObj,
+        performanceRemarks: marksRemarks
+      }, { headers: authHeaders() });
+      Alert.alert('Saved!', `Marks for ${marksStudent.name} (${marksTerm}) saved successfully.`);
+      setMarksStudent(null);
+      setMarksList([{ subject: 'English', score: '' }]);
+      setMarksRemarks('');
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to save marks.');
+    } finally { setMarksSubmitting(false); }
+  };
+
   const TABS = [
     { id: 'behavior', label: 'Behavior', icon: 'star-outline' },
     { id: 'mytasks', label: 'Tasks', icon: 'trophy-outline' },
@@ -195,6 +226,7 @@ export default function FacultyMoreScreen() {
     { id: 'leaves', label: 'Student Leave', icon: 'people-outline' },
     { id: 'myleaves', label: 'My Leave', icon: 'calendar-outline' },
     { id: 'timetable', label: 'Schedule', icon: 'time-outline' },
+    { id: 'marks', label: 'Marks', icon: 'ribbon-outline' },
     { id: 'circulars', label: 'Circulars', icon: 'document-text-outline' },
     { id: 'transport', label: 'Transport', icon: 'bus-outline' },
     { id: 'library', label: 'Library', icon: 'library-outline' },
@@ -574,6 +606,98 @@ export default function FacultyMoreScreen() {
                 );
               })
             }
+          </ScrollView>
+        )}
+
+        {/* MARKS ENTRY */}
+        {activeTab === 'marks' && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Marks Entry</Text>
+            <Text style={{ color: theme.textSub, fontSize: 12, marginBottom: 8 }}>Select a student, choose a term, and enter subject-wise marks.</Text>
+
+            {/* Student Selection */}
+            <Text style={styles.fieldLabel}>Select Student</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {students.map(s => (
+                  <TouchableOpacity
+                    key={s._id}
+                    style={[styles.chip, marksStudent?._id === s._id && styles.chipActive]}
+                    onPress={() => setMarksStudent(s)}
+                  >
+                    <Text style={[styles.chipText, marksStudent?._id === s._id && styles.chipTextActive]}>{s.name}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </ScrollView>
+
+            {marksStudent && (
+              <View style={[styles.formCard, { gap: 12 }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                  <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.amberBg, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: theme.amber, fontWeight: '800', fontSize: 16 }}>{marksStudent.name?.[0]}</Text>
+                  </View>
+                  <View>
+                    <Text style={{ color: theme.text, fontWeight: '700', fontSize: 14 }}>{marksStudent.name}</Text>
+                    <Text style={{ color: theme.textSub, fontSize: 12 }}>{marksStudent.srvNumber} • Grade {marksStudent.grade}-{marksStudent.section}</Text>
+                  </View>
+                </View>
+
+                <Text style={styles.fieldLabel}>Term</Text>
+                <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+                  {['Quarterly', 'Half-Yearly', 'Annual'].map(t => (
+                    <TouchableOpacity key={t} style={[styles.chip, marksTerm === t && styles.chipActive]} onPress={() => setMarksTerm(t)}>
+                      <Text style={[styles.chipText, marksTerm === t && styles.chipTextActive]}>{t}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+
+                <Text style={styles.fieldLabel}>Subject Marks</Text>
+                {marksList.map((item, idx) => (
+                  <View key={idx} style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+                    <TextInput
+                      style={[styles.input, { flex: 1 }]}
+                      placeholder="Subject name"
+                      value={item.subject}
+                      onChangeText={v => { const u = [...marksList]; u[idx].subject = v; setMarksList(u); }}
+                      placeholderTextColor={theme.textMuted}
+                    />
+                    <TextInput
+                      style={[styles.input, { width: 70 }]}
+                      placeholder="Score"
+                      keyboardType="numeric"
+                      value={item.score}
+                      onChangeText={v => { const u = [...marksList]; u[idx].score = v; setMarksList(u); }}
+                      placeholderTextColor={theme.textMuted}
+                      maxLength={3}
+                    />
+                    {marksList.length > 1 && (
+                      <TouchableOpacity onPress={() => setMarksList(l => l.filter((_, i) => i !== idx))} style={{ padding: 8 }}>
+                        <Ionicons name="close-circle" size={20} color={theme.error} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                ))}
+                <TouchableOpacity onPress={() => setMarksList(l => [...l, { subject: '', score: '' }])} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start' }}>
+                  <Ionicons name="add-circle-outline" size={18} color={theme.amber} />
+                  <Text style={{ color: theme.amber, fontWeight: '700', fontSize: 13 }}>Add Subject</Text>
+                </TouchableOpacity>
+
+                <Text style={styles.fieldLabel}>Teacher Remarks (Optional)</Text>
+                <TextInput
+                  style={[styles.input, { height: 70, textAlignVertical: 'top' }]}
+                  placeholder="Performance comments..."
+                  value={marksRemarks}
+                  onChangeText={setMarksRemarks}
+                  placeholderTextColor={theme.textMuted}
+                  multiline
+                />
+
+                <TouchableOpacity style={[styles.submitBtn, marksSubmitting && { opacity: 0.6 }]} onPress={submitMarks} disabled={marksSubmitting}>
+                  {marksSubmitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Save Marks to Report Card</Text>}
+                </TouchableOpacity>
+              </View>
+            )}
           </ScrollView>
         )}
 
