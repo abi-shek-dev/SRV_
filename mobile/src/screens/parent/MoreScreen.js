@@ -39,6 +39,12 @@ export default function MoreScreen() {
   const [libraryBooks, setLibraryBooks] = useState([]);
   const [teacherContact, setTeacherContact] = useState(null);
 
+  // Announcements
+  const [announcements, setAnnouncements] = useState([]);
+
+  // Report Card / Marks
+  const [reportCard, setReportCard] = useState(null);
+
   useEffect(() => {
     const h = authHeaders();
     axios.get(`${API_URL}/api/parent/student`, { headers: h }).then(r => setStudent(r.data)).catch(() => {});
@@ -63,6 +69,8 @@ export default function MoreScreen() {
     axios.get(`${API_URL}/api/parent/transport`, { headers: h }).then(r => setTransportInfo(r.data)).catch(() => {});
     axios.get(`${API_URL}/api/parent/library`, { headers: h }).then(r => setLibraryBooks(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     axios.get(`${API_URL}/api/parent/teacher-contact`, { headers: h }).then(r => setTeacherContact(r.data)).catch(() => {});
+    axios.get(`${API_URL}/api/parent/announcements`, { headers: h }).then(r => setAnnouncements(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    axios.get(`${API_URL}/api/parent/report-card`, { headers: h }).then(r => setReportCard(r.data)).catch(() => {});
   }, []);
 
   const submitVote = async (pollId, optionIdx) => {
@@ -105,6 +113,7 @@ export default function MoreScreen() {
 
   const TABS = [
     { id: 'fees', label: 'Fees', icon: 'wallet-outline' },
+    { id: 'announcements', label: 'Notices', icon: 'megaphone-outline' },
     { id: 'events', label: 'Events', icon: 'calendar-outline' },
     { id: 'polls', label: 'Polls', icon: 'bar-chart-outline' },
     { id: 'memories', label: 'Memories', icon: 'images-outline' },
@@ -114,6 +123,7 @@ export default function MoreScreen() {
     { id: 'circulars', label: 'Circulars', icon: 'document-text-outline' },
     { id: 'transport', label: 'Bus', icon: 'bus-outline' },
     { id: 'library', label: 'Library', icon: 'library-outline' },
+    { id: 'marks', label: 'Marks', icon: 'ribbon-outline' },
     { id: 'contact', label: 'Teacher', icon: 'chatbubbles-outline' },
   ];
 
@@ -470,6 +480,60 @@ export default function MoreScreen() {
             )}
           </ScrollView>
         )}
+
+        {/* ANNOUNCEMENTS */}
+        {activeTab === 'announcements' && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>School Notices</Text>
+            {announcements.length === 0 ? <EmptyState icon="megaphone-outline" text="No announcements yet." /> :
+              announcements.map((ann, i) => {
+                const priorityColor = ann.priority === 'HIGH' ? '#ef4444' : ann.priority === 'MEDIUM' ? theme.amber : theme.textSub;
+                const priorityBg = ann.priority === 'HIGH' ? '#fef2f2' : ann.priority === 'MEDIUM' ? theme.amberBg : theme.bg;
+                return (
+                  <View key={ann._id || i} style={[styles.card, { flexDirection: 'column', borderLeftWidth: 4, borderLeftColor: priorityColor, paddingLeft: 14 }]}>
+                    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 6 }}>
+                      <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: priorityBg }}>
+                        <Text style={{ color: priorityColor, fontSize: 10, fontWeight: '700' }}>{ann.priority}</Text>
+                      </View>
+                      <Text style={{ color: theme.textMuted, fontSize: 10 }}>{new Date(ann.createdAt).toLocaleDateString()}</Text>
+                    </View>
+                    <Text style={styles.cardTitle}>{ann.title}</Text>
+                    <Text style={styles.cardDesc}>{ann.message}</Text>
+                  </View>
+                );
+              })
+            }
+          </ScrollView>
+        )}
+
+        {/* MARKS / REPORT CARD */}
+        {activeTab === 'marks' && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Marks & Report Card</Text>
+            {!reportCard || !reportCard.terms || reportCard.terms.length === 0 ? (
+              <EmptyState icon="ribbon-outline" text="No marks uploaded yet." />
+            ) : (
+              reportCard.terms.map((term, ti) => (
+                <View key={ti} style={[styles.card, { flexDirection: 'column', gap: 8 }]}>
+                  <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15, marginBottom: 4 }}>{term.termName}</Text>
+                  {(term.subjects || []).map((sub, si) => (
+                    <View key={si} style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: theme.border }}>
+                      <Text style={{ color: theme.textSub, fontSize: 13, flex: 1 }}>{sub.subjectName}</Text>
+                      <Text style={{ color: sub.marksObtained >= sub.totalMarks * 0.35 ? theme.emerald : theme.error, fontWeight: '800', fontSize: 14 }}>
+                        {sub.marksObtained}/{sub.totalMarks}
+                      </Text>
+                    </View>
+                  ))}
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+                    <Text style={{ color: theme.textMuted, fontSize: 12 }}>Total: {term.totalObtained}/{term.totalMax}</Text>
+                    <Text style={{ color: theme.amber, fontWeight: '700', fontSize: 12 }}>Grade: {term.grade || '-'}</Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </ScrollView>
+        )}
+
     </View>
   );
 }

@@ -46,6 +46,24 @@ export default function FacultyMoreScreen() {
   // Profile settings
   const [waInfo, setWaInfo] = useState({ whatsappLink: '', contactNumber: '' });
 
+  // Circulars
+  const [circulars, setCirculars] = useState([]);
+
+  // Transport
+  const [myTransport, setMyTransport] = useState(null);
+  const [classRoster, setClassRoster] = useState([]);
+  const [transportSubTab, setTransportSubTab] = useState('mybus');
+
+  // My Leaves
+  const [myLeaves, setMyLeaves] = useState([]);
+  const [myLeaveForm, setMyLeaveForm] = useState({ leaveType: 'SICK', startDate: '', endDate: '', reason: '' });
+  const [myLeaveSubmitting, setMyLeaveSubmitting] = useState(false);
+
+  // Library
+  const [libBooks, setLibBooks] = useState([]);
+  const [libIssues, setLibIssues] = useState([]);
+  const [libSubTab, setLibSubTab] = useState('books');
+
   useEffect(() => {
     const h = authHeaders();
     axios.get(`${API_URL}/api/faculty/students`, { headers: h }).then(r => setStudents(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -62,6 +80,12 @@ export default function FacultyMoreScreen() {
     }).catch(() => {});
     axios.get(`${API_URL}/api/faculty/leave-requests`, { headers: h }).then(r => setLeaveRequests(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     axios.get(`${API_URL}/api/faculty/whatsapp-info`, { headers: h }).then(r => setWaInfo(r.data)).catch(() => {});
+    axios.get(`${API_URL}/api/faculty/circulars`, { headers: h }).then(r => setCirculars(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    axios.get(`${API_URL}/api/faculty/my-transport`, { headers: h }).then(r => setMyTransport(r.data)).catch(() => {});
+    axios.get(`${API_URL}/api/faculty/transport`, { headers: h }).then(r => setClassRoster(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    axios.get(`${API_URL}/api/faculty/my-leaves`, { headers: h }).then(r => setMyLeaves(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    axios.get(`${API_URL}/api/faculty/library/books`, { headers: h }).then(r => setLibBooks(Array.isArray(r.data) ? r.data : [])).catch(() => {});
+    axios.get(`${API_URL}/api/faculty/library/issues`, { headers: h }).then(r => setLibIssues(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     // Load timetable for faculty's assigned class
     if (user?.assignedGrade && user?.assignedSection) {
       axios.get(`${API_URL}/api/timetable/${user.assignedGrade}/${user.assignedSection}`, { headers: h })
@@ -146,6 +170,20 @@ export default function FacultyMoreScreen() {
     } finally { setSubmitting(false); }
   };
 
+  const submitMyLeave = async () => {
+    if (!myLeaveForm.startDate || !myLeaveForm.endDate) return Alert.alert('Missing dates', 'Start and end dates are required.');
+    try {
+      setMyLeaveSubmitting(true);
+      await axios.post(`${API_URL}/api/faculty/my-leaves`, myLeaveForm, { headers: authHeaders() });
+      Alert.alert('Submitted!', 'Your leave request has been sent.');
+      setMyLeaveForm({ leaveType: 'SICK', startDate: '', endDate: '', reason: '' });
+      const r = await axios.get(`${API_URL}/api/faculty/my-leaves`, { headers: authHeaders() });
+      setMyLeaves(Array.isArray(r.data) ? r.data : []);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Unable to submit leave.');
+    } finally { setMyLeaveSubmitting(false); }
+  };
+
   const TABS = [
     { id: 'behavior', label: 'Behavior', icon: 'star-outline' },
     { id: 'mytasks', label: 'Tasks', icon: 'trophy-outline' },
@@ -154,8 +192,12 @@ export default function FacultyMoreScreen() {
     { id: 'events', label: 'Events', icon: 'calendar-outline' },
     { id: 'polls', label: 'Polls', icon: 'bar-chart-outline' },
     { id: 'memories', label: 'Memories', icon: 'images-outline' },
-    { id: 'leaves', label: 'Leave', icon: 'calendar-outline' },
+    { id: 'leaves', label: 'Student Leave', icon: 'people-outline' },
+    { id: 'myleaves', label: 'My Leave', icon: 'calendar-outline' },
     { id: 'timetable', label: 'Schedule', icon: 'time-outline' },
+    { id: 'circulars', label: 'Circulars', icon: 'document-text-outline' },
+    { id: 'transport', label: 'Transport', icon: 'bus-outline' },
+    { id: 'library', label: 'Library', icon: 'library-outline' },
     { id: 'profile', label: 'Profile', icon: 'person-outline' },
   ];
 
@@ -488,6 +530,156 @@ export default function FacultyMoreScreen() {
             </View>
           </ScrollView>
         )}
+
+        {/* MY LEAVES */}
+        {activeTab === 'myleaves' && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
+            <View style={styles.formCard}>
+              <Text style={styles.formTitle}>Request Personal Leave</Text>
+              <Text style={styles.fieldLabel}>Leave Type</Text>
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
+                {['SICK', 'PERSONAL', 'FAMILY', 'OTHER'].map(t => (
+                  <TouchableOpacity key={t} style={[styles.chip, myLeaveForm.leaveType === t && styles.chipActive]} onPress={() => setMyLeaveForm(f => ({ ...f, leaveType: t }))}>
+                    <Text style={[styles.chipText, myLeaveForm.leaveType === t && styles.chipTextActive]}>{t.charAt(0) + t.slice(1).toLowerCase()}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <Text style={styles.fieldLabel}>Start Date (YYYY-MM-DD)</Text>
+              <TextInput style={styles.input} value={myLeaveForm.startDate} onChangeText={v => setMyLeaveForm(f => ({ ...f, startDate: v }))} placeholder="2026-05-10" placeholderTextColor={theme.textMuted} />
+              <Text style={styles.fieldLabel}>End Date (YYYY-MM-DD)</Text>
+              <TextInput style={styles.input} value={myLeaveForm.endDate} onChangeText={v => setMyLeaveForm(f => ({ ...f, endDate: v }))} placeholder="2026-05-12" placeholderTextColor={theme.textMuted} />
+              <Text style={styles.fieldLabel}>Reason</Text>
+              <TextInput style={[styles.input, { height: 70, textAlignVertical: 'top' }]} value={myLeaveForm.reason} onChangeText={v => setMyLeaveForm(f => ({ ...f, reason: v }))} placeholder="Brief reason..." placeholderTextColor={theme.textMuted} multiline />
+              <TouchableOpacity style={[styles.submitBtn, myLeaveSubmitting && { opacity: 0.6 }]} onPress={submitMyLeave} disabled={myLeaveSubmitting}>
+                {myLeaveSubmitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Submit Leave Request</Text>}
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.formTitle}>My Leave History</Text>
+            {myLeaves.length === 0 ? <EmptyState icon="calendar-outline" text="No leave requests yet." /> :
+              myLeaves.map((lv, i) => {
+                const sc = lv.status === 'APPROVED' ? theme.emerald : lv.status === 'REJECTED' ? theme.error : theme.amber;
+                const sb = lv.status === 'APPROVED' ? theme.emeraldBg : lv.status === 'REJECTED' ? theme.errorBg : theme.amberBg;
+                return (
+                  <View key={lv._id || i} style={styles.card}>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
+                        <View style={[styles.chip, { backgroundColor: sb }]}><Text style={[styles.chipText, { color: sc }]}>{lv.status}</Text></View>
+                        <View style={[styles.chip, { backgroundColor: theme.bg }]}><Text style={styles.chipText}>{lv.leaveType}</Text></View>
+                      </View>
+                      <Text style={styles.cardTitle}>{new Date(lv.startDate).toLocaleDateString()} → {new Date(lv.endDate).toLocaleDateString()}</Text>
+                      {lv.reason ? <Text style={styles.cardDesc}>{lv.reason}</Text> : null}
+                      {lv.reviewNote ? <View style={{ backgroundColor: theme.emeraldBg, borderRadius: 10, padding: 10, marginTop: 8, borderWidth: 1, borderColor: theme.emeraldBorder }}><Text style={{ color: theme.emerald, fontSize: 11 }}>{lv.reviewNote}</Text></View> : null}
+                    </View>
+                  </View>
+                );
+              })
+            }
+          </ScrollView>
+        )}
+
+        {/* CIRCULARS */}
+        {activeTab === 'circulars' && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>School Circulars</Text>
+            {circulars.length === 0 ? <EmptyState icon="document-text-outline" text="No circulars at this time." /> :
+              circulars.map((c, i) => (
+                <View key={c._id || i} style={styles.card}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{c.title}</Text>
+                    <Text style={styles.cardDesc}>{c.description}</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                      <Text style={{ color: theme.emerald, fontSize: 10, fontWeight: '700', backgroundColor: theme.emeraldBg, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8 }}>{c.targetType === 'CLASS' ? `${c.targetGrade}-${c.targetSection}` : 'All'}</Text>
+                      <Text style={{ color: theme.textMuted, fontSize: 10 }}>{new Date(c.createdAt).toLocaleDateString()}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))
+            }
+          </ScrollView>
+        )}
+
+        {/* TRANSPORT */}
+        {activeTab === 'transport' && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Transport</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+              {[{ id: 'mybus', label: 'My Bus' }, { id: 'roster', label: 'Class Roster' }].map(t => (
+                <TouchableOpacity key={t.id} style={[styles.chip, transportSubTab === t.id && styles.chipActive]} onPress={() => setTransportSubTab(t.id)}>
+                  <Text style={[styles.chipText, transportSubTab === t.id && styles.chipTextActive]}>{t.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {transportSubTab === 'mybus' && (
+              !myTransport ? <EmptyState icon="bus-outline" text="No transport assigned to you." /> :
+              <View style={[styles.card, { flexDirection: 'column', gap: 10 }]}>
+                <Text style={styles.cardTitle}>{myTransport.routeName}</Text>
+                <Text style={styles.cardDesc}>🚌 Bus #{myTransport.busNumber || 'N/A'}</Text>
+                <View style={{ backgroundColor: theme.bg, borderRadius: 10, padding: 10, gap: 4 }}>
+                  <Text style={{ color: theme.text, fontSize: 13, fontWeight: '700' }}>Driver: {myTransport.driverName || 'N/A'}</Text>
+                  <Text style={{ color: theme.textSub, fontSize: 12 }}>📞 {myTransport.driverPhone || 'N/A'}</Text>
+                </View>
+                {myTransport.stopName && <View style={{ backgroundColor: theme.emeraldBg, borderRadius: 10, padding: 10, borderWidth: 1, borderColor: theme.emeraldBorder }}>
+                  <Text style={{ color: theme.emerald, fontWeight: '700' }}>Stop: {myTransport.stopName}</Text>
+                  <Text style={{ color: theme.emerald, fontSize: 12 }}>Pickup: {myTransport.pickupTime || '-'} • Drop: {myTransport.dropTime || '-'}</Text>
+                </View>}
+              </View>
+            )}
+            {transportSubTab === 'roster' && (
+              classRoster.length === 0 ? <EmptyState icon="people-outline" text="No students assigned to a bus route." /> :
+              classRoster.map((r, i) => (
+                <View key={r.studentId || i} style={styles.card}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{r.studentName}</Text>
+                    <Text style={styles.cardDesc}>🚌 {r.routeName} • Stop: {r.stopName}</Text>
+                    <Text style={{ color: theme.textMuted, fontSize: 11, marginTop: 2 }}>Pickup: {r.pickupTime || '-'} • Drop: {r.dropTime || '-'}</Text>
+                  </View>
+                </View>
+              ))
+            )}
+          </ScrollView>
+        )}
+
+        {/* LIBRARY */}
+        {activeTab === 'library' && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Library</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+              {[{ id: 'books', label: 'All Books' }, { id: 'issues', label: 'Issued Books' }].map(t => (
+                <TouchableOpacity key={t.id} style={[styles.chip, libSubTab === t.id && styles.chipActive]} onPress={() => setLibSubTab(t.id)}>
+                  <Text style={[styles.chipText, libSubTab === t.id && styles.chipTextActive]}>{t.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {libSubTab === 'books' && (
+              libBooks.length === 0 ? <EmptyState icon="library-outline" text="No books in the library yet." /> :
+              libBooks.map((b, i) => (
+                <View key={b._id || i} style={styles.card}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{b.title}</Text>
+                    <Text style={styles.cardDesc}>by {b.author || '-'} • {b.category}</Text>
+                    <Text style={{ color: theme.emerald, fontSize: 11, fontWeight: '700', marginTop: 4 }}>Available: {b.availableCopies}/{b.totalCopies}</Text>
+                  </View>
+                </View>
+              ))
+            )}
+            {libSubTab === 'issues' && (
+              libIssues.length === 0 ? <EmptyState icon="library-outline" text="No books currently issued." /> :
+              libIssues.map((iss, i) => (
+                <View key={iss._id || i} style={styles.card}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.cardTitle}>{iss.bookTitle}</Text>
+                    <Text style={styles.cardDesc}>Student: {iss.studentName || '-'}</Text>
+                    <View style={{ flexDirection: 'row', gap: 8, marginTop: 6 }}>
+                      <Text style={{ color: iss.status === 'OVERDUE' ? theme.error : theme.amber, fontSize: 11, fontWeight: '700' }}>{iss.status}</Text>
+                      <Text style={{ color: theme.textMuted, fontSize: 11 }}>Due: {new Date(iss.dueDate).toLocaleDateString()}</Text>
+                    </View>
+                  </View>
+                </View>
+              ))
+            )}
+          </ScrollView>
+        )}
+
     </View>
   );
 }
