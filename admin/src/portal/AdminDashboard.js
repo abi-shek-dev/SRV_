@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Users, UserPlus, BookOpen, LogOut, CheckCircle2, Coffee, Trash2, Edit2, Save, X, Megaphone, GraduationCap, CalendarDays, ClipboardList, MessageSquareMore, BellRing, ArrowUpCircle, UtensilsCrossed, LayoutDashboard, ShieldAlert, ChevronLeft, Image as ImageIcon, Trophy, Target, ClipboardCheck } from 'lucide-react';
+import { Users, UserPlus, BookOpen, LogOut, CheckCircle2, Coffee, Trash2, Edit2, Save, X, Megaphone, GraduationCap, CalendarDays, ClipboardList, MessageSquareMore, BellRing, ArrowUpCircle, UtensilsCrossed, LayoutDashboard, ShieldAlert, ChevronLeft, Image as ImageIcon, Trophy, Target, ClipboardCheck, BarChart3, Download, FileSpreadsheet, Clock, FileText, Bus, ScrollText, ArrowUpRight, Library, RefreshCw } from 'lucide-react';
 import API_URL from '../config/api.js';
 import Swal from 'sweetalert2';
 import { OpinionPollSection } from '../components/OpinionPollSection.js';
@@ -10,6 +10,12 @@ import { UpcomingEventsSection } from '../components/UpcomingEventsSection.js';
 import { PortalHeader } from '../components/PortalHeader.js';
 import { NotificationPanel } from '../components/NotificationPanel.js';
 import { MemoriesSection } from '../components/MemoriesSection.js';
+import { AnalyticsDashboard } from '../components/AnalyticsDashboard.js';
+import { FacultyLeavesAdminSection } from '../components/FacultyLeavesAdminSection.js';
+import { TimetableManagement } from '../components/TimetableManagement.js';
+import TransportManagement from '../components/TransportManagement.js';
+import CircularsManagement from '../components/CircularsManagement.js';
+import LibraryManagement from '../components/LibraryManagement.js';
 
 export function AdminDashboard({ section = 'home' }) {
   const hasValidFamilyDetails = (profile) => Boolean(
@@ -76,6 +82,13 @@ export function AdminDashboard({ section = 'home' }) {
   // Manage Students State
   const [selectedStudentForFees, setSelectedStudentForFees] = useState(null);
   const [manageStudentMsg, setManageStudentMsg] = useState({ text: '', type: '' });
+  const [syncingFaculty, setSyncingFaculty] = useState(false);
+
+  // Transport assignment state for student editor
+  const [transportRoutes, setTransportRoutes] = useState([]);
+  const [editStudentRoute, setEditStudentRoute] = useState('');
+  const [editStudentStop, setEditStudentStop] = useState('');
+  const [assigningTransport, setAssigningTransport] = useState(false);
 
   // Fees and Settings State
   const [isOnlineFeeEnabled, setIsOnlineFeeEnabled] = useState(false);
@@ -123,11 +136,48 @@ export function AdminDashboard({ section = 'home' }) {
     fetchWeeklyMenu(token);
     // Fetch all students for the new tracking table
     fetchStudents(token);
+    // Fetch transport routes for student bus assignment
+    loadTransportRoutes(token);
     // Fetch settings and alerts
     fetchSettingsAndAlerts(token);
     // Fetch announcements
     fetchAnnouncements(token);
+
+    // Request browser notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
   }, [section]);
+
+  // Notification polling — check every 30 seconds for new alerts
+  useEffect(() => {
+    const token = localStorage.getItem('schoolToken');
+    if (!token) return;
+
+    let lastNotifCount = feeAlerts.length;
+
+    const pollInterval = setInterval(() => {
+      axios.get(`${API_URL}/api/admin/notifications`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => {
+          const newAlerts = res.data || [];
+          setFeeAlerts(newAlerts);
+
+          // Show browser notification if count increased
+          if (newAlerts.length > lastNotifCount && lastNotifCount > 0) {
+            const diff = newAlerts.length - lastNotifCount;
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('SRV Admin', {
+                body: `${diff} new notification(s) received`,
+                icon: '/favicon.ico',
+              });
+            }
+          }
+          lastNotifCount = newAlerts.length;
+        }).catch(() => {});
+    }, 30000);
+
+    return () => clearInterval(pollInterval);
+  }, []);
 
   const fetchSettingsAndAlerts = (token) => {
     axios.get(`${API_URL}/api/admin/settings/fee-toggle`, { headers: { Authorization: `Bearer ${token}` } })
@@ -195,6 +245,26 @@ export function AdminDashboard({ section = 'home' }) {
     axios.get(`${API_URL}/api/admin/students`, {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => setAllStudents(res.data)).catch(console.error);
+  };
+
+  const loadTransportRoutes = (token) => {
+    axios.get(`${API_URL}/api/admin/transport/routes`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(res => setTransportRoutes(res.data)).catch(console.error);
+  };
+
+  const fetchStudentTransport = async (studentId) => {
+    try {
+      const token = localStorage.getItem('schoolToken');
+      const res = await axios.get(`${API_URL}/api/admin/transport/student/${studentId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setEditStudentRoute(res.data.routeId ? String(res.data.routeId) : '');
+      setEditStudentStop(res.data.stopId ? String(res.data.stopId) : '');
+    } catch (error) {
+      setEditStudentRoute('');
+      setEditStudentStop('');
+    }
   };
 
   const fetchAnnouncements = (token) => {
@@ -327,6 +397,22 @@ export function AdminDashboard({ section = 'home' }) {
     }
   };
 
+  const handleSyncFacultyMappings = async () => {
+    setSyncingFaculty(true);
+    try {
+      const token = localStorage.getItem('schoolToken');
+      const res = await axios.post(`${API_URL}/api/admin/students/sync-faculty`, {}, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      Swal.fire('Success', res.data.message || 'Faculty mappings synchronized.', 'success');
+      fetchStudents(token); // Refresh the UI
+    } catch (err) {
+      Swal.fire('Error', 'Failed to synchronize faculty mappings', 'error');
+    } finally {
+      setSyncingFaculty(false);
+    }
+  };
+
   const handleUpdateStudent = async (id) => {
     if (!hasValidFamilyDetails(editStudentForm)) {
       Swal.fire('Missing Family Details', 'Enter both mother and father names, or provide a guardian name.', 'warning');
@@ -347,11 +433,48 @@ export function AdminDashboard({ section = 'home' }) {
       await axios.put(`${API_URL}/api/admin/student/${id}`, editStudentForm, {
         headers: { Authorization: `Bearer ${token}` }
       });
+
+      if (editStudentRoute) {
+        await axios.post(`${API_URL}/api/admin/transport/assign`, {
+          studentId: id,
+          routeId: editStudentRoute,
+          stopId: editStudentStop || null
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
+
       Swal.fire({toast: true, position: 'top-end', icon: 'success', title: 'Student updated!', showConfirmButton: false, timer: 2000});
       closeStudentEditor();
       fetchStudents(token);
     } catch (err) {
       Swal.fire('Error', err.response?.data?.message || 'Failed to update student', 'error');
+    }
+  };
+
+  const handleAssignStudentTransport = async () => {
+    if (!editingStudentId) return;
+    if (!editStudentRoute) {
+      Swal.fire('Missing Bus Route', 'Select a bus route before assigning.', 'warning');
+      return;
+    }
+
+    setAssigningTransport(true);
+    try {
+      const token = localStorage.getItem('schoolToken');
+      await axios.post(`${API_URL}/api/admin/transport/assign`, {
+        studentId: editingStudentId,
+        routeId: editStudentRoute,
+        stopId: editStudentStop || null
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Bus assigned to student!', showConfirmButton: false, timer: 2000 });
+      fetchStudents(token);
+    } catch (err) {
+      Swal.fire('Error', err.response?.data?.message || 'Failed to assign bus to student', 'error');
+    } finally {
+      setAssigningTransport(false);
     }
   };
 
@@ -400,11 +523,16 @@ export function AdminDashboard({ section = 'home' }) {
       parentRecoveryAnswer: '',
       dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split('T')[0] : ''
     });
+    setEditStudentRoute('');
+    setEditStudentStop('');
+    fetchStudentTransport(student._id);
   };
 
   const closeStudentEditor = () => {
     setEditingStudentId(null);
     setEditStudentForm({ admissionNumber: '', name: '', grade: '', section: '', group: '', motherName: '', fatherName: '', guardianName: '', parentMobileNumber: '', parentRecoveryQuestion: '', parentRecoveryAnswer: '' });
+    setEditStudentRoute('');
+    setEditStudentStop('');
   };
 
   const handleUpdateFaculty = async (id) => {
@@ -580,13 +708,21 @@ export function AdminDashboard({ section = 'home' }) {
     { key: 'faculty-progress', title: 'Faculty Progress', subtitle: 'Tasks, Leaderboard, Scores', icon: Trophy, badge: 'Live', gradient: 'from-indigo-500 to-purple-600' },
     { key: 'students', title: 'Students', subtitle: 'Add Student, Manage Students', icon: GraduationCap, badge: stats.totalStudents, gradient: 'from-amber-500 to-orange-500' },
     { key: 'memories', title: 'Memories', subtitle: 'Upload Photos and Videos', icon: ImageIcon, badge: 'Media', gradient: 'from-sky-500 to-indigo-500' },
-    { key: 'promote', title: 'Promote', subtitle: 'Promote Students', icon: ArrowUpCircle, badge: 'Year', gradient: 'from-cyan-500 to-sky-500' },
     { key: 'events', title: 'Events', subtitle: 'Upcoming Events, Acknowledgements', icon: CalendarDays, badge: stats.totalEvents, gradient: 'from-fuchsia-500 to-pink-500' },
     { key: 'polls', title: 'Poll Center', subtitle: 'Opinion Polls, Analytics', icon: ClipboardList, badge: stats.totalPolls, gradient: 'from-violet-500 to-indigo-500' },
     { key: 'feedback', title: 'Feedback', subtitle: 'Parent Feedback Inbox', icon: MessageSquareMore, badge: stats.totalFeedback, gradient: 'from-rose-500 to-red-500' },
     { key: 'cafeteria', title: 'Cafeteria', subtitle: 'Manage Cafeteria Menu', icon: UtensilsCrossed, badge: weeklyMenu.length || 'Menu', gradient: 'from-orange-500 to-yellow-500' },
     { key: 'announcements', title: 'Announcements', subtitle: 'Broadcast Announcement', icon: Megaphone, badge: stats.totalAnnouncements, gradient: 'from-slate-700 to-slate-900' },
-    { key: 'enquiry', title: 'Enquiry Center', subtitle: 'Student Enquiries, Lead Pipeline', icon: ClipboardCheck, badge: stats.totalEnquiries || 0, gradient: 'from-cyan-500 to-blue-600' }
+    { key: 'enquiry', title: 'Enquiry Center', subtitle: 'Student Enquiries, Lead Pipeline', icon: ClipboardCheck, badge: stats.totalEnquiries || 0, gradient: 'from-cyan-500 to-blue-600' },
+    { key: 'leave-requests', title: 'Leave Requests', subtitle: 'Student Absence Requests', icon: CalendarDays, badge: 'New', gradient: 'from-teal-500 to-cyan-600' },
+    { key: 'analytics', title: 'Analytics', subtitle: 'Charts, Trends, Insights', icon: BarChart3, badge: 'Live', gradient: 'from-purple-500 to-indigo-600' },
+    { key: 'exports', title: 'Export Center', subtitle: 'Download CSV Reports', icon: Download, badge: 'CSV', gradient: 'from-gray-600 to-slate-800' },
+    { key: 'timetable', title: 'Timetable', subtitle: 'Class Schedule Manager', icon: Clock, badge: 'New', gradient: 'from-blue-500 to-indigo-500' },
+    { key: 'report-card', title: 'Report Card', subtitle: 'Generate Student Reports', icon: FileText, badge: 'PDF', gradient: 'from-rose-500 to-pink-600' },
+    { key: 'promotion', title: 'Student Promotion', subtitle: 'Advance Students to Next Grade', icon: ArrowUpRight, badge: 'New', gradient: 'from-amber-500 to-orange-600' },
+    { key: 'circulars', title: 'Circulars', subtitle: 'Publish School Circulars', icon: ScrollText, badge: 'New', gradient: 'from-emerald-500 to-teal-600' },
+    { key: 'transport', title: 'Transport', subtitle: 'Bus Routes & Assignments', icon: Bus, badge: 'New', gradient: 'from-sky-500 to-blue-700' },
+    { key: 'library', title: 'Library', subtitle: 'Manage Books & Issues', icon: Library, badge: 'New', gradient: 'from-indigo-500 to-cyan-500' }
   ];
 
   const pageMeta = {
@@ -601,10 +737,6 @@ export function AdminDashboard({ section = 'home' }) {
     memories: {
       title: 'Memories Gallery',
       description: 'Upload student photos and videos, then manage the gallery from one admin page.'
-    },
-    promote: {
-      title: 'Academic Promotion',
-      description: 'Move an entire grade to the next academic year in an admin-only flow.'
     },
     events: {
       title: 'Event Hub',
@@ -625,6 +757,42 @@ export function AdminDashboard({ section = 'home' }) {
     announcements: {
       title: 'Announcement Studio',
       description: 'Publish targeted announcements to classes, students, or faculty members.'
+    },
+    'leave-requests': {
+      title: 'Leave Requests',
+      description: 'Review and manage student leave/absence requests from parents.'
+    },
+    analytics: {
+      title: 'Analytics Dashboard',
+      description: 'Visual insights into enrollment, attendance, fees, and behavior trends.'
+    },
+    exports: {
+      title: 'Export Center',
+      description: 'Download student lists, attendance reports, and fee summaries as CSV files.'
+    },
+    timetable: {
+      title: 'Timetable Manager',
+      description: 'Create and manage period-wise class schedules for all grades.'
+    },
+    'report-card': {
+      title: 'Report Card Generator',
+      description: 'Generate and download term-wise student progress reports.'
+    },
+    promotion: {
+      title: 'Student Promotion',
+      description: 'Advance students from one grade to the next at the end of the academic year.'
+    },
+    circulars: {
+      title: 'Circulars & Notices',
+      description: 'Publish and manage school circulars, notices, and newsletters.'
+    },
+    transport: {
+      title: 'Transport Management',
+      description: 'Manage bus routes, stops, driver info, and student assignments.'
+    },
+    library: {
+      title: 'Library Management',
+      description: 'Manage book inventory, track issues and returns, and monitor overdue items.'
     }
   };
 
@@ -713,6 +881,816 @@ export function AdminDashboard({ section = 'home' }) {
       </NotificationPanel>
     </div>
   );
+
+  // ═══════════════════════════════════════════
+  // LEAVE REQUESTS SECTION (Admin)
+  // ═══════════════════════════════════════════
+  const LeaveRequestsAdmin = () => {
+    const [leaves, setLeaves] = useState([]);
+    const [leaveFilter, setLeaveFilter] = useState('');
+    const [leaveLoading, setLeaveLoading] = useState(true);
+    const [reviewingId, setReviewingId] = useState(null);
+    const [reviewNote, setReviewNote] = useState('');
+
+    useEffect(() => {
+      const token = localStorage.getItem('schoolToken');
+      const params = leaveFilter ? `?status=${leaveFilter}` : '';
+      axios.get(`${API_URL}/api/admin/leave-requests${params}`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => setLeaves(res.data))
+        .catch(console.error)
+        .finally(() => setLeaveLoading(false));
+    }, [leaveFilter]);
+
+    const handleAction = async (id, status) => {
+      try {
+        const token = localStorage.getItem('schoolToken');
+        await axios.put(`${API_URL}/api/admin/leave-requests/${id}`, { status, reviewNote }, { headers: { Authorization: `Bearer ${token}` } });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Leave ${status.toLowerCase()}`, showConfirmButton: false, timer: 2000 });
+        setReviewingId(null); setReviewNote('');
+        setLeaves(prev => prev.map(l => l._id === id ? { ...l, status, reviewNote } : l));
+      } catch (err) {
+        Swal.fire('Error', err.response?.data?.message || 'Failed to update', 'error');
+      }
+    };
+
+    const [activeLeaveTab, setActiveLeaveTab] = useState('STUDENT');
+
+    if (leaveLoading) return <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent"></div></div>;
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4 border-b border-slate-200 pb-4">
+          <button onClick={() => setActiveLeaveTab('STUDENT')} className={`pb-2 border-b-2 font-bold text-sm transition-colors ${activeLeaveTab === 'STUDENT' ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Student Leaves</button>
+          <button onClick={() => setActiveLeaveTab('FACULTY')} className={`pb-2 border-b-2 font-bold text-sm transition-colors ${activeLeaveTab === 'FACULTY' ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Faculty Leaves</button>
+        </div>
+
+        {activeLeaveTab === 'FACULTY' ? (
+          <FacultyLeavesAdminSection />
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-3">
+              {['', 'PENDING', 'APPROVED', 'REJECTED'].map(s => (
+                <button key={s} onClick={() => { setLeaveLoading(true); setLeaveFilter(s); }}
+                  className={`rounded-full px-4 py-2 text-xs font-bold transition ${leaveFilter === s ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                  {s || 'All'}
+                </button>
+              ))}
+            </div>
+
+        {leaves.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-14 text-center text-slate-500">No leave requests found.</div>
+        ) : leaves.map(leave => (
+          <div key={leave._id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-lg font-bold text-slate-900">{leave.studentName}</p>
+                <p className="text-sm text-slate-500">Grade {leave.grade} - {leave.section} • Requested by {leave.parentName}</p>
+              </div>
+              <span className={`rounded-full px-3 py-1 text-xs font-bold ${leave.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-700' : leave.status === 'REJECTED' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}`}>
+                {leave.status}
+              </span>
+            </div>
+            <div className="mt-3 grid gap-2 text-sm sm:grid-cols-3">
+              <div><span className="font-semibold text-slate-600">Type:</span> {leave.leaveType}</div>
+              <div><span className="font-semibold text-slate-600">From:</span> {new Date(leave.startDate).toLocaleDateString()}</div>
+              <div><span className="font-semibold text-slate-600">To:</span> {new Date(leave.endDate).toLocaleDateString()}</div>
+            </div>
+            {leave.reason && <p className="mt-2 text-sm text-slate-600 italic">"{leave.reason}"</p>}
+            {leave.reviewNote && <p className="mt-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-600"><span className="font-bold">Review Note:</span> {leave.reviewNote}</p>}
+
+            {leave.status === 'PENDING' && (
+              <div className="mt-4 space-y-3">
+                {reviewingId === leave._id ? (
+                  <>
+                    <input type="text" placeholder="Optional note..." value={reviewNote} onChange={e => setReviewNote(e.target.value)}
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-teal-500" />
+                    <div className="flex gap-2">
+                      <button onClick={() => handleAction(leave._id, 'APPROVED')} className="rounded-xl bg-emerald-600 px-5 py-2 text-sm font-bold text-white hover:bg-emerald-700">Approve</button>
+                      <button onClick={() => handleAction(leave._id, 'REJECTED')} className="rounded-xl bg-red-600 px-5 py-2 text-sm font-bold text-white hover:bg-red-700">Reject</button>
+                      <button onClick={() => { setReviewingId(null); setReviewNote(''); }} className="rounded-xl bg-slate-200 px-4 py-2 text-sm font-bold text-slate-600">Cancel</button>
+                    </div>
+                  </>
+                ) : (
+                  <button onClick={() => setReviewingId(leave._id)} className="rounded-xl border border-teal-200 bg-teal-50 px-5 py-2 text-sm font-bold text-teal-700 hover:bg-teal-100">Review</button>
+                )}
+              </div>
+            )}
+          </div>
+        ))}
+        </>
+        )}
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════
+  // EXPORT CENTER SECTION (Admin)
+  // ═══════════════════════════════════════════
+  const ExportCenter = () => {
+    const [exportGrade, setExportGrade] = useState('');
+    const [exportSection, setExportSection] = useState('');
+    const [downloading, setDownloading] = useState('');
+
+    const downloadCSV = async (type) => {
+      setDownloading(type);
+      try {
+        const token = localStorage.getItem('schoolToken');
+        const params = new URLSearchParams();
+        if (exportGrade) params.append('grade', exportGrade);
+        if (exportSection) params.append('section', exportSection);
+        const res = await axios.get(`${API_URL}/api/admin/export/${type}?${params.toString()}`, {
+          headers: { Authorization: `Bearer ${token}` },
+          responseType: 'blob'
+        });
+        const url = window.URL.createObjectURL(new Blob([res.data]));
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${type}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (err) {
+        Swal.fire('Error', 'Failed to download CSV', 'error');
+      } finally {
+        setDownloading('');
+      }
+    };
+
+    const exports = [
+      { key: 'students', title: 'Student List', desc: 'Name, SRV number, grade, section, family details', icon: Users, color: 'from-emerald-500 to-teal-500' },
+      { key: 'attendance', title: 'Attendance Records', desc: 'Date-wise attendance status for all students', icon: ClipboardList, color: 'from-indigo-500 to-violet-500' },
+      { key: 'fees', title: 'Fee Summary', desc: 'Term-wise fee status, amounts, and payment details', icon: FileSpreadsheet, color: 'from-amber-500 to-orange-500' }
+    ];
+
+    return (
+      <div className="space-y-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600">Filters (optional)</h3>
+          <div className="mt-3 flex flex-wrap gap-3">
+            <select value={exportGrade} onChange={e => setExportGrade(e.target.value)} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-400">
+              <option value="">All Grades</option>
+              {['Pre KG','LKG','UKG','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'].map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+            <select value={exportSection} onChange={e => setExportSection(e.target.value)} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-400">
+              <option value="">All Sections</option>
+              {['A','B','C'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+          </div>
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-3">
+          {exports.map(exp => {
+            const Icon = exp.icon;
+            return (
+              <div key={exp.key} className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+                <div className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${exp.color} text-white shadow-lg`}>
+                  <Icon size={24} />
+                </div>
+                <h3 className="mt-4 text-lg font-bold text-slate-900">{exp.title}</h3>
+                <p className="mt-1 text-sm text-slate-500">{exp.desc}</p>
+                <button
+                  onClick={() => downloadCSV(exp.key)}
+                  disabled={downloading === exp.key}
+                  className="mt-4 flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                >
+                  <Download size={16} />
+                  {downloading === exp.key ? 'Downloading...' : 'Download CSV'}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════
+  // TIMETABLE SECTION (Admin)
+  // ═══════════════════════════════════════════
+  // Old TimetableAdmin removed to use external component
+
+  // ═══════════════════════════════════════════
+  // REPORT CARD SECTION (Admin)
+  // ═══════════════════════════════════════════
+  const ReportCardAdmin = () => {
+    const [rcStudentId, setRcStudentId] = useState('');
+    const [rcData, setRcData] = useState(null);
+    const [rcLoading, setRcLoading] = useState(false);
+
+    const loadReport = async () => {
+      if (!rcStudentId) return;
+      setRcLoading(true);
+      try {
+        const token = localStorage.getItem('schoolToken');
+        const res = await axios.get(`${API_URL}/api/admin/report-card/${rcStudentId}`, { headers: { Authorization: `Bearer ${token}` } });
+        setRcData(res.data);
+      } catch (err) { Swal.fire('Error', err.response?.data?.message || 'Failed to load', 'error'); }
+      finally { setRcLoading(false); }
+    };
+
+    const downloadPDF = async () => {
+      if (!rcData) return;
+      const { jsPDF } = await import('jspdf');
+      await import('jspdf-autotable');
+      const doc = new jsPDF();
+      const s = rcData.student;
+
+      // Header
+      doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+      doc.text('SRV MATRICULATION SCHOOL', 105, 20, { align: 'center' });
+      doc.setFontSize(12); doc.setFont('helvetica', 'normal');
+      doc.text('Progress Report Card', 105, 28, { align: 'center' });
+      doc.setLineWidth(0.5); doc.line(20, 32, 190, 32);
+
+      // Student info
+      doc.setFontSize(10);
+      doc.text(`Name: ${s.name}`, 20, 40);
+      doc.text(`SRV Number: ${s.srvNumber}`, 120, 40);
+      doc.text(`Grade: ${s.grade} - Section: ${s.section}`, 20, 47);
+      doc.text(`Father: ${s.fatherName || 'N/A'} | Mother: ${s.motherName || 'N/A'}`, 20, 54);
+      doc.text(`Date of Birth: ${s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString() : 'N/A'}`, 120, 47);
+
+      let y = 65;
+
+      // Academic records
+      if (rcData.academics?.length > 0) {
+        rcData.academics.forEach((rec, idx) => {
+          doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+          doc.text(`${rec.term || `Term ${idx + 1}`}`, 20, y); y += 6;
+
+          const marks = rec.marks || {};
+          const subjectRows = Object.entries(marks).map(([subj, val]) => [subj.replace(/^mark_?/, '').replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase()), val ?? '-']);
+
+          if (subjectRows.length > 0) {
+            doc.autoTable({ startY: y, head: [['Subject', 'Marks']], body: subjectRows, theme: 'grid', styles: { fontSize: 9 }, headStyles: { fillColor: [16, 185, 129] }, margin: { left: 20, right: 20 } });
+            y = doc.lastAutoTable.finalY + 8;
+          }
+
+          doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+          if (rec.behaviour) { doc.text(`Behaviour: ${rec.behaviour}`, 20, y); y += 5; }
+          if (rec.performanceRemarks) { doc.text(`Remarks: ${rec.performanceRemarks}`, 20, y); y += 5; }
+          y += 5;
+
+          if (y > 260) { doc.addPage(); y = 20; }
+        });
+      } else {
+        doc.setFontSize(10); doc.text('No academic records found.', 20, y); y += 10;
+      }
+
+      // Attendance & Behavior summary
+      doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+      doc.text('Summary', 20, y); y += 7;
+      doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+      doc.text(`Attendance: ${rcData.attendance.presentDays} / ${rcData.attendance.totalDays} days (${rcData.attendance.percentage}%)`, 20, y); y += 5;
+      doc.text(`Behavior Average: ${rcData.behavior.average} / 10 (${rcData.behavior.totalEntries} entries)`, 20, y); y += 10;
+
+      // Footer
+      doc.setLineWidth(0.3); doc.line(20, y, 190, y); y += 8;
+      doc.setFontSize(8); doc.text('This is a computer-generated report.', 105, y, { align: 'center' });
+
+      doc.save(`Report_${s.srvNumber}_${s.name.replace(/\s/g, '_')}.pdf`);
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600 mb-3">Select Student</h3>
+          <div className="flex flex-wrap gap-3">
+            <select value={rcStudentId} onChange={e => setRcStudentId(e.target.value)} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-rose-400 min-w-[200px]">
+              <option value="">Choose student...</option>
+              {allStudents.map(s => <option key={s._id} value={s._id}>{s.name} ({s.srvNumber})</option>)}
+            </select>
+            <button onClick={loadReport} disabled={!rcStudentId || rcLoading} className="rounded-xl bg-rose-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-rose-700 disabled:opacity-50">{rcLoading ? 'Loading...' : 'Generate Report'}</button>
+          </div>
+        </div>
+
+        {rcData && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-xl font-bold text-slate-900">{rcData.student.name}</h3>
+                <p className="text-sm text-slate-500">{rcData.student.srvNumber} • Grade {rcData.student.grade}-{rcData.student.section}</p>
+              </div>
+              <button onClick={downloadPDF} className="flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white hover:bg-slate-800">
+                <Download size={16} /> Download PDF
+              </button>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4">
+                <p className="text-xs font-bold uppercase text-emerald-700">Attendance</p>
+                <p className="text-2xl font-bold text-emerald-900">{rcData.attendance.percentage}%</p>
+                <p className="text-xs text-emerald-600">{rcData.attendance.presentDays}/{rcData.attendance.totalDays} days</p>
+              </div>
+              <div className="rounded-xl bg-indigo-50 border border-indigo-200 p-4">
+                <p className="text-xs font-bold uppercase text-indigo-700">Behavior</p>
+                <p className="text-2xl font-bold text-indigo-900">{rcData.behavior.average}/10</p>
+                <p className="text-xs text-indigo-600">{rcData.behavior.totalEntries} entries</p>
+              </div>
+              <div className="rounded-xl bg-amber-50 border border-amber-200 p-4">
+                <p className="text-xs font-bold uppercase text-amber-700">Records</p>
+                <p className="text-2xl font-bold text-amber-900">{rcData.academics?.length || 0}</p>
+                <p className="text-xs text-amber-600">term(s) recorded</p>
+              </div>
+            </div>
+            {rcData.academics?.length > 0 && rcData.academics.map((rec, i) => (
+              <div key={i} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                <h4 className="text-sm font-bold text-slate-700 mb-2">{rec.term || `Term ${i + 1}`}</h4>
+                <div className="grid grid-cols-3 gap-2 text-xs sm:grid-cols-6">
+                  {Object.entries(rec.marks || {}).map(([subj, val]) => (
+                    <div key={subj} className="rounded-lg bg-white border border-slate-200 p-2 text-center">
+                      <p className="font-semibold text-slate-600 capitalize">{subj.replace(/^mark_?/, '').replace(/_/g, ' ')}</p>
+                      <p className="text-lg font-bold text-slate-900">{val ?? '-'}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════
+  // STUDENT PROMOTION
+  // ═══════════════════════════════════════════
+  const GRADE_LIST = ['Pre KG','LKG','UKG','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+  const StudentPromotion = () => {
+    const [promoGrade, setPromoGrade] = useState('');
+    const [promoSection, setPromoSection] = useState('');
+    const [promoPreview, setPromoPreview] = useState(null);
+    const [promoLoading, setPromoLoading] = useState(false);
+
+    const loadPreview = async () => {
+      if (!promoGrade) return;
+      setPromoLoading(true);
+      try {
+        const token = localStorage.getItem('schoolToken');
+        const qs = promoSection ? `?grade=${promoGrade}&section=${promoSection}` : `?grade=${promoGrade}`;
+        const res = await axios.get(`${API_URL}/api/admin/promotion/preview${qs}`, { headers: { Authorization: `Bearer ${token}` } });
+        setPromoPreview(res.data);
+      } catch { Swal.fire('Error', 'Could not load preview', 'error'); }
+      finally { setPromoLoading(false); }
+    };
+
+    const executePromotion = async () => {
+      if (!promoPreview?.nextGrade) return;
+      const confirmed = await Swal.fire({ title: 'Confirm Promotion', html: `Move <b>${promoPreview.count}</b> student(s) from <b>${promoPreview.currentGrade}</b> to <b>${promoPreview.nextGrade}</b>?`, icon: 'warning', showCancelButton: true, confirmButtonColor: '#f59e0b', confirmButtonText: 'Promote' });
+      if (!confirmed.isConfirmed) return;
+      try {
+        const token = localStorage.getItem('schoolToken');
+        const res = await axios.post(`${API_URL}/api/admin/promotion/execute`, { fromGrade: promoPreview.currentGrade, toGrade: promoPreview.nextGrade, section: promoSection || undefined }, { headers: { Authorization: `Bearer ${token}` } });
+        Swal.fire('Done!', res.data.message, 'success');
+        setPromoPreview(null);
+      } catch (err) { Swal.fire('Error', err.response?.data?.message || 'Promotion failed', 'error'); }
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600 mb-3">Select Grade to Promote</h3>
+          <div className="flex flex-wrap gap-3">
+            <select value={promoGrade} onChange={e => setPromoGrade(e.target.value)} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-400">
+              <option value="">Grade</option>{GRADE_LIST.map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+            <select value={promoSection} onChange={e => setPromoSection(e.target.value)} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-400">
+              <option value="">All Sections</option>{['A','B','C'].map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <button onClick={loadPreview} disabled={!promoGrade || promoLoading} className="rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-amber-700 disabled:opacity-50">{promoLoading ? 'Loading...' : 'Preview'}</button>
+          </div>
+        </div>
+        {promoPreview && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">{promoPreview.currentGrade} → {promoPreview.nextGrade || 'Graduated'}</h3>
+                <p className="text-sm text-slate-500">{promoPreview.count} student(s) will be promoted</p>
+              </div>
+              {promoPreview.nextGrade && <button onClick={executePromotion} className="rounded-xl bg-amber-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-amber-700">Promote All</button>}
+            </div>
+            <div className="max-h-64 overflow-auto">
+              <table className="w-full text-sm"><thead><tr className="bg-slate-50 text-left"><th className="p-2 font-bold text-slate-600">Name</th><th className="p-2">SRV#</th><th className="p-2">Section</th></tr></thead>
+                <tbody>{promoPreview.students.map(s => <tr key={s._id} className="border-t border-slate-100"><td className="p-2 text-slate-900 font-medium">{s.name}</td><td className="p-2 text-slate-500">{s.srvNumber}</td><td className="p-2 text-slate-500">{s.section}</td></tr>)}</tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════
+  // CIRCULARS
+  // ═══════════════════════════════════════════
+  const CircularsAdmin = () => {
+    const [circulars, setCirculars] = useState([]);
+    const [circForm, setCircForm] = useState({ title: '', description: '', fileUrl: '', targetType: 'GLOBAL', targetGrade: '', targetSection: '' });
+    const [circLoading, setCircLoading] = useState(false);
+
+    useEffect(() => { loadCirculars(); }, []);
+
+    const loadCirculars = async () => {
+      try {
+        const token = localStorage.getItem('schoolToken');
+        const res = await axios.get(`${API_URL}/api/admin/circulars`, { headers: { Authorization: `Bearer ${token}` } });
+        setCirculars(res.data);
+      } catch {}
+    };
+
+    const publishCircular = async () => {
+      if (!circForm.title) return;
+      setCircLoading(true);
+      try {
+        const token = localStorage.getItem('schoolToken');
+        await axios.post(`${API_URL}/api/admin/circulars`, circForm, { headers: { Authorization: `Bearer ${token}` } });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Circular published!', showConfirmButton: false, timer: 2000 });
+        setCircForm({ title: '', description: '', fileUrl: '', targetType: 'GLOBAL', targetGrade: '', targetSection: '' });
+        loadCirculars();
+      } catch { Swal.fire('Error', 'Failed to publish', 'error'); }
+      finally { setCircLoading(false); }
+    };
+
+    const deleteCircular = async (id) => {
+      const r = await Swal.fire({ title: 'Delete circular?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' });
+      if (!r.isConfirmed) return;
+      try {
+        const token = localStorage.getItem('schoolToken');
+        await axios.delete(`${API_URL}/api/admin/circulars/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        loadCirculars();
+      } catch {}
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600">Publish New Circular</h3>
+          <input placeholder="Circular Title *" value={circForm.title} onChange={e => setCircForm(f => ({ ...f, title: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400" />
+          <textarea placeholder="Description / Content" rows={4} value={circForm.description} onChange={e => setCircForm(f => ({ ...f, description: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400 resize-none" />
+          <input placeholder="File URL (optional — paste Google Drive/PDF link)" value={circForm.fileUrl} onChange={e => setCircForm(f => ({ ...f, fileUrl: e.target.value }))} className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-emerald-400" />
+          <div className="flex flex-wrap gap-3">
+            <select value={circForm.targetType} onChange={e => setCircForm(f => ({ ...f, targetType: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none">
+              <option value="GLOBAL">All Parents</option><option value="CLASS">Specific Class</option>
+            </select>
+            {circForm.targetType === 'CLASS' && <>
+              <select value={circForm.targetGrade} onChange={e => setCircForm(f => ({ ...f, targetGrade: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none">
+                <option value="">Grade</option>{GRADE_LIST.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+              <select value={circForm.targetSection} onChange={e => setCircForm(f => ({ ...f, targetSection: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none">
+                <option value="">Section</option>{['A','B','C'].map(s => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </>}
+            <button onClick={publishCircular} disabled={!circForm.title || circLoading} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50">{circLoading ? 'Publishing...' : 'Publish'}</button>
+          </div>
+        </div>
+        {circulars.length > 0 && (
+          <div className="space-y-3">
+            {circulars.map(c => (
+              <div key={c._id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm flex justify-between items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-bold text-slate-900">{c.title}</h4>
+                  <p className="text-xs text-slate-500 mt-1 line-clamp-2">{c.description}</p>
+                  <div className="flex gap-2 mt-2 text-xs">
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold">{c.targetType === 'CLASS' ? `${c.targetGrade}-${c.targetSection}` : 'Global'}</span>
+                    <span className="text-slate-400">{new Date(c.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  {c.fileUrl && <a href={c.fileUrl} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline mt-1 inline-block">📎 View Attachment</a>}
+                </div>
+                <button onClick={() => deleteCircular(c._id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════
+  // TRANSPORT MANAGEMENT
+  // ═══════════════════════════════════════════
+  const TransportAdmin = () => {
+    const [routes, setRoutes] = useState([]);
+    const [routeForm, setRouteForm] = useState({ routeName: '', busNumber: '', driverName: '', driverPhone: '', helperName: '', helperPhone: '' });
+    const [routeStops, setRouteStops] = useState([{ stopName: '', pickupTime: '', dropTime: '' }]);
+    const [tLoading, setTLoading] = useState(false);
+    const [assignForm, setAssignForm] = useState({ studentId: '', routeId: '', stopId: '' });
+
+    useEffect(() => { loadRoutes(); }, []);
+
+    const loadRoutes = async () => {
+      try {
+        const token = localStorage.getItem('schoolToken');
+        const res = await axios.get(`${API_URL}/api/admin/transport/routes`, { headers: { Authorization: `Bearer ${token}` } });
+        setRoutes(res.data);
+      } catch {}
+    };
+
+    const createRoute = async () => {
+      if (!routeForm.routeName) return;
+      setTLoading(true);
+      try {
+        const token = localStorage.getItem('schoolToken');
+        const stops = routeStops.filter(s => s.stopName.trim());
+        await axios.post(`${API_URL}/api/admin/transport/routes`, { ...routeForm, stops }, { headers: { Authorization: `Bearer ${token}` } });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Route created!', showConfirmButton: false, timer: 2000 });
+        setRouteForm({ routeName: '', busNumber: '', driverName: '', driverPhone: '', helperName: '', helperPhone: '' });
+        setRouteStops([{ stopName: '', pickupTime: '', dropTime: '' }]);
+        loadRoutes();
+      } catch { Swal.fire('Error', 'Failed to create route', 'error'); }
+      finally { setTLoading(false); }
+    };
+
+    const deleteRoute = async (id) => {
+      const r = await Swal.fire({ title: 'Deactivate route?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' });
+      if (!r.isConfirmed) return;
+      try {
+        const token = localStorage.getItem('schoolToken');
+        await axios.delete(`${API_URL}/api/admin/transport/routes/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        loadRoutes();
+      } catch {}
+    };
+
+    const assignStudent = async () => {
+      if (!assignForm.studentId || !assignForm.routeId) return;
+      try {
+        const token = localStorage.getItem('schoolToken');
+        await axios.post(`${API_URL}/api/admin/transport/assign`, assignForm, { headers: { Authorization: `Bearer ${token}` } });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Student assigned!', showConfirmButton: false, timer: 2000 });
+        setAssignForm({ studentId: '', routeId: '', stopId: '' });
+        loadRoutes();
+      } catch (err) { Swal.fire('Error', err.response?.data?.message || 'Assignment failed', 'error'); }
+    };
+
+    const updateStop = (idx, field, value) => setRouteStops(prev => prev.map((s, i) => i === idx ? { ...s, [field]: value } : s));
+
+    return (
+      <div className="space-y-6">
+        {/* Create Route */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600">Add New Route</h3>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            <input placeholder="Route Name *" value={routeForm.routeName} onChange={e => setRouteForm(f => ({ ...f, routeName: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-400" />
+            <input placeholder="Bus Number" value={routeForm.busNumber} onChange={e => setRouteForm(f => ({ ...f, busNumber: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-400" />
+            <input placeholder="Driver Name" value={routeForm.driverName} onChange={e => setRouteForm(f => ({ ...f, driverName: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-400" />
+            <input placeholder="Driver Phone" value={routeForm.driverPhone} onChange={e => setRouteForm(f => ({ ...f, driverPhone: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-400" />
+            <input placeholder="Helper Name" value={routeForm.helperName} onChange={e => setRouteForm(f => ({ ...f, helperName: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-400" />
+            <input placeholder="Helper Phone" value={routeForm.helperPhone} onChange={e => setRouteForm(f => ({ ...f, helperPhone: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-sky-400" />
+          </div>
+          <h4 className="text-xs font-bold uppercase text-slate-500 mt-2">Stops</h4>
+          {routeStops.map((stop, i) => (
+            <div key={i} className="flex gap-2 items-center">
+              <input placeholder="Stop Name" value={stop.stopName} onChange={e => updateStop(i, 'stopName', e.target.value)} className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none" />
+              <input placeholder="Pickup" value={stop.pickupTime} onChange={e => updateStop(i, 'pickupTime', e.target.value)} className="w-20 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none" />
+              <input placeholder="Drop" value={stop.dropTime} onChange={e => updateStop(i, 'dropTime', e.target.value)} className="w-20 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none" />
+              {routeStops.length > 1 && <button onClick={() => setRouteStops(prev => prev.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-600"><X size={16} /></button>}
+            </div>
+          ))}
+          <div className="flex gap-3">
+            <button onClick={() => setRouteStops(prev => [...prev, { stopName: '', pickupTime: '', dropTime: '' }])} className="text-sm text-sky-600 hover:underline font-semibold">+ Add Stop</button>
+            <button onClick={createRoute} disabled={!routeForm.routeName || tLoading} className="rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-sky-700 disabled:opacity-50">{tLoading ? 'Creating...' : 'Create Route'}</button>
+          </div>
+        </div>
+
+        {/* Assign Student */}
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600">Assign Student to Route</h3>
+          <div className="flex flex-wrap gap-3">
+            <select value={assignForm.studentId} onChange={e => setAssignForm(f => ({ ...f, studentId: e.target.value }))} className="min-w-[180px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none">
+              <option value="">Select Student</option>{allStudents.map(s => <option key={s._id} value={s._id}>{s.name} ({s.srvNumber})</option>)}
+            </select>
+            <select value={assignForm.routeId} onChange={e => setAssignForm(f => ({ ...f, routeId: e.target.value, stopId: '' }))} className="min-w-[160px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none">
+              <option value="">Select Route</option>{routes.map(r => <option key={r._id} value={r._id}>{r.routeName}</option>)}
+            </select>
+            {assignForm.routeId && (() => { const r = routes.find(rt => String(rt._id) === String(assignForm.routeId)); return r?.stops?.length ? (
+              <select value={assignForm.stopId} onChange={e => setAssignForm(f => ({ ...f, stopId: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none">
+                <option value="">Select Stop</option>{r.stops.map(s => <option key={s._id} value={s._id}>{s.stopName}</option>)}
+              </select>) : null; })()}
+            <button onClick={assignStudent} disabled={!assignForm.studentId || !assignForm.routeId} className="rounded-xl bg-sky-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-sky-700 disabled:opacity-50">Assign</button>
+          </div>
+        </div>
+
+        {/* Routes List */}
+        {routes.map(route => (
+          <div key={route._id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-3">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h4 className="text-base font-bold text-slate-900">{route.routeName}</h4>
+                <p className="text-xs text-slate-500">🚌 {route.busNumber || 'N/A'} • Driver: {route.driverName || 'N/A'} ({route.driverPhone || '-'})</p>
+                {route.helperName && <p className="text-xs text-slate-500">Helper: {route.helperName} ({route.helperPhone || '-'})</p>}
+              </div>
+              <button onClick={() => deleteRoute(route._id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+            </div>
+            {route.stops?.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {route.stops.map((s, i) => (
+                  <span key={i} className="px-3 py-1 rounded-full bg-sky-50 text-sky-700 text-xs font-semibold border border-sky-200">{s.stopName} ({s.pickupTime || '-'})</span>
+                ))}
+              </div>
+            )}
+            {route.students?.length > 0 && (
+              <div className="text-xs text-slate-500">{route.students.length} student(s): {route.students.map(s => s.studentName).join(', ')}</div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  // ═══════════════════════════════════════════
+  // LIBRARY MANAGEMENT
+  // ═══════════════════════════════════════════
+  const LibraryAdmin = () => {
+    const [libTab, setLibTab] = useState('books');
+    const [books, setBooks] = useState([]);
+    const [issues, setIssues] = useState([]);
+    const [stats, setStats] = useState({});
+    
+    // Forms
+    const [bookForm, setBookForm] = useState({ title: '', author: '', isbn: '', category: 'General', totalCopies: 1, shelfLocation: '' });
+    const [issueForm, setIssueForm] = useState({ bookId: '', studentId: '', dueDate: '' });
+    
+    // Loading
+    const [libLoading, setLibLoading] = useState(false);
+
+    useEffect(() => {
+      loadLibraryData();
+    }, [libTab]);
+
+    const loadLibraryData = async () => {
+      try {
+        const token = localStorage.getItem('schoolToken');
+        const headers = { Authorization: `Bearer ${token}` };
+        if (libTab === 'books') {
+          const res = await axios.get(`${API_URL}/api/admin/library/books`, { headers });
+          setBooks(res.data);
+        } else if (libTab === 'issues') {
+          const res = await axios.get(`${API_URL}/api/admin/library/issues`, { headers });
+          setIssues(res.data);
+        }
+        const stRes = await axios.get(`${API_URL}/api/admin/library/stats`, { headers });
+        setStats(stRes.data);
+      } catch {}
+    };
+
+    const addBook = async () => {
+      if (!bookForm.title) return;
+      setLibLoading(true);
+      try {
+        const token = localStorage.getItem('schoolToken');
+        await axios.post(`${API_URL}/api/admin/library/books`, bookForm, { headers: { Authorization: `Bearer ${token}` } });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Book added!', showConfirmButton: false, timer: 2000 });
+        setBookForm({ title: '', author: '', isbn: '', category: 'General', totalCopies: 1, shelfLocation: '' });
+        loadLibraryData();
+      } catch (err) { Swal.fire('Error', 'Failed to add book', 'error'); }
+      finally { setLibLoading(false); }
+    };
+
+    const deleteBook = async (id) => {
+      const r = await Swal.fire({ title: 'Delete book?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#ef4444' });
+      if (!r.isConfirmed) return;
+      try {
+        const token = localStorage.getItem('schoolToken');
+        await axios.delete(`${API_URL}/api/admin/library/books/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+        loadLibraryData();
+      } catch {}
+    };
+
+    const issueBook = async () => {
+      if (!issueForm.bookId || !issueForm.studentId || !issueForm.dueDate) return;
+      setLibLoading(true);
+      try {
+        const token = localStorage.getItem('schoolToken');
+        await axios.post(`${API_URL}/api/admin/library/issue`, issueForm, { headers: { Authorization: `Bearer ${token}` } });
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Book issued!', showConfirmButton: false, timer: 2000 });
+        setIssueForm({ bookId: '', studentId: '', dueDate: '' });
+        loadLibraryData();
+      } catch (err) { Swal.fire('Error', err.response?.data?.message || 'Failed to issue book', 'error'); }
+      finally { setLibLoading(false); }
+    };
+
+    const returnBook = async (id) => {
+      const r = await Swal.fire({ title: 'Return book?', text: 'Are you sure this book has been returned?', icon: 'question', showCancelButton: true, confirmButtonColor: '#10b981' });
+      if (!r.isConfirmed) return;
+      try {
+        const token = localStorage.getItem('schoolToken');
+        const res = await axios.post(`${API_URL}/api/admin/library/return/${id}`, {}, { headers: { Authorization: `Bearer ${token}` } });
+        Swal.fire('Returned', res.data.message, 'success');
+        loadLibraryData();
+      } catch (err) { Swal.fire('Error', err.response?.data?.message || 'Failed to return book', 'error'); }
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex gap-4 border-b border-slate-200">
+          <button onClick={() => setLibTab('books')} className={`pb-3 font-semibold text-sm ${libTab === 'books' ? 'border-b-2 border-indigo-500 text-indigo-600' : 'text-slate-500'}`}>Manage Books</button>
+          <button onClick={() => setLibTab('issues')} className={`pb-3 font-semibold text-sm ${libTab === 'issues' ? 'border-b-2 border-indigo-500 text-indigo-600' : 'text-slate-500'}`}>Issue & Return</button>
+        </div>
+
+        {libTab === 'books' && (
+          <>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600">Add New Book</h3>
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <input placeholder="Title *" value={bookForm.title} onChange={e => setBookForm(f => ({ ...f, title: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400" />
+                <input placeholder="Author" value={bookForm.author} onChange={e => setBookForm(f => ({ ...f, author: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400" />
+                <input placeholder="ISBN" value={bookForm.isbn} onChange={e => setBookForm(f => ({ ...f, isbn: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400" />
+                <input placeholder="Category" value={bookForm.category} onChange={e => setBookForm(f => ({ ...f, category: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400" />
+                <input type="number" placeholder="Total Copies" value={bookForm.totalCopies} onChange={e => setBookForm(f => ({ ...f, totalCopies: parseInt(e.target.value) || 1 }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400" />
+                <input placeholder="Shelf Location" value={bookForm.shelfLocation} onChange={e => setBookForm(f => ({ ...f, shelfLocation: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400" />
+              </div>
+              <button onClick={addBook} disabled={!bookForm.title || libLoading} className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">Add Book</button>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600">Book Inventory ({stats.totalBooks || 0})</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-100">
+                    <tr><th className="p-3">Title</th><th className="p-3">Author</th><th className="p-3">Category</th><th className="p-3">Available</th><th className="p-3">Shelf</th><th className="p-3 text-right">Actions</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {books.map(b => (
+                      <tr key={b._id} className="hover:bg-slate-50/50">
+                        <td className="p-3 text-slate-900 font-medium">{b.title} <span className="text-xs text-slate-400 block">{b.isbn}</span></td>
+                        <td className="p-3 text-slate-600">{b.author || '-'}</td>
+                        <td className="p-3"><span className="px-2 py-1 bg-indigo-50 text-indigo-700 rounded-md text-xs font-semibold">{b.category}</span></td>
+                        <td className="p-3">
+                          <span className={`font-bold ${b.availableCopies > 0 ? 'text-emerald-600' : 'text-red-500'}`}>{b.availableCopies}</span> <span className="text-slate-400">/ {b.totalCopies}</span>
+                        </td>
+                        <td className="p-3 text-slate-600">{b.shelfLocation || '-'}</td>
+                        <td className="p-3 text-right">
+                          <button onClick={() => deleteBook(b._id)} className="text-slate-400 hover:text-red-500"><Trash2 size={16} /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {libTab === 'issues' && (
+          <>
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600">Issue Book to Student</h3>
+              <div className="flex flex-wrap gap-3">
+                <select value={issueForm.bookId} onChange={e => setIssueForm(f => ({ ...f, bookId: e.target.value }))} className="flex-1 min-w-[200px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400">
+                  <option value="">Select Book</option>
+                  {books.filter(b => b.availableCopies > 0).map(b => <option key={b._id} value={b._id}>{b.title} ({b.availableCopies} available)</option>)}
+                </select>
+                <select value={issueForm.studentId} onChange={e => setIssueForm(f => ({ ...f, studentId: e.target.value }))} className="flex-1 min-w-[200px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400">
+                  <option value="">Select Student</option>
+                  {allStudents.map(s => <option key={s._id} value={s._id}>{s.name} ({s.srvNumber})</option>)}
+                </select>
+                <input type="date" value={issueForm.dueDate} onChange={e => setIssueForm(f => ({ ...f, dueDate: e.target.value }))} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-indigo-400" />
+                <button onClick={issueBook} disabled={!issueForm.bookId || !issueForm.studentId || !issueForm.dueDate || libLoading} className="rounded-xl bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 disabled:opacity-50">Issue</button>
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm space-y-4">
+              <div className="flex justify-between items-center">
+                <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600">Issued Books</h3>
+                <div className="flex gap-4 text-xs font-bold">
+                  <span className="text-indigo-600">Total Issued: {stats.totalIssued || 0}</span>
+                  <span className="text-red-500">Overdue: {stats.totalOverdue || 0}</span>
+                </div>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-100">
+                    <tr><th className="p-3">Book</th><th className="p-3">Student</th><th className="p-3">Issued Date</th><th className="p-3">Due Date</th><th className="p-3">Status</th><th className="p-3 text-right">Action</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {issues.map(i => (
+                      <tr key={i._id} className="hover:bg-slate-50/50">
+                        <td className="p-3 text-slate-900 font-medium">{i.bookTitle}</td>
+                        <td className="p-3 text-slate-600">{i.studentName} <span className="text-xs block text-slate-400">{i.srvNumber} • {i.grade}-{i.section}</span></td>
+                        <td className="p-3 text-slate-600">{new Date(i.issuedDate).toLocaleDateString()}</td>
+                        <td className="p-3 font-semibold text-slate-700">{new Date(i.dueDate).toLocaleDateString()}</td>
+                        <td className="p-3">
+                          {i.status === 'ISSUED' && <span className="px-2 py-1 bg-sky-50 text-sky-700 rounded-md text-xs font-bold">ISSUED</span>}
+                          {i.status === 'OVERDUE' && <span className="px-2 py-1 bg-red-50 text-red-700 rounded-md text-xs font-bold">OVERDUE</span>}
+                          {i.status === 'RETURNED' && <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-md text-xs font-bold">RETURNED</span>}
+                        </td>
+                        <td className="p-3 text-right">
+                          {i.status !== 'RETURNED' ? (
+                            <button onClick={() => returnBook(i._id)} className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg hover:bg-emerald-100">Mark Returned</button>
+                          ) : (
+                            <span className="text-xs text-slate-400 font-semibold">Returned on {new Date(i.returnedDate).toLocaleDateString()} {i.fineAmount > 0 ? `(Fine: ₹${i.fineAmount})` : ''}</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
 
   const renderHomePage = () => (
     <div className="min-h-screen bg-slate-100">
@@ -1556,6 +2534,14 @@ export function AdminDashboard({ section = 'home' }) {
               <h2 className="text-xl font-display font-bold text-slate-900">View All Students</h2>
             </div>
             <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+              <button
+                onClick={handleSyncFacultyMappings}
+                disabled={syncingFaculty}
+                className="flex items-center justify-center gap-2 rounded-lg bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-600 hover:bg-indigo-100 transition disabled:opacity-50"
+              >
+                <RefreshCw size={16} className={syncingFaculty ? "animate-spin" : ""} />
+                {syncingFaculty ? 'Syncing...' : 'Sync Class Mappings'}
+              </button>
               <select value={studentListFilter.grade} onChange={e => setStudentListFilter({...studentListFilter, grade: e.target.value})} className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-purple-500 sm:w-40">
                 <option value="">All Grades</option>
                 {['Pre KG', 'LKG', 'UKG', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'].map(g => <option key={g} value={g}>{g}</option>)}
@@ -1739,11 +2725,20 @@ export function AdminDashboard({ section = 'home' }) {
 
       </div>
 
-      <div className={`${activeSection === 'events' || activeSection === 'polls' || activeSection === 'feedback' || activeSection === 'memories' ? 'block' : 'hidden'} mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8`}>
+      <div className={`${activeSection === 'events' || activeSection === 'polls' || activeSection === 'feedback' || activeSection === 'memories' || activeSection === 'leave-requests' || activeSection === 'analytics' || activeSection === 'exports' || activeSection === 'timetable' || activeSection === 'report-card' || activeSection === 'promotion' || activeSection === 'circulars' || activeSection === 'transport' || activeSection === 'library' ? 'block' : 'hidden'} mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8`}>
         {activeSection === 'events' && <UpcomingEventsSection role="admin" />}
         {activeSection === 'polls' && <OpinionPollSection role="admin" />}
         {activeSection === 'feedback' && <FeedbackInboxSection role="admin" />}
         {activeSection === 'memories' && <MemoriesSection role="admin" />}
+        {activeSection === 'analytics' && <AnalyticsDashboard />}
+        {activeSection === 'leave-requests' && <LeaveRequestsAdmin />}
+        {activeSection === 'exports' && <ExportCenter />}
+        {activeSection === 'timetable' && <TimetableManagement />}
+        {activeSection === 'report-card' && <ReportCardAdmin />}
+        {activeSection === 'promotion' && <StudentPromotion />}
+        {activeSection === 'circulars' && <CircularsManagement />}
+        {activeSection === 'transport' && <TransportManagement allStudents={allStudents} />}
+        {activeSection === 'library' && <LibraryManagement />}
       </div>
       
       {selectedFacultyProfile && (
@@ -1925,9 +2920,45 @@ export function AdminDashboard({ section = 'home' }) {
                 </div>
               </div>
 
+              <div className="grid gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Bus Route</label>
+                  <select
+                    value={editStudentRoute}
+                    onChange={e => {
+                      setEditStudentRoute(e.target.value);
+                      setEditStudentStop('');
+                    }}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="">Select route</option>
+                    {transportRoutes.map(route => (
+                      <option key={route._id} value={route._id}>{route.routeName}{route.busNumber ? ` (${route.busNumber})` : ''}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-semibold text-slate-700">Pickup/Drop Stop</label>
+                  <select
+                    value={editStudentStop}
+                    onChange={e => setEditStudentStop(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-purple-500"
+                    disabled={!editStudentRoute}
+                  >
+                    <option value="">Select stop</option>
+                    {transportRoutes.find(route => String(route._id) === String(editStudentRoute))?.stops?.map(stop => (
+                      <option key={stop._id} value={stop._id}>{stop.stopName}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
               <p className="text-sm text-slate-500">Enter mother and father names together, or fill only the guardian field. Add the parent mobile here if it was missing during admission. You can also set a parent recovery question and answer for self-service password reset.</p>
 
               <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+                <button type="button" onClick={handleAssignStudentTransport} disabled={!editStudentRoute || assigningTransport} className="w-full rounded-xl bg-sky-600 px-6 py-3 font-bold text-white transition-colors hover:bg-sky-700 sm:w-auto disabled:opacity-50">
+                  {assigningTransport ? 'Assigning...' : 'Assign Bus'}
+                </button>
                 <button type="submit" className="w-full rounded-xl bg-purple-600 px-6 py-3 font-bold text-white transition-colors hover:bg-purple-700 sm:w-auto">
                   Save Student
                 </button>

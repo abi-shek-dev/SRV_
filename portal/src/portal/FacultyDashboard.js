@@ -237,6 +237,10 @@ export function FacultyDashboard({ section = 'dashboard' }) {
   const [editingStudentProfile, setEditingStudentProfile] = useState(null);
   const [studentProfileForm, setStudentProfileForm] = useState({ name: '', grade: '', section: '', group: '', motherName: '', fatherName: '', guardianName: '', parentMobileNumber: '' });
   const [profileMsg, setProfileMsg] = useState({ text: '', type: '' });
+  const [transportRoutes, setTransportRoutes] = useState([]);
+  const [editStudentRoute, setEditStudentRoute] = useState('');
+  const [editStudentStop, setEditStudentStop] = useState('');
+  const [assigningTransport, setAssigningTransport] = useState(false);
   const [assignedHomework, setAssignedHomework] = useState([]);
 
   // Grading Form State
@@ -553,6 +557,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     // Auth is handled by ProtectedRoute — just fetch data
     const token = localStorage.getItem('schoolToken');
     fetchStudents(token);
+    loadTransportRoutes(token);
 
     fetchHomework();
     fetchAnnouncements(token);
@@ -563,6 +568,53 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     axios.get(`${API_URL}/api/faculty/students`, {
       headers: { Authorization: `Bearer ${token}` }
     }).then(res => setStudents(res.data)).catch(console.error);
+  };
+
+  const loadTransportRoutes = (token) => {
+    axios.get(`${API_URL}/api/faculty/transport/routes`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(res => setTransportRoutes(res.data)).catch(console.error);
+  };
+
+  const fetchStudentTransport = async (studentId) => {
+    try {
+      const token = localStorage.getItem('schoolToken');
+      const res = await axios.get(`${API_URL}/api/faculty/transport/student/${studentId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setEditStudentRoute(res.data.routeId ? String(res.data.routeId) : '');
+      setEditStudentStop(res.data.stopId ? String(res.data.stopId) : '');
+    } catch (error) {
+      setEditStudentRoute('');
+      setEditStudentStop('');
+    }
+  };
+
+  const handleAssignStudentTransport = async () => {
+    if (!editingStudentProfile) return;
+    if (!editStudentRoute) {
+      setProfileMsg({ text: 'Select a route before assigning the student.', type: 'error' });
+      return;
+    }
+
+    setAssigningTransport(true);
+    try {
+      const token = localStorage.getItem('schoolToken');
+      await axios.post(`${API_URL}/api/faculty/transport/assign`, {
+        studentId: editingStudentProfile._id,
+        routeId: editStudentRoute,
+        stopId: editStudentStop || null
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setProfileMsg({ text: 'Bus route assigned successfully.', type: 'success' });
+      fetchStudents(token);
+      closeStudentProfileEditor();
+    } catch (err) {
+      setProfileMsg({ text: err.response?.data?.message || 'Failed to assign bus route.', type: 'error' });
+    } finally {
+      setAssigningTransport(false);
+    }
   };
 
   const fetchHomework = async () => {
@@ -670,12 +722,17 @@ export function FacultyDashboard({ section = 'dashboard' }) {
       parentMobileNumber: student.parentMobileNumber || '',
       dateOfBirth: student.dateOfBirth ? student.dateOfBirth.split('T')[0] : ''
     });
+    setEditStudentRoute('');
+    setEditStudentStop('');
     setProfileMsg({ text: '', type: '' });
+    fetchStudentTransport(student._id);
   };
 
   const closeStudentProfileEditor = () => {
     setEditingStudentProfile(null);
     setProfileMsg({ text: '', type: '' });
+    setEditStudentRoute('');
+    setEditStudentStop('');
   };
 
   const closeStudentEvaluation = () => {
@@ -704,8 +761,18 @@ export function FacultyDashboard({ section = 'dashboard' }) {
       setSelectedStudent(prev => (
         prev && prev._id === res.data.student._id ? { ...prev, ...res.data.student } : prev
       ));
+      if (editStudentRoute) {
+        await axios.post(`${API_URL}/api/faculty/transport/assign`, {
+          studentId: editingStudentProfile._id,
+          routeId: editStudentRoute,
+          stopId: editStudentStop || null
+        }, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+      }
       setProfileMsg({ text: 'Student profile updated successfully.', type: 'success' });
       fetchStudents(token);
+      closeStudentProfileEditor();
     } catch (err) {
       setProfileMsg({ text: err.response?.data?.message || 'Failed to update student profile.', type: 'error' });
     }
@@ -1987,9 +2054,50 @@ export function FacultyDashboard({ section = 'dashboard' }) {
               placeholder="Parent mobile number"
             />
 
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Bus Route</label>
+                <select
+                  value={editStudentRoute}
+                  onChange={e => {
+                    setEditStudentRoute(e.target.value);
+                    setEditStudentStop('');
+                  }}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">Select route</option>
+                  {transportRoutes.map(route => (
+                    <option key={route._id} value={route._id}>{route.routeName}{route.busNumber ? ` (${route.busNumber})` : ''}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold text-slate-700">Pickup/Drop Stop</label>
+                <select
+                  value={editStudentStop}
+                  onChange={e => setEditStudentStop(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={!editStudentRoute}
+                >
+                  <option value="">Select stop</option>
+                  {transportRoutes.find(route => String(route._id) === String(editStudentRoute))?.stops?.map(stop => (
+                    <option key={stop._id} value={stop._id}>{stop.stopName}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             <p className="text-sm text-slate-500">Enter mother and father names together, or fill only the guardian field. Add the parent mobile here if it is still missing.</p>
 
             <div className="flex flex-col-reverse gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <button
+                type="button"
+                onClick={handleAssignStudentTransport}
+                disabled={!editStudentRoute || assigningTransport}
+                className="w-full rounded-xl bg-sky-600 px-6 py-3 font-bold text-white transition-colors hover:bg-sky-700 sm:w-auto disabled:opacity-50"
+              >
+                {assigningTransport ? 'Assigning...' : 'Assign Bus'}
+              </button>
               <button type="submit" className="w-full rounded-xl bg-blue-600 px-6 py-3 font-bold text-white transition-colors hover:bg-blue-700 sm:w-auto">
                 Save Profile
               </button>

@@ -15,6 +15,13 @@ import EventRegistration from '../models/EventRegistration.js';
 import Memory from '../models/Memory.js';
 import Attendance from '../models/Attendance.js';
 import Enquiry from '../models/Enquiry.js';
+import HomeworkSubmission from '../models/HomeworkSubmission.js';
+import LeaveRequest from '../models/LeaveRequest.js';
+import FacultyLeaveRequest from '../models/FacultyLeaveRequest.js';
+import { notifyLeaveStatusChanged, notifyAnnouncement } from '../services/pushNotification.js';
+import Circular from '../models/Circular.js';
+import Transport from '../models/Transport.js';
+import Library from '../models/Library.js';
 import { protect, adminOnly } from '../middleware/auth.js';
 import { hydratePolls } from '../utils/pollService.js';
 import { normalizeClassValue, validateAndNormalizeQuestions } from '../utils/pollUtils.js';
@@ -72,6 +79,9 @@ router.post('/faculty', protect, adminOnly, async (req, res) => {
       assignedSection,
       mobileNumber
     });
+
+    // Sync faculty mappings so existing students get assigned to this new faculty
+    await Student.syncFacultyMappings();
 
     res.status(201).json({
       message: 'Faculty created successfully',
@@ -176,6 +186,9 @@ router.post('/student', protect, adminOnly, async (req, res) => {
       studentId: student._id,
       mobileNumber: parentMobileNumber
     });
+
+    // Sync faculty mapping for the newly created student
+    await Student.syncFacultyMappings();
 
     res.status(201).json({
       message: 'Student and Parent account created successfully',
@@ -459,9 +472,9 @@ router.put('/student/:id', protect, adminOnly, async (req, res) => {
       }
     }
 
-    res.json({ message: 'Student updated successfully', student });
+    res.json(updated);
   } catch (error) {
-    console.error('[Edit Student Error]', error);
+    console.error('[Update Student Error]', error);
     res.status(500).json({ message: 'Error updating student' });
   }
 });
@@ -644,6 +657,9 @@ router.post('/students/promote', protect, adminOnly, async (req, res) => {
       { $set: { grade: toGrade } }
     );
 
+    // Sync faculty mappings after bulk promotion
+    await Student.syncFacultyMappings();
+
     res.json({
       message: `Successfully promoted ${result.modifiedCount} student(s) from Grade ${fromGrade} to Grade ${toGrade}.`,
       promoted: result.modifiedCount
@@ -651,6 +667,19 @@ router.post('/students/promote', protect, adminOnly, async (req, res) => {
   } catch (error) {
     console.error('[Promote Error]', error);
     res.status(500).json({ message: 'Error promoting students' });
+  }
+});
+
+// @route   POST /api/admin/students/sync-faculty
+// @desc    Auto-assign all students to faculty based on matching grade and section
+// @access  Private (Admin only)
+router.post('/students/sync-faculty', protect, adminOnly, async (req, res) => {
+  try {
+    await Student.syncFacultyMappings();
+    res.json({ message: 'All student-faculty mappings have been synchronized.' });
+  } catch (error) {
+    console.error('[Sync Faculty Mappings Error]', error);
+    res.status(500).json({ message: 'Error synchronizing mappings.' });
   }
 });
 
@@ -744,6 +773,44 @@ router.put('/settings/fee-toggle', protect, adminOnly, async (req, res) => {
     res.json({ message: 'Setting updated successfully', isOnlineFeeEnabled: setting.value });
   } catch (error) {
     res.status(500).json({ message: 'Error updating setting' });
+  }
+});
+
+// @route   GET /api/admin/settings/academic-year
+// @desc    Get the current academic year (start & end dates)
+// @access  Private (Admin only)
+router.get('/settings/academic-year', protect, adminOnly, async (req, res) => {
+  try {
+    const setting = await Setting.findOne({ key: 'academicYear' });
+    const value = setting?.value || { start: '', end: '' };
+    res.json(value);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching academic year setting' });
+  }
+});
+
+// @route   PUT /api/admin/settings/academic-year
+// @desc    Save the academic year (start & end dates)
+// @access  Private (Admin only)
+router.put('/settings/academic-year', protect, adminOnly, async (req, res) => {
+  const { start, end } = req.body;
+  if (!start || !end) {
+    return res.status(400).json({ message: 'Both start and end dates are required.' });
+  }
+  if (new Date(end) <= new Date(start)) {
+    return res.status(400).json({ message: 'End date must be after start date.' });
+  }
+  try {
+    let setting = await Setting.findOne({ key: 'academicYear' });
+    if (!setting) {
+      setting = await Setting.create({ key: 'academicYear', value: { start, end } });
+    } else {
+      setting.value = { start, end };
+      setting = await Setting.save(setting);
+    }
+    res.json({ message: 'Academic year saved successfully.', start, end });
+  } catch (error) {
+    res.status(500).json({ message: 'Error saving academic year setting' });
   }
 });
 
@@ -901,6 +968,9 @@ router.post('/announcements', protect, adminOnly, async (req, res) => {
       message: 'Announcement created successfully',
       announcement
     });
+
+    // Push notification (fire-and-forget)
+    notifyAnnouncement(title, announcementData.targetGrade, announcementData.targetSection).catch(() => {});
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error creating announcement' });
@@ -1248,5 +1318,530 @@ router.delete('/events/:id', protect, adminOnly, async (req, res) => {
   }
 });
 
-export default router;
+// ══════════════════════════════════════════════════
+// LEAVE REQUESTS
+// ══════════════════════════════════════════════════
+router.get('/leave-requests', protect, adminOnly, async (req, res) => {
+  try {
+    const { status, grade } = req.query;
+    const leaves = await LeaveRequest.findAll({ status, grade });
+    res.json(leaves);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching leave requests' });
+  }
+});
 
+router.put('/leave-requests/:id', protect, adminOnly, async (req, res) => {
+  const { status, reviewNote } = req.body;
+  if (!['APPROVED', 'REJECTED'].includes(status)) return res.status(400).json({ message: 'Invalid status' });
+  try {
+    await LeaveRequest.updateStatus(req.params.id, { status, reviewNote, reviewedBy: req.user.id });
+    res.json({ message: `Leave request ${status.toLowerCase()}.` });
+
+    // Push notification (fire-and-forget)
+    const leave = await LeaveRequest.findById(req.params.id);
+    if (leave) notifyLeaveStatusChanged(leave.studentId, leave.studentName || 'Student', status).catch(() => {});
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating leave request' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// FACULTY LEAVE REQUESTS
+// ══════════════════════════════════════════════════
+router.get('/faculty-leaves', protect, adminOnly, async (req, res) => {
+  try {
+    const { status } = req.query;
+    const leaves = await FacultyLeaveRequest.findAll({ status });
+    res.json(leaves);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching faculty leave requests' });
+  }
+});
+
+router.put('/faculty-leaves/:id', protect, adminOnly, async (req, res) => {
+  const { status, reviewNote } = req.body;
+  if (!['APPROVED', 'REJECTED'].includes(status)) return res.status(400).json({ message: 'Invalid status' });
+  try {
+    await FacultyLeaveRequest.updateStatus(req.params.id, { status, reviewNote, reviewedBy: req.user.id });
+    res.json({ message: `Faculty leave request ${status.toLowerCase()}.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating faculty leave request' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// ANALYTICS
+// ══════════════════════════════════════════════════
+router.get('/analytics', protect, adminOnly, async (req, res) => {
+  try {
+    // 1. Enrollment by grade
+    const allStudents = await Student.find();
+    const enrollmentByGrade = {};
+    allStudents.forEach(s => {
+      const g = s.grade || 'Unknown';
+      enrollmentByGrade[g] = (enrollmentByGrade[g] || 0) + 1;
+    });
+
+    // 2. Fee collection summary
+    let totalFeeAmount = 0, totalFeePaid = 0, paidCount = 0, unpaidCount = 0, partialCount = 0;
+    allStudents.forEach(s => {
+      const fees = s.fees || {};
+      ['term1', 'term2', 'term3'].forEach(t => {
+        const amt = Number(fees[t + 'Amount']) || 0;
+        const paid = Number(fees[t + 'Paid']) || 0;
+        totalFeeAmount += amt;
+        totalFeePaid += paid;
+        if (fees[t] === 'Paid') paidCount++;
+        else if (fees[t] === 'Partial') partialCount++;
+        else unpaidCount++;
+      });
+    });
+
+    // 3. Attendance trend (last 30 days)
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const attendanceLogs = await Attendance.find();
+    const dailyAttendance = {};
+    attendanceLogs.forEach(log => {
+      const d = new Date(log.date);
+      if (d < thirtyDaysAgo) return;
+      const key = d.toISOString().split('T')[0];
+      if (!dailyAttendance[key]) dailyAttendance[key] = { present: 0, total: 0 };
+      (log.records || []).forEach(r => {
+        dailyAttendance[key].total++;
+        if (r.status === 'Present') dailyAttendance[key].present++;
+      });
+    });
+    const attendanceTrend = Object.entries(dailyAttendance)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([date, { present, total }]) => ({ date, percentage: total > 0 ? Math.round((present / total) * 100) : 0 }));
+
+    // 4. Behavior average by grade
+    const behaviorLogs = await Behavior.find();
+    const behaviorByGrade = {};
+    behaviorLogs.forEach(log => {
+      const g = log.grade || 'Unknown';
+      if (!behaviorByGrade[g]) behaviorByGrade[g] = { sum: 0, count: 0 };
+      (log.records || []).forEach(r => {
+        if (r.score != null) { behaviorByGrade[g].sum += r.score; behaviorByGrade[g].count++; }
+      });
+    });
+    const behaviorAverages = Object.entries(behaviorByGrade).map(([grade, { sum, count }]) => ({
+      grade, average: count > 0 ? Math.round((sum / count) * 10) / 10 : 0
+    }));
+
+    // 5. Leave request summary
+    const pendingLeaves = await LeaveRequest.countPending();
+
+    res.json({
+      enrollmentByGrade,
+      feeCollection: { totalFeeAmount, totalFeePaid, paidCount, unpaidCount, partialCount },
+      attendanceTrend,
+      behaviorAverages,
+      pendingLeaves
+    });
+  } catch (error) {
+    console.error('[Analytics Error]', error);
+    res.status(500).json({ message: 'Error generating analytics' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// DATA EXPORT (CSV)
+// ══════════════════════════════════════════════════
+router.get('/export/students', protect, adminOnly, async (req, res) => {
+  try {
+    let students = await Student.find();
+    const { grade, section } = req.query;
+    if (grade) students = students.filter(s => s.grade === grade);
+    if (section) students = students.filter(s => s.section === section);
+
+    const header = 'SRV Number,Name,Grade,Section,Group,Mother,Father,Guardian,Parent Mobile,DOB';
+    const rows = students.map(s => [
+      s.srvNumber, `"${(s.name || '').replace(/"/g, '""')}"`, s.grade, s.section, s.group || '',
+      s.motherName || '', s.fatherName || '', s.guardianName || '', s.parentMobileNumber || '',
+      s.dateOfBirth ? new Date(s.dateOfBirth).toLocaleDateString() : ''
+    ].join(','));
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=students.csv');
+    res.send([header, ...rows].join('\n'));
+  } catch (error) {
+    res.status(500).json({ message: 'Error exporting students' });
+  }
+});
+
+router.get('/export/attendance', protect, adminOnly, async (req, res) => {
+  try {
+    const { grade, section } = req.query;
+    let logs = await Attendance.find();
+    if (grade) logs = logs.filter(l => l.grade === grade);
+    if (section) logs = logs.filter(l => l.section === section);
+
+    const header = 'Date,Grade,Section,Student ID,Status,Remarks';
+    const rows = [];
+    logs.forEach(log => {
+      (log.records || []).forEach(r => {
+        rows.push([log.date ? new Date(log.date).toLocaleDateString() : '', log.grade, log.section, r.studentId, r.status, (r.remarks || '').replace(/,/g, ';')].join(','));
+      });
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=attendance.csv');
+    res.send([header, ...rows].join('\n'));
+  } catch (error) {
+    res.status(500).json({ message: 'Error exporting attendance' });
+  }
+});
+
+router.get('/export/fees', protect, adminOnly, async (req, res) => {
+  try {
+    let students = await Student.find();
+    const { grade, section } = req.query;
+    if (grade) students = students.filter(s => s.grade === grade);
+    if (section) students = students.filter(s => s.section === section);
+
+    const header = 'SRV Number,Name,Grade,Section,Term1 Status,Term1 Amount,Term1 Paid,Term2 Status,Term2 Amount,Term2 Paid,Term3 Status,Term3 Amount,Term3 Paid,Overall';
+    const rows = students.map(s => {
+      const f = s.fees || {};
+      return [s.srvNumber, `"${(s.name || '').replace(/"/g, '""')}"`, s.grade, s.section,
+        f.term1 || 'Unpaid', f.term1Amount || 0, f.term1Paid || 0,
+        f.term2 || 'Unpaid', f.term2Amount || 0, f.term2Paid || 0,
+        f.term3 || 'Unpaid', f.term3Amount || 0, f.term3Paid || 0,
+        f.overall || ''
+      ].join(',');
+    });
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=fees.csv');
+    res.send([header, ...rows].join('\n'));
+  } catch (error) {
+    res.status(500).json({ message: 'Error exporting fees' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// REPORT CARD
+// ══════════════════════════════════════════════════
+router.get('/report-card/:studentId', protect, adminOnly, async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.studentId);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    // Academic records
+    const AcademicRecord = (await import('../models/AcademicRecord.js')).default;
+    const records = await AcademicRecord.find({ studentId: student._id });
+
+    // Attendance
+    const allLogs = await Attendance.find();
+    let totalDays = 0, presentDays = 0;
+    allLogs.forEach(log => {
+      (log.records || []).forEach(r => {
+        if (String(r.studentId) === String(student._id)) {
+          totalDays++;
+          if (r.status === 'Present') presentDays++;
+        }
+      });
+    });
+
+    // Behavior
+    const behaviorLogs = await Behavior.find();
+    let behaviorSum = 0, behaviorCount = 0;
+    behaviorLogs.forEach(log => {
+      (log.records || []).forEach(r => {
+        if (String(r.studentId) === String(student._id) && r.score != null) {
+          behaviorSum += r.score;
+          behaviorCount++;
+        }
+      });
+    });
+
+    res.json({
+      student: {
+        name: student.name, srvNumber: student.srvNumber,
+        grade: student.grade, section: student.section,
+        dateOfBirth: student.dateOfBirth,
+        fatherName: student.fatherName, motherName: student.motherName
+      },
+      academics: records,
+      attendance: { totalDays, presentDays, percentage: totalDays > 0 ? Math.round((presentDays / totalDays) * 100) : 0 },
+      behavior: { average: behaviorCount > 0 ? Math.round((behaviorSum / behaviorCount) * 10) / 10 : 0, totalEntries: behaviorCount }
+    });
+  } catch (error) {
+    console.error('[Admin Report Card]', error);
+    res.status(500).json({ message: 'Error generating report card' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// STUDENT PROMOTION
+// ══════════════════════════════════════════════════
+const GRADE_ORDER = ['Pre KG','LKG','UKG','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+
+router.get('/promotion/preview', protect, adminOnly, async (req, res) => {
+  const { grade, section } = req.query;
+  if (!grade) return res.status(400).json({ message: 'Grade is required' });
+  try {
+    const students = await Student.find(section ? { grade, section } : { grade });
+    const currentIdx = GRADE_ORDER.indexOf(grade);
+    const nextGrade = currentIdx >= 0 && currentIdx < GRADE_ORDER.length - 1 ? GRADE_ORDER[currentIdx + 1] : null;
+    res.json({ students, currentGrade: grade, nextGrade, count: students.length });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching promotion preview' });
+  }
+});
+
+router.post('/promotion/execute', protect, adminOnly, async (req, res) => {
+  const { fromGrade, toGrade, section, studentIds } = req.body;
+  if (!fromGrade || !toGrade) return res.status(400).json({ message: 'From and to grades are required' });
+  try {
+    const pool = (await import('../db/pool.js')).default;
+    let sql, params;
+    if (studentIds && studentIds.length > 0) {
+      const placeholders = studentIds.map(() => '?').join(',');
+      sql = `UPDATE students SET grade = ? WHERE id IN (${placeholders})`;
+      params = [toGrade, ...studentIds];
+    } else {
+      sql = 'UPDATE students SET grade = ? WHERE grade = ?';
+      params = [toGrade, fromGrade];
+      if (section) { sql += ' AND section = ?'; params.push(section); }
+    }
+    const [result] = await pool.query(sql, params);
+    res.json({ message: `Promoted ${result.affectedRows} student(s) from ${fromGrade} to ${toGrade}`, count: result.affectedRows });
+  } catch (error) {
+    console.error('[Promotion Error]', error);
+    res.status(500).json({ message: 'Error executing promotion' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// CIRCULARS
+// ══════════════════════════════════════════════════
+router.get('/circulars', protect, adminOnly, async (req, res) => {
+  try {
+    const circulars = await Circular.findAll();
+    res.json(circulars);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching circulars' });
+  }
+});
+
+router.post('/circulars', protect, adminOnly, async (req, res) => {
+  const { title, description, fileUrl, targetType, targetGrade, targetSection } = req.body;
+  if (!title) return res.status(400).json({ message: 'Title is required' });
+  try {
+    const circular = await Circular.create({ title, description, fileUrl, targetType, targetGrade, targetSection, createdBy: req.user.id });
+    res.status(201).json({ message: 'Circular published', circular });
+    // Push notification
+    notifyAnnouncement(`Circular: ${title}`, targetGrade, targetSection).catch(() => {});
+  } catch (error) {
+    res.status(500).json({ message: 'Error creating circular' });
+  }
+});
+
+router.delete('/circulars/:id', protect, adminOnly, async (req, res) => {
+  try {
+    await Circular.deleteById(req.params.id);
+    res.json({ message: 'Circular deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting circular' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// TRANSPORT MANAGEMENT
+// ══════════════════════════════════════════════════
+router.get('/transport/routes', protect, adminOnly, async (req, res) => {
+  try {
+    const routes = await Transport.findAllRoutes();
+    res.json(routes);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching routes' });
+  }
+});
+
+router.post('/transport/routes', protect, adminOnly, async (req, res) => {
+  const { routeName, busNumber, driverName, driverPhone, helperName, helperPhone, stops } = req.body;
+  if (!routeName) return res.status(400).json({ message: 'Route name is required' });
+  try {
+    const route = await Transport.createRoute({ routeName, busNumber, driverName, driverPhone, helperName, helperPhone });
+    if (stops && stops.length > 0) await Transport.setStops(route._id, stops);
+    const full = await Transport.findRouteById(route._id);
+    res.status(201).json({ message: 'Route created', route: full });
+  } catch (error) {
+    res.status(500).json({ message: 'Error creating route' });
+  }
+});
+
+router.put('/transport/routes/:id', protect, adminOnly, async (req, res) => {
+  const { routeName, busNumber, driverName, driverPhone, helperName, helperPhone, stops } = req.body;
+  try {
+    await Transport.updateRoute(req.params.id, { routeName, busNumber, driverName, driverPhone, helperName, helperPhone });
+    if (stops) await Transport.setStops(req.params.id, stops);
+    const full = await Transport.findRouteById(req.params.id);
+    res.json({ message: 'Route updated', route: full });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating route' });
+  }
+});
+
+router.delete('/transport/routes/:id', protect, adminOnly, async (req, res) => {
+  try {
+    await Transport.deleteRoute(req.params.id);
+    res.json({ message: 'Route deactivated' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting route' });
+  }
+});
+
+router.post('/transport/assign', protect, adminOnly, async (req, res) => {
+  const { studentId, routeId, stopId } = req.body;
+  if (!studentId || !routeId) return res.status(400).json({ message: 'Student and route are required' });
+  try {
+    await Transport.assignStudent(studentId, routeId, stopId);
+    res.json({ message: 'Student assigned to transport route' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error assigning student' });
+  }
+});
+
+router.get('/transport/student/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const transport = await Transport.findByStudent(req.params.id);
+    res.json(transport || {});
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching student transport details' });
+  }
+});
+
+router.delete('/transport/assign/:studentId', protect, adminOnly, async (req, res) => {
+  try {
+    await Transport.removeStudent(req.params.studentId);
+    res.json({ message: 'Student removed from transport' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error removing student' });
+  }
+});
+
+router.post('/transport/assign/faculty', protect, adminOnly, async (req, res) => {
+  const { facultyId, routeId, stopId } = req.body;
+  if (!facultyId || !routeId) return res.status(400).json({ message: 'Faculty and route are required' });
+  try {
+    await Transport.assignFaculty(facultyId, routeId, stopId);
+    res.json({ message: 'Faculty assigned to transport route' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error assigning faculty' });
+  }
+});
+
+router.delete('/transport/assign/faculty/:facultyId', protect, adminOnly, async (req, res) => {
+  try {
+    await Transport.removeFaculty(req.params.facultyId);
+    res.json({ message: 'Faculty removed from transport' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error removing faculty' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// LIBRARY MANAGEMENT
+// ══════════════════════════════════════════════════
+router.get('/library/books', protect, adminOnly, async (req, res) => {
+  try {
+    const { category, search } = req.query;
+    const books = await Library.findAllBooks({ category, search });
+    res.json(books);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching books' });
+  }
+});
+
+router.post('/library/books', protect, adminOnly, async (req, res) => {
+  const { title, author, isbn, category, totalCopies, shelfLocation } = req.body;
+  if (!title) return res.status(400).json({ message: 'Book title is required' });
+  try {
+    const book = await Library.createBook({ title, author, isbn, category, totalCopies, shelfLocation });
+    res.status(201).json({ message: 'Book added', book });
+  } catch (error) {
+    res.status(500).json({ message: 'Error adding book' });
+  }
+});
+
+router.put('/library/books/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const book = await Library.updateBook(req.params.id, req.body);
+    res.json({ message: 'Book updated', book });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating book' });
+  }
+});
+
+router.delete('/library/books/:id', protect, adminOnly, async (req, res) => {
+  try {
+    await Library.deleteBook(req.params.id);
+    res.json({ message: 'Book deleted' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting book' });
+  }
+});
+
+router.get('/library/categories', protect, adminOnly, async (req, res) => {
+  try {
+    const cats = await Library.getCategories();
+    res.json(cats);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching categories' });
+  }
+});
+
+router.get('/library/stats', protect, adminOnly, async (req, res) => {
+  try {
+    const stats = await Library.getStats();
+    res.json(stats);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching stats' });
+  }
+});
+
+// Issue & Return
+router.get('/library/issues', protect, adminOnly, async (req, res) => {
+  try {
+    const { status } = req.query;
+    const issues = await Library.findAllIssues(status ? { status } : {});
+    res.json(issues);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching issues' });
+  }
+});
+
+router.get('/library/overdue', protect, adminOnly, async (req, res) => {
+  try {
+    const overdue = await Library.findOverdue();
+    res.json(overdue);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching overdue' });
+  }
+});
+
+router.post('/library/issue', protect, adminOnly, async (req, res) => {
+  const { bookId, studentId, dueDate } = req.body;
+  if (!bookId || !studentId || !dueDate) return res.status(400).json({ message: 'Book, student, and due date are required' });
+  try {
+    const issue = await Library.issueBook({ bookId, studentId, issuedBy: req.user.id, dueDate });
+    res.status(201).json({ message: 'Book issued', issue });
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error issuing book' });
+  }
+});
+
+router.post('/library/return/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const issue = await Library.returnBook(req.params.id);
+    res.json({ message: `Book returned${issue.fineAmount > 0 ? `. Fine: ₹${issue.fineAmount}` : ''}`, issue });
+  } catch (error) {
+    res.status(500).json({ message: error.message || 'Error returning book' });
+  }
+});
+
+export default router;

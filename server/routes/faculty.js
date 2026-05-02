@@ -15,6 +15,12 @@ import EventRegistration from '../models/EventRegistration.js';
 import Memory from '../models/Memory.js';
 import Setting from '../models/Setting.js';
 import HomeworkSubmission from '../models/HomeworkSubmission.js';
+import LeaveRequest from '../models/LeaveRequest.js';
+import FacultyLeaveRequest from '../models/FacultyLeaveRequest.js';
+import Circular from '../models/Circular.js';
+import Transport from '../models/Transport.js';
+import Library from '../models/Library.js';
+import { notifyAttendanceAbsent, notifyHomeworkAssigned, notifyLeaveStatusChanged } from '../services/pushNotification.js';
 import { protect, facultyOrAdmin } from '../middleware/auth.js';
 import { archiveOldHomework } from '../utils/archiveHomework.js';
 import { buildHomeworkClassFilter, resolveHomeworkAudience } from '../utils/homeworkMatching.js';
@@ -338,6 +344,9 @@ router.post('/homework', protect, facultyOrAdmin, async (req, res) => {
     }
 
     res.status(201).json({ message: 'Homework added successfully', homework });
+
+    // Push notification (fire-and-forget)
+    notifyHomeworkAssigned(audience.grade, audience.section, subject, title).catch(() => {});
   } catch (error) {
     res.status(500).json({ message: 'Server error adding homework' });
   }
@@ -587,6 +596,15 @@ router.post('/attendance', protect, facultyOrAdmin, async (req, res) => {
     }
 
     res.json({ message: 'Attendance recorded for ' + dateStr, attendanceDoc });
+
+    // Push notifications for absent students (fire-and-forget)
+    try {
+      const absentRecords = (records || []).filter(r => r.status === 'Absent');
+      for (const rec of absentRecords) {
+        const stu = await Student.findById(rec.studentId);
+        if (stu) notifyAttendanceAbsent(stu._id, stu.name, dateStr).catch(() => {});
+      }
+    } catch (_) { /* non-blocking */ }
   } catch (error) {
     console.error('[ATTENDANCE ERROR]', error.message);
     // Handle duplicate entry — record exists with slightly different date (old timezone bug)
@@ -1046,6 +1064,252 @@ router.delete('/events/:id', protect, async (req, res) => {
     res.json({ message: 'Event deleted successfully.' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting event' });
+  }
+});
+
+// @route   GET /api/faculty/leave-requests
+router.get('/leave-requests', protect, async (req, res) => {
+  if (req.user.role !== 'faculty') return res.status(403).json({ message: 'Faculty only' });
+  try {
+    const faculty = await User.findById(req.user.id);
+    if (!faculty?.assignedGrade || !faculty?.assignedSection) {
+      return res.json([]);
+    }
+    const leaves = await LeaveRequest.findByClass(faculty.assignedGrade, faculty.assignedSection);
+    res.json(leaves);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching leave requests' });
+  }
+});
+
+// @route   PUT /api/faculty/leave-requests/:id
+router.put('/leave-requests/:id', protect, async (req, res) => {
+  if (req.user.role !== 'faculty') return res.status(403).json({ message: 'Faculty only' });
+  const { status, reviewNote } = req.body;
+  if (!['APPROVED', 'REJECTED'].includes(status)) return res.status(400).json({ message: 'Invalid status' });
+  try {
+    await LeaveRequest.updateStatus(req.params.id, { status, reviewNote, reviewedBy: req.user.id });
+    res.json({ message: `Leave request ${status.toLowerCase()}.` });
+
+    // Push notification (fire-and-forget)
+    const leave = await LeaveRequest.findById(req.params.id);
+    if (leave) notifyLeaveStatusChanged(leave.studentId, leave.studentName || 'Student', status).catch(() => {});
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating leave request' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// FACULTY'S OWN LEAVE REQUESTS
+// ══════════════════════════════════════════════════
+router.post('/my-leaves', protect, async (req, res) => {
+  if (req.user.role !== 'faculty') return res.status(403).json({ message: 'Faculty only' });
+  const { leaveType, startDate, endDate, reason } = req.body;
+  try {
+    const leave = await FacultyLeaveRequest.create({
+      facultyId: req.user.id,
+      leaveType,
+      startDate,
+      endDate,
+      reason
+    });
+    res.status(201).json({ message: 'Leave request submitted.', leave });
+  } catch (error) {
+    res.status(500).json({ message: 'Error submitting leave request' });
+  }
+});
+
+router.get('/my-leaves', protect, async (req, res) => {
+  if (req.user.role !== 'faculty') return res.status(403).json({ message: 'Faculty only' });
+  try {
+    const leaves = await FacultyLeaveRequest.findByFaculty(req.user.id);
+    res.json(leaves);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching my leave requests' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// WHATSAPP GROUP LINK & CONTACT
+// ══════════════════════════════════════════════════
+router.get('/whatsapp-info', protect, async (req, res) => {
+  try {
+    const faculty = await User.findById(req.user.id);
+    res.json({ whatsappLink: faculty?.whatsapp_link || '', contactNumber: faculty?.contact_number || '' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching WhatsApp info' });
+  }
+});
+
+router.put('/whatsapp-info', protect, facultyOrAdmin, async (req, res) => {
+  const { whatsappLink, contactNumber } = req.body;
+  try {
+    const pool = (await import('../db/pool.js')).default;
+    const fields = [];
+    const params = [];
+    if (whatsappLink !== undefined) { fields.push('whatsapp_link = ?'); params.push(whatsappLink || null); }
+    if (contactNumber !== undefined) { fields.push('contact_number = ?'); params.push(contactNumber || null); }
+    if (fields.length) {
+      params.push(req.user.id);
+      await pool.query(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`, params);
+    }
+    res.json({ message: 'WhatsApp info updated' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating WhatsApp info' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// TRANSPORT
+// ══════════════════════════════════════════════════
+// @route   GET /api/faculty/my-transport
+// @desc    Get personal transport details for the logged-in faculty
+router.get('/my-transport', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    const transport = await Transport.findByFaculty(req.user.id);
+    res.json(transport);
+  } catch (error) {
+    console.error('[Faculty My Transport]', error);
+    res.status(500).json({ message: 'Error fetching personal transport info' });
+  }
+});
+// @route   GET /api/faculty/transport
+// @desc    Get transport details for all students in the assigned class
+router.get('/transport', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    const context = await getFacultyClassContext(req.user.id);
+    if (!context) return res.json([]);
+    const { grade, section } = context;
+
+    // We fetch all students in this class, then their transport records
+    const students = await Student.find({ grade, section });
+    const transportRecords = [];
+    
+    for (const student of students) {
+      const transport = await Transport.findByStudent(student._id);
+      if (transport) {
+        transportRecords.push({
+          studentId: student._id,
+          studentName: student.name,
+          srvNumber: student.srvNumber,
+          ...transport
+        });
+      }
+    }
+    res.json(transportRecords);
+  } catch (error) {
+    console.error('[Faculty Transport]', error);
+    res.status(500).json({ message: 'Error fetching transport info' });
+  }
+});
+
+router.get('/transport/routes', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    const routes = await Transport.findAllRoutes();
+    res.json(routes);
+  } catch (error) {
+    console.error('[Faculty Transport Routes]', error);
+    res.status(500).json({ message: 'Error fetching transport routes' });
+  }
+});
+
+router.get('/transport/student/:id', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    const query = req.user.role === 'admin'
+      ? { _id: req.params.id }
+      : { _id: req.params.id, facultyId: req.user.id };
+
+    const student = await Student.findOne(query);
+    if (!student) return res.status(404).json({ message: 'Student not found or not assigned to this faculty' });
+
+    const transport = await Transport.findByStudent(req.params.id);
+    res.json(transport || {});
+  } catch (error) {
+    console.error('[Faculty Student Transport]', error);
+    res.status(500).json({ message: 'Error fetching student transport details' });
+  }
+});
+
+router.post('/transport/assign', protect, facultyOrAdmin, async (req, res) => {
+  const { studentId, routeId, stopId } = req.body;
+  if (!studentId || !routeId) return res.status(400).json({ message: 'Student and route are required' });
+
+  try {
+    const query = req.user.role === 'admin'
+      ? { _id: studentId }
+      : { _id: studentId, facultyId: req.user.id };
+
+    const student = await Student.findOne(query);
+    if (!student) return res.status(404).json({ message: 'Student not found or not assigned to this faculty' });
+
+    await Transport.assignStudent(studentId, routeId, stopId);
+    res.json({ message: 'Student assigned to transport route' });
+  } catch (error) {
+    console.error('[Faculty Transport Assign]', error);
+    res.status(500).json({ message: 'Error assigning student transport' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// LIBRARY
+// ══════════════════════════════════════════════════
+router.get('/library/books', protect, facultyOrAdmin, async (req, res) => {
+  const { category, search } = req.query;
+  try {
+    const books = await Library.findAllBooks({ category, search });
+    res.json(books);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching books' });
+  }
+});
+
+router.get('/library/issues', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    const context = await getFacultyClassContext(req.user.id);
+    if (!context) return res.json([]);
+    const { grade, section } = context;
+    
+    // Fetch all issues
+    const issues = await Library.findAllIssues({ status: 'ISSUED' });
+    
+    // Filter issues to only include students in this faculty's class
+    const classIssues = issues.filter(issue => issue.grade === grade && issue.section === section);
+    res.json(classIssues);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching library issues' });
+  }
+});
+
+router.post('/library/issue', protect, facultyOrAdmin, async (req, res) => {
+  const { bookId, studentId, dueDate } = req.body;
+  try {
+    const issue = await Library.issueBook({ bookId, studentId, issuedBy: req.user.id, dueDate });
+    res.status(201).json({ message: 'Book issued successfully', issue });
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error issuing book' });
+  }
+});
+
+router.post('/library/return/:id', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    const issue = await Library.returnBook(req.params.id);
+    res.json({ message: 'Book returned successfully', issue });
+  } catch (error) {
+    res.status(400).json({ message: error.message || 'Error returning book' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// CIRCULARS
+// ══════════════════════════════════════════════════
+router.get('/circulars', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    const context = await getFacultyClassContext(req.user.id);
+    const filters = context ? { targetGrade: context.grade, targetSection: context.section } : {};
+    const circulars = await Circular.findAll(filters);
+    res.json(circulars);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching circulars' });
   }
 });
 
