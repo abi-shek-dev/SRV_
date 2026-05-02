@@ -28,6 +28,13 @@ export default function App() {
           <Route path="/faculty/polls"        element={<FacultyDashboard section="polls" />} />
           <Route path="/faculty/feedback"     element={<FacultyDashboard section="feedback" />} />
           <Route path="/faculty/mytasks"      element={<FacultyDashboard section="mytasks" />} />
+          <Route path="/faculty/my-leaves"    element={<FacultyDashboard section="my-leaves" />} />
+          <Route path="/faculty/student-leaves" element={<FacultyDashboard section="student-leaves" />} />
+          <Route path="/faculty/timetable"     element={<FacultyDashboard section="timetable" />} />
+          <Route path="/faculty/marks"         element={<FacultyDashboard section="marks" />} />
+          <Route path="/faculty/library"       element={<FacultyDashboard section="library" />} />
+          <Route path="/faculty/transport"     element={<FacultyDashboard section="transport" />} />
+          <Route path="/faculty/circulars"     element={<FacultyDashboard section="circulars" />} />
         </Route>
 
         {/* Parent Routes */}
@@ -43,6 +50,11 @@ export default function App() {
           <Route path="/parent/feedback"          element={<ParentDashboard section="feedback" />} />
           <Route path="/parent/memories"          element={<ParentDashboard section="memories" />} />
           <Route path="/parent/fees"              element={<ParentDashboard section="fees" />} />
+          <Route path="/parent/leave-requests"    element={<ParentDashboard section="leave-requests" />} />
+          <Route path="/parent/timetable"          element={<ParentDashboard section="timetable" />} />
+          <Route path="/parent/transport"          element={<ParentDashboard section="transport" />} />
+          <Route path="/parent/library"            element={<ParentDashboard section="library" />} />
+          <Route path="/parent/circulars"          element={<ParentDashboard section="circulars" />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/login" replace />} />

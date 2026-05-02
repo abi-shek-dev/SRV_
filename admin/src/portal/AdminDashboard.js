@@ -11,6 +11,8 @@ import { PortalHeader } from '../components/PortalHeader.js';
 import { NotificationPanel } from '../components/NotificationPanel.js';
 import { MemoriesSection } from '../components/MemoriesSection.js';
 import { AnalyticsDashboard } from '../components/AnalyticsDashboard.js';
+import { FacultyLeavesAdminSection } from '../components/FacultyLeavesAdminSection.js';
+import { TimetableManagement } from '../components/TimetableManagement.js';
 
 export function AdminDashboard({ section = 'home' }) {
   const hasValidFamilyDetails = (profile) => Boolean(
@@ -821,18 +823,29 @@ export function AdminDashboard({ section = 'home' }) {
       }
     };
 
+    const [activeLeaveTab, setActiveLeaveTab] = useState('STUDENT');
+
     if (leaveLoading) return <div className="flex justify-center py-20"><div className="h-8 w-8 animate-spin rounded-full border-4 border-teal-500 border-t-transparent"></div></div>;
 
     return (
       <div className="space-y-6">
-        <div className="flex flex-wrap items-center gap-3">
-          {['', 'PENDING', 'APPROVED', 'REJECTED'].map(s => (
-            <button key={s} onClick={() => { setLeaveLoading(true); setLeaveFilter(s); }}
-              className={`rounded-full px-4 py-2 text-xs font-bold transition ${leaveFilter === s ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
-              {s || 'All'}
-            </button>
-          ))}
+        <div className="flex items-center gap-4 border-b border-slate-200 pb-4">
+          <button onClick={() => setActiveLeaveTab('STUDENT')} className={`pb-2 border-b-2 font-bold text-sm transition-colors ${activeLeaveTab === 'STUDENT' ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Student Leaves</button>
+          <button onClick={() => setActiveLeaveTab('FACULTY')} className={`pb-2 border-b-2 font-bold text-sm transition-colors ${activeLeaveTab === 'FACULTY' ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Faculty Leaves</button>
         </div>
+
+        {activeLeaveTab === 'FACULTY' ? (
+          <FacultyLeavesAdminSection />
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center gap-3">
+              {['', 'PENDING', 'APPROVED', 'REJECTED'].map(s => (
+                <button key={s} onClick={() => { setLeaveLoading(true); setLeaveFilter(s); }}
+                  className={`rounded-full px-4 py-2 text-xs font-bold transition ${leaveFilter === s ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                  {s || 'All'}
+                </button>
+              ))}
+            </div>
 
         {leaves.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 px-4 py-14 text-center text-slate-500">No leave requests found.</div>
@@ -874,6 +887,8 @@ export function AdminDashboard({ section = 'home' }) {
             )}
           </div>
         ))}
+        </>
+        )}
       </div>
     );
   };
@@ -963,90 +978,7 @@ export function AdminDashboard({ section = 'home' }) {
   // ═══════════════════════════════════════════
   // TIMETABLE SECTION (Admin)
   // ═══════════════════════════════════════════
-  const TimetableAdmin = () => {
-    const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
-    const PERIODS = [1, 2, 3, 4, 5, 6, 7, 8];
-    const GRADES = ['Pre KG','LKG','UKG','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
-    const [ttGrade, setTtGrade] = useState('');
-    const [ttSection, setTtSection] = useState('');
-    const [grid, setGrid] = useState({});
-    const [ttLoading, setTtLoading] = useState(false);
-    const [ttSaving, setTtSaving] = useState(false);
-
-    const loadTimetable = async () => {
-      if (!ttGrade || !ttSection) return;
-      setTtLoading(true);
-      try {
-        const token = localStorage.getItem('schoolToken');
-        const res = await axios.get(`${API_URL}/api/timetable/${ttGrade}/${ttSection}`, { headers: { Authorization: `Bearer ${token}` } });
-        const newGrid = {};
-        DAYS.forEach(d => { PERIODS.forEach(p => { newGrid[`${d}-${p}`] = { subject: '', teacherName: '', startTime: '', endTime: '', room: '' }; }); });
-        (res.data.periods || []).forEach(p => { newGrid[`${p.dayOfWeek}-${p.periodNumber}`] = { subject: p.subject, teacherName: p.teacherName, startTime: p.startTime, endTime: p.endTime, room: p.room }; });
-        setGrid(newGrid);
-      } catch { Swal.fire('Error', 'Could not load timetable', 'error'); }
-      finally { setTtLoading(false); }
-    };
-
-    const saveTimetable = async () => {
-      setTtSaving(true);
-      try {
-        const token = localStorage.getItem('schoolToken');
-        const periods = [];
-        DAYS.forEach(d => { PERIODS.forEach(p => {
-          const cell = grid[`${d}-${p}`];
-          if (cell?.subject?.trim()) periods.push({ dayOfWeek: d, periodNumber: p, ...cell });
-        }); });
-        await axios.post(`${API_URL}/api/timetable`, { grade: ttGrade, section: ttSection, periods }, { headers: { Authorization: `Bearer ${token}` } });
-        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: `Saved ${periods.length} period(s)`, showConfirmButton: false, timer: 2000 });
-      } catch { Swal.fire('Error', 'Failed to save', 'error'); }
-      finally { setTtSaving(false); }
-    };
-
-    const updateCell = (key, field, value) => setGrid(prev => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
-
-    return (
-      <div className="space-y-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <h3 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600 mb-3">Select Class</h3>
-          <div className="flex flex-wrap gap-3">
-            <select value={ttGrade} onChange={e => setTtGrade(e.target.value)} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400">
-              <option value="">Grade</option>{GRADES.map(g => <option key={g} value={g}>{g}</option>)}
-            </select>
-            <select value={ttSection} onChange={e => setTtSection(e.target.value)} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-400">
-              <option value="">Section</option>{['A','B','C'].map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <button onClick={loadTimetable} disabled={!ttGrade || !ttSection || ttLoading} className="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-blue-700 disabled:opacity-50">{ttLoading ? 'Loading...' : 'Load'}</button>
-            {Object.keys(grid).length > 0 && <button onClick={saveTimetable} disabled={ttSaving} className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-emerald-700 disabled:opacity-50">{ttSaving ? 'Saving...' : 'Save Timetable'}</button>}
-          </div>
-        </div>
-        {Object.keys(grid).length > 0 && (
-          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
-            <table className="w-full text-sm">
-              <thead><tr className="bg-slate-50"><th className="p-3 text-left font-bold text-slate-600">Period</th>
-                {DAYS.map(d => <th key={d} className="p-3 text-center font-bold text-slate-600">{d}</th>)}
-              </tr></thead>
-              <tbody>
-                {PERIODS.map(p => (
-                  <tr key={p} className="border-t border-slate-100">
-                    <td className="p-3 font-bold text-slate-700 whitespace-nowrap">P{p}</td>
-                    {DAYS.map(d => {
-                      const key = `${d}-${p}`;
-                      return (
-                        <td key={key} className="p-2">
-                          <input placeholder="Subject" value={grid[key]?.subject || ''} onChange={e => updateCell(key, 'subject', e.target.value)} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-400 mb-1" />
-                          <input placeholder="Teacher" value={grid[key]?.teacherName || ''} onChange={e => updateCell(key, 'teacherName', e.target.value)} className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs outline-none focus:ring-1 focus:ring-blue-400" />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    );
-  };
+  // Old TimetableAdmin removed to use external component
 
   // ═══════════════════════════════════════════
   // REPORT CARD SECTION (Admin)
@@ -2703,7 +2635,7 @@ export function AdminDashboard({ section = 'home' }) {
         {activeSection === 'analytics' && <AnalyticsDashboard />}
         {activeSection === 'leave-requests' && <LeaveRequestsAdmin />}
         {activeSection === 'exports' && <ExportCenter />}
-        {activeSection === 'timetable' && <TimetableAdmin />}
+        {activeSection === 'timetable' && <TimetableManagement />}
         {activeSection === 'report-card' && <ReportCardAdmin />}
         {activeSection === 'promotion' && <StudentPromotion />}
         {activeSection === 'circulars' && <CircularsAdmin />}

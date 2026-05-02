@@ -10,6 +10,14 @@ import { Logo } from '../components/Logo.js';
 import { PortalHeader } from '../components/PortalHeader.js';
 import { NotificationPanel } from '../components/NotificationPanel.js';
 import { MemoriesSection } from '../components/MemoriesSection.js';
+import { FacultyMyLeavesSection } from '../components/FacultyMyLeavesSection.js';
+import { FacultyStudentLeavesSection } from '../components/FacultyStudentLeavesSection.js';
+import { FacultyTimetableSection } from '../components/FacultyTimetableSection.js';
+import { FacultyTransportSection } from '../components/FacultyTransportSection.js';
+import { FacultyLibrarySection } from '../components/FacultyLibrarySection.js';
+import { FacultyMarksSection } from '../components/FacultyMarksSection.js';
+import { CircularsSection } from '../components/CircularsSection.js';
+import { Bus, BookMarked } from 'lucide-react';
 
 import Swal from 'sweetalert2';
 
@@ -485,6 +493,40 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     mytasks: {
       title: 'My Tasks & Performance',
       description: 'View assigned tasks, submit proof, and track your performance score.'
+    },
+    'my-leaves': {
+      title: 'My Leaves',
+      description: 'Request leave from admin and track your leave request statuses.',
+      icon: CalIcon,
+      badge: 'Leaves',
+      gradient: 'from-blue-500 to-indigo-500'
+    },
+    'student-leaves': {
+      title: 'Student Leaves',
+      description: 'Review and manage leave requests submitted by your students.',
+      icon: CalIcon,
+      badge: 'Student Leaves',
+      gradient: 'from-fuchsia-500 to-pink-500'
+    },
+    'timetable': {
+      title: 'Class Timetable',
+      description: 'View the weekly class schedule for your assigned class.'
+    },
+    'marks': {
+      title: 'Marks Entry',
+      description: 'Enter and update subject marks for your class.'
+    },
+    'library': {
+      title: 'Class Library',
+      description: 'Issue and manage library books for your class.'
+    },
+    'transport': {
+      title: 'Class Transport',
+      description: 'View bus routes and pickup points for your students.'
+    },
+    'circulars': {
+      title: 'Circulars & Notices',
+      description: 'Official announcements and documents from the school.'
     }
   };
 
@@ -879,7 +921,14 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     { key: 'events', title: 'Events', subtitle: 'Upcoming Events, Event Acknowledgements', icon: CalIcon, badge: 'Live', gradient: 'from-fuchsia-500 to-pink-500' },
     { key: 'polls', title: 'Poll Center', subtitle: 'Opinion Poll Center, Poll Analytics', icon: ClipboardList, badge: 'Polls', gradient: 'from-violet-500 to-indigo-500' },
     { key: 'feedback', title: 'Feedback', subtitle: 'Parent Feedback Inbox', icon: MessageSquareMore, badge: unreadCount, gradient: 'from-slate-700 to-slate-900' },
-    { key: 'mytasks', title: 'My Tasks', subtitle: 'Tasks, Performance Score', icon: Trophy, badge: 'Live', gradient: 'from-indigo-500 to-purple-600' }
+    { key: 'mytasks', title: 'My Tasks', subtitle: 'Tasks, Performance Score', icon: Trophy, badge: 'Live', gradient: 'from-indigo-500 to-purple-600' },
+    { key: 'my-leaves', title: 'My Leaves', subtitle: 'Request Leave', icon: CalIcon, badge: 'Leaves', gradient: 'from-blue-500 to-indigo-500' },
+    { key: 'student-leaves', title: 'Student Leaves', subtitle: 'Review Leaves', icon: CalIcon, badge: 'Leaves', gradient: 'from-fuchsia-500 to-pink-500' },
+    { key: 'timetable', title: 'Class Timetable', subtitle: 'Weekly Class Schedule', icon: ClipboardList, badge: 'Schedule', gradient: 'from-teal-500 to-cyan-500' },
+    { key: 'marks', title: 'Marks Entry', subtitle: 'Enter Subject Marks', icon: Trophy, badge: 'Academics', gradient: 'from-blue-600 to-purple-600' },
+    { key: 'library', title: 'Class Library', subtitle: 'Issue & Return Books', icon: BookMarked, badge: 'Library', gradient: 'from-indigo-500 to-purple-500' },
+    { key: 'transport', title: 'Class Transport', subtitle: 'Student Bus Routes', icon: Bus, badge: 'Transport', gradient: 'from-amber-500 to-orange-500' },
+    { key: 'circulars', title: 'Circulars', subtitle: 'Official Notices', icon: Megaphone, badge: 'Notices', gradient: 'from-cyan-500 to-blue-500' }
   ];
 
   const notificationAction = (
@@ -1867,11 +1916,18 @@ export function FacultyDashboard({ section = 'dashboard' }) {
         </div>
 
       </div>
-      <div className={`${activeSection === 'events' || activeSection === 'polls' || activeSection === 'feedback' || activeSection === 'memories' ? 'block' : 'hidden'} max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10`}>
+      <div className={`${['events', 'polls', 'feedback', 'memories', 'my-leaves', 'student-leaves', 'timetable', 'marks', 'library', 'transport', 'circulars'].includes(activeSection) ? 'block' : 'hidden'} max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10`}>
         {activeSection === 'events' && <UpcomingEventsSection role="faculty" />}
         {activeSection === 'polls' && <OpinionPollSection role="faculty" />}
         {activeSection === 'feedback' && <FeedbackInboxSection role="faculty" />}
         {activeSection === 'memories' && <MemoriesSection role="faculty" />}
+        {activeSection === 'my-leaves' && <FacultyMyLeavesSection />}
+        {activeSection === 'student-leaves' && <FacultyStudentLeavesSection />}
+        {activeSection === 'timetable' && <FacultyTimetableSection grade={user.assignedGrade} section={user.assignedSection} />}
+        {activeSection === 'marks' && <FacultyMarksSection />}
+        {activeSection === 'library' && <FacultyLibrarySection />}
+        {activeSection === 'transport' && <FacultyTransportSection />}
+        {activeSection === 'circulars' && <CircularsSection role="faculty" />}
       </div>
 
       {/* ══════ MY TASKS & PERFORMANCE SECTION ══════ */ }

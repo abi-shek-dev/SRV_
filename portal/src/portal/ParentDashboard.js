@@ -14,6 +14,12 @@ import { Logo } from '../components/Logo.js';
 import { PortalHeader } from '../components/PortalHeader.js';
 import { NotificationPanel } from '../components/NotificationPanel.js';
 import { MemoriesSection } from '../components/MemoriesSection.js';
+import { ParentLeaveSection } from '../components/ParentLeaveSection.js';
+import { ParentTimetableSection } from '../components/ParentTimetableSection.js';
+import { ParentTransportSection } from '../components/ParentTransportSection.js';
+import { ParentLibrarySection } from '../components/ParentLibrarySection.js';
+import { CircularsSection } from '../components/CircularsSection.js';
+import { Bus, Megaphone } from 'lucide-react';
 
 const COLORS = ['#10b981', '#f59e0b', '#ef4444', '#3b82f6'];
 
@@ -143,6 +149,26 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
     fees: {
       title: 'Fee Payment',
       description: 'Check balances and complete online fee payments.'
+    },
+    'leave-requests': {
+      title: 'Leave Requests',
+      description: 'Submit and track leave requests for your child.'
+    },
+    'timetable': {
+      title: 'Class Timetable',
+      description: 'View the weekly class schedule for your child.'
+    },
+    'transport': {
+      title: 'Transport Details',
+      description: 'View your child\'s assigned bus route, pickup times, and driver info.'
+    },
+    'library': {
+      title: 'Library Books',
+      description: 'Check active library book issues, due dates, and reading history.'
+    },
+    'circulars': {
+      title: 'Circulars & Notices',
+      description: 'Official announcements and documents from the school.'
     }
   };
 
@@ -584,6 +610,22 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
       icon: CreditCard,
       badge: amountDue > 0 ? `₹${amountDue.toLocaleString()}` : 'Paid',
       gradient: 'from-emerald-500 to-teal-500'
+    },
+    {
+      key: 'leave-requests',
+      title: 'Leave Requests',
+      description: 'Submit and track leave requests for your child',
+      icon: CalIcon,
+      badge: 'Leaves',
+      gradient: 'from-blue-500 to-indigo-500'
+    },
+    {
+      key: 'timetable',
+      title: 'Class Timetable',
+      description: 'Weekly schedule for your child\'s class',
+      icon: BookMarked,
+      badge: 'Schedule',
+      gradient: 'from-teal-500 to-cyan-500'
     }
   ];
 
@@ -697,6 +739,46 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
         icon: CreditCard,
         badge: amountDue > 0 ? `₹${amountDue.toLocaleString()}` : 'Paid',
         gradient: 'from-emerald-500 to-teal-500'
+      },
+      {
+        key: 'leave-requests',
+        title: 'Leave Requests',
+        description: 'Submit and track leave requests for your child',
+        icon: CalIcon,
+        badge: 'Leaves',
+        gradient: 'from-blue-500 to-indigo-500'
+      },
+      {
+        key: 'timetable',
+        title: 'Class Timetable',
+        description: 'Weekly schedule for your child\'s class',
+        icon: BookMarked,
+        badge: 'Schedule',
+        gradient: 'from-teal-500 to-cyan-500'
+      },
+      {
+        key: 'transport',
+        title: 'Transport',
+        description: 'Bus route and pickup details',
+        icon: Bus,
+        badge: 'Bus',
+        gradient: 'from-amber-500 to-orange-500'
+      },
+      {
+        key: 'library',
+        title: 'Library',
+        description: 'Active book issues and history',
+        icon: BookMarked,
+        badge: 'Books',
+        gradient: 'from-indigo-500 to-purple-500'
+      },
+      {
+        key: 'circulars',
+        title: 'Circulars',
+        description: 'Official school notices and documents',
+        icon: Megaphone,
+        badge: 'Notices',
+        gradient: 'from-cyan-500 to-blue-500'
       }
     ];
 
@@ -1958,6 +2040,31 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
               </div>
             </div>
           </>
+        )}
+
+        {/* ========== LEAVE REQUESTS ========== */}
+        {activeSection === 'leave-requests' && (
+          <ParentLeaveSection />
+        )}
+
+        {/* ========== TIMETABLE ========== */}
+        {activeSection === 'timetable' && (
+          <ParentTimetableSection studentData={data.student} />
+        )}
+
+        {/* ========== TRANSPORT ========== */}
+        {activeSection === 'transport' && (
+          <ParentTransportSection />
+        )}
+
+        {/* ========== LIBRARY ========== */}
+        {activeSection === 'library' && (
+          <ParentLibrarySection />
+        )}
+
+        {/* ========== CIRCULARS ========== */}
+        {activeSection === 'circulars' && (
+          <CircularsSection role="parent" />
         )}
 
         {/* ========== PAY MODAL ========== */}

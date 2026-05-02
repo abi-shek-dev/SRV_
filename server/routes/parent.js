@@ -679,11 +679,13 @@ router.get('/report-card', protect, parentOnly, async (req, res) => {
 // ══════════════════════════════════════════════════
 router.get('/circulars', protect, parentOnly, async (req, res) => {
   try {
-    const student = await Student.findOne({ parentUserId: req.user.id });
+    const parentUser = await User.findById(req.user.id);
+    const student = parentUser?.studentId ? await Student.findById(parentUser.studentId) : null;
     const filters = student ? { targetGrade: student.grade, targetSection: student.section } : {};
     const circulars = await Circular.findAll(filters);
     res.json(circulars);
   } catch (error) {
+    console.error('[Circulars Error]', error);
     res.status(500).json({ message: 'Error fetching circulars' });
   }
 });
@@ -693,11 +695,13 @@ router.get('/circulars', protect, parentOnly, async (req, res) => {
 // ══════════════════════════════════════════════════
 router.get('/transport', protect, parentOnly, async (req, res) => {
   try {
-    const student = await Student.findOne({ parentUserId: req.user.id });
+    const parentUser = await User.findById(req.user.id);
+    const student = parentUser?.studentId ? await Student.findById(parentUser.studentId) : null;
     if (!student) return res.json(null);
     const transport = await Transport.findByStudent(student._id);
     res.json(transport);
   } catch (error) {
+    console.error('[Transport Error]', error);
     res.status(500).json({ message: 'Error fetching transport info' });
   }
 });
@@ -707,11 +711,13 @@ router.get('/transport', protect, parentOnly, async (req, res) => {
 // ══════════════════════════════════════════════════
 router.get('/library', protect, parentOnly, async (req, res) => {
   try {
-    const student = await Student.findOne({ parentUserId: req.user.id });
+    const parentUser = await User.findById(req.user.id);
+    const student = parentUser?.studentId ? await Student.findById(parentUser.studentId) : null;
     if (!student) return res.json([]);
     const issues = await Library.findByStudent(student._id);
     res.json(issues);
   } catch (error) {
+    console.error('[Library Error]', error);
     res.status(500).json({ message: 'Error fetching library info' });
   }
 });
@@ -721,7 +727,8 @@ router.get('/library', protect, parentOnly, async (req, res) => {
 // ══════════════════════════════════════════════════
 router.get('/teacher-contact', protect, parentOnly, async (req, res) => {
   try {
-    const student = await Student.findOne({ parentUserId: req.user.id });
+    const parentUser = await User.findById(req.user.id);
+    const student = parentUser?.studentId ? await Student.findById(parentUser.studentId) : null;
     if (!student) return res.json(null);
     // Find class teacher (faculty assigned to this grade+section)
     const pool = (await import('../db/pool.js')).default;

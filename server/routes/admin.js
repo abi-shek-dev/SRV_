@@ -15,8 +15,9 @@ import EventRegistration from '../models/EventRegistration.js';
 import Memory from '../models/Memory.js';
 import Attendance from '../models/Attendance.js';
 import Enquiry from '../models/Enquiry.js';
+import HomeworkSubmission from '../models/HomeworkSubmission.js';
 import LeaveRequest from '../models/LeaveRequest.js';
-import Behavior from '../models/Behavior.js';
+import FacultyLeaveRequest from '../models/FacultyLeaveRequest.js';
 import { notifyLeaveStatusChanged, notifyAnnouncement } from '../services/pushNotification.js';
 import Circular from '../models/Circular.js';
 import Transport from '../models/Transport.js';
@@ -1286,6 +1287,30 @@ router.put('/leave-requests/:id', protect, adminOnly, async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════
+// FACULTY LEAVE REQUESTS
+// ══════════════════════════════════════════════════
+router.get('/faculty-leaves', protect, adminOnly, async (req, res) => {
+  try {
+    const { status } = req.query;
+    const leaves = await FacultyLeaveRequest.findAll({ status });
+    res.json(leaves);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching faculty leave requests' });
+  }
+});
+
+router.put('/faculty-leaves/:id', protect, adminOnly, async (req, res) => {
+  const { status, reviewNote } = req.body;
+  if (!['APPROVED', 'REJECTED'].includes(status)) return res.status(400).json({ message: 'Invalid status' });
+  try {
+    await FacultyLeaveRequest.updateStatus(req.params.id, { status, reviewNote, reviewedBy: req.user.id });
+    res.json({ message: `Faculty leave request ${status.toLowerCase()}.` });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating faculty leave request' });
+  }
+});
+
+// ══════════════════════════════════════════════════
 // ANALYTICS
 // ══════════════════════════════════════════════════
 router.get('/analytics', protect, adminOnly, async (req, res) => {
@@ -1627,6 +1652,26 @@ router.delete('/transport/assign/:studentId', protect, adminOnly, async (req, re
     res.json({ message: 'Student removed from transport' });
   } catch (error) {
     res.status(500).json({ message: 'Error removing student' });
+  }
+});
+
+router.post('/transport/assign/faculty', protect, adminOnly, async (req, res) => {
+  const { facultyId, routeId, stopId } = req.body;
+  if (!facultyId || !routeId) return res.status(400).json({ message: 'Faculty and route are required' });
+  try {
+    await Transport.assignFaculty(facultyId, routeId, stopId);
+    res.json({ message: 'Faculty assigned to transport route' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error assigning faculty' });
+  }
+});
+
+router.delete('/transport/assign/faculty/:facultyId', protect, adminOnly, async (req, res) => {
+  try {
+    await Transport.removeFaculty(req.params.facultyId);
+    res.json({ message: 'Faculty removed from transport' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error removing faculty' });
   }
 });
 

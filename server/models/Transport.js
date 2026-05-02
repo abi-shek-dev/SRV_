@@ -108,6 +108,39 @@ const Transport = {
       helperName: r.helper_name, helperPhone: r.helper_phone,
       stopName: r.stop_name, pickupTime: r.pickup_time, dropTime: r.drop_time
     };
+  },
+
+  // ── FACULTY ASSIGNMENT ──
+  async assignFaculty(facultyId, routeId, stopId) {
+    await pool.query(
+      `INSERT INTO faculty_transport (faculty_id, route_id, stop_id) VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE route_id = VALUES(route_id), stop_id = VALUES(stop_id)`,
+      [facultyId, routeId, stopId || null]
+    );
+  },
+
+  async removeFaculty(facultyId) {
+    await pool.query('DELETE FROM faculty_transport WHERE faculty_id = ?', [facultyId]);
+  },
+
+  async findByFaculty(facultyId) {
+    const [rows] = await pool.query(
+      `SELECT ft.*, tr.route_name, tr.bus_number, tr.driver_name, tr.driver_phone, tr.helper_name, tr.helper_phone,
+              ts.stop_name, ts.pickup_time, ts.drop_time
+       FROM faculty_transport ft
+       JOIN transport_routes tr ON ft.route_id = tr.id
+       LEFT JOIN transport_stops ts ON ft.stop_id = ts.id
+       WHERE ft.faculty_id = ?`,
+      [facultyId]
+    );
+    if (!rows[0]) return null;
+    const r = rows[0];
+    return {
+      routeName: r.route_name, busNumber: r.bus_number,
+      driverName: r.driver_name, driverPhone: r.driver_phone,
+      helperName: r.helper_name, helperPhone: r.helper_phone,
+      stopName: r.stop_name, pickupTime: r.pickup_time, dropTime: r.drop_time
+    };
   }
 };
 
