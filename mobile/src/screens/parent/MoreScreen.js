@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
 import theme from '../../config/theme';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import CustomCalendarPicker from '../../components/CustomCalendarPicker';
 
 export default function MoreScreen() {
   const { user, logout, authHeaders } = useAuth();
@@ -23,6 +24,7 @@ export default function MoreScreen() {
   // Feedback form
   const [fbForm, setFbForm] = useState({ category: 'ISSUE', subject: '', message: '' });
   const [fbSubmitting, setFbSubmitting] = useState(false);
+  const [calState, setCalState] = useState({ visible: false, targetField: null, initialDate: null });
 
   // Leave request
   const [leaves, setLeaves] = useState([]);
@@ -315,9 +317,13 @@ export default function MoreScreen() {
                 ))}
               </View>
               <Text style={styles.fbFieldLabel}>Start Date (YYYY-MM-DD)</Text>
-              <TextInput style={styles.fbInput} value={leaveForm.startDate} onChangeText={v => setLeaveForm(f => ({ ...f, startDate: v }))} placeholder="2026-05-05" placeholderTextColor={theme.textMuted} />
+              <TouchableOpacity style={[styles.fbInput, { justifyContent: 'center' }]} onPress={() => setCalState({ visible: true, targetField: 'leaveStartDate', initialDate: leaveForm.startDate })}>
+                <Text style={{ color: leaveForm.startDate ? theme.text : theme.textMuted }}>{leaveForm.startDate || 'Select Date'}</Text>
+              </TouchableOpacity>
               <Text style={styles.fbFieldLabel}>End Date (YYYY-MM-DD)</Text>
-              <TextInput style={styles.fbInput} value={leaveForm.endDate} onChangeText={v => setLeaveForm(f => ({ ...f, endDate: v }))} placeholder="2026-05-07" placeholderTextColor={theme.textMuted} />
+              <TouchableOpacity style={[styles.fbInput, { justifyContent: 'center' }]} onPress={() => setCalState({ visible: true, targetField: 'leaveEndDate', initialDate: leaveForm.endDate })}>
+                <Text style={{ color: leaveForm.endDate ? theme.text : theme.textMuted }}>{leaveForm.endDate || 'Select Date'}</Text>
+              </TouchableOpacity>
               <Text style={styles.fbFieldLabel}>Reason</Text>
               <TextInput style={[styles.fbInput, { height: 70, textAlignVertical: 'top' }]} value={leaveForm.reason} onChangeText={v => setLeaveForm(f => ({ ...f, reason: v }))} placeholder="Brief reason for leave..." placeholderTextColor={theme.textMuted} multiline />
               <TouchableOpacity style={[styles.fbSubmitBtn, leaveSubmitting && { opacity: 0.6 }]} onPress={submitLeave} disabled={leaveSubmitting}>
@@ -574,6 +580,15 @@ export default function MoreScreen() {
         )}
 
       </View>
+      <CustomCalendarPicker 
+        visible={calState.visible} 
+        onClose={() => setCalState({ ...calState, visible: false })} 
+        onSelect={(date) => {
+          if (calState.targetField === 'leaveStartDate') setLeaveForm(f => ({ ...f, startDate: date }));
+          else if (calState.targetField === 'leaveEndDate') setLeaveForm(f => ({ ...f, endDate: date }));
+        }}
+        initialDate={calState.initialDate}
+      />
     </View>
   );
 }

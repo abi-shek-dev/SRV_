@@ -17,7 +17,7 @@ export default function FacultyAttendanceScreen() {
   const { authHeaders } = useAuth();
   const [students, setStudents] = useState([]);
   const [records, setRecords] = useState({});
-  const [date] = useState(() => new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState('');
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -25,15 +25,25 @@ export default function FacultyAttendanceScreen() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        const timeRes = await axios.get(`${API_URL}/api/public/time`).catch(() => null);
+        let serverDateStr = '';
+        if (timeRes && timeRes.data && timeRes.data.date) {
+          serverDateStr = timeRes.data.date;
+        } else {
+          const now = new Date();
+          serverDateStr = new Date(now.getTime() + 5.5 * 60 * 60 * 1000).toISOString().split('T')[0];
+        }
+        setDate(serverDateStr);
+
         const [studRes, attRes] = await Promise.all([
           axios.get(`${API_URL}/api/faculty/students`, { headers: authHeaders() }),
-          axios.get(`${API_URL}/api/faculty/attendance/${date}`, { headers: authHeaders() }).catch(() => ({ data: null }))
+          axios.get(`${API_URL}/api/faculty/attendance/${serverDateStr}`, { headers: authHeaders() }).catch(() => ({ data: null }))
         ]);
         
         const list = Array.isArray(studRes.data) ? studRes.data : [];
         setStudents(list);
         
-        if (attRes.data && attRes.data.records) {
+        if (attRes.data && !attRes.data.notMarked && attRes.data.records) {
           setSubmitted(true);
           const init = {};
           attRes.data.records.forEach(r => { init[r.studentId] = r.status; });
@@ -47,7 +57,7 @@ export default function FacultyAttendanceScreen() {
       setLoading(false);
     };
     fetchData();
-  }, [date]);
+  }, []);
 
   const handleSubmit = () => {
     Alert.alert(

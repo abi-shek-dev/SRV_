@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, RefreshControl, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TextInput, TouchableOpacity, RefreshControl, ActivityIndicator, Alert, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
 import theme from '../../config/theme';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import CustomCalendarPicker from '../../components/CustomCalendarPicker';
 
 export default function FacultyHomeworkScreen() {
   const { authHeaders } = useAuth();
@@ -15,6 +16,7 @@ export default function FacultyHomeworkScreen() {
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: '', subject: '', description: '', deadline: '' });
   const [submitting, setSubmitting] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   const fetchHomework = async () => {
     try {
@@ -93,7 +95,17 @@ export default function FacultyHomeworkScreen() {
             <FormField label="Title *" value={form.title} onChangeText={v => setForm(f => ({ ...f, title: v }))} placeholder="Homework title" />
             <FormField label="Subject *" value={form.subject} onChangeText={v => setForm(f => ({ ...f, subject: v }))} placeholder="e.g. Mathematics" />
             <FormField label="Description" value={form.description} onChangeText={v => setForm(f => ({ ...f, description: v }))} placeholder="Optional description" multiline />
-            <FormField label="Deadline (YYYY-MM-DD)" value={form.deadline} onChangeText={v => setForm(f => ({ ...f, deadline: v }))} placeholder="2025-06-01" />
+            <View style={{ marginBottom: 12 }}>
+              <Text style={styles.fieldLabel}>Deadline *</Text>
+              <TouchableOpacity 
+                style={[styles.input, { justifyContent: 'center' }]} 
+                onPress={() => setShowCalendar(true)}
+              >
+                <Text style={{ color: form.deadline ? theme.text : theme.textMuted }}>
+                  {form.deadline || "Select Date"}
+                </Text>
+              </TouchableOpacity>
+            </View>
             <TouchableOpacity style={[styles.submitBtn, submitting && { opacity: 0.6 }]} onPress={handleCreate} disabled={submitting}>
               {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.submitBtnText}>Create Homework</Text>}
             </TouchableOpacity>
@@ -131,6 +143,13 @@ export default function FacultyHomeworkScreen() {
           ))
         )}
       </ScrollView>
+      
+      <CustomCalendarPicker 
+        visible={showCalendar} 
+        onClose={() => setShowCalendar(false)} 
+        onSelect={(date) => setForm(f => ({ ...f, deadline: date }))}
+        initialDate={form.deadline}
+      />
     </View>
   );
 }

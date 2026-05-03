@@ -6,6 +6,7 @@ import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
 import theme from '../../config/theme';
 import LoadingOverlay from '../../components/LoadingOverlay';
+import CustomCalendarPicker from '../../components/CustomCalendarPicker';
 
 export default function FacultyMoreScreen() {
   const { logout, authHeaders, user, token } = useAuth();
@@ -22,6 +23,7 @@ export default function FacultyMoreScreen() {
   const [behaviorStudent, setBehaviorStudent] = useState('');
   const [behaviorScore, setBehaviorScore] = useState('');
   const [behaviorRemarks, setBehaviorRemarks] = useState('');
+  const [calState, setCalState] = useState({ visible: false, targetField: null, initialDate: null });
 
   // Announcement form
   const [showAnnForm, setShowAnnForm] = useState(false);
@@ -607,9 +609,13 @@ export default function FacultyMoreScreen() {
                 ))}
               </View>
               <Text style={styles.fieldLabel}>Start Date (YYYY-MM-DD)</Text>
-              <TextInput style={styles.input} value={myLeaveForm.startDate} onChangeText={v => setMyLeaveForm(f => ({ ...f, startDate: v }))} placeholder="2026-05-10" placeholderTextColor={theme.textMuted} />
+              <TouchableOpacity style={[styles.input, { justifyContent: 'center' }]} onPress={() => setCalState({ visible: true, targetField: 'myLeaveStartDate', initialDate: myLeaveForm.startDate })}>
+                <Text style={{ color: myLeaveForm.startDate ? theme.text : theme.textMuted }}>{myLeaveForm.startDate || 'Select Date'}</Text>
+              </TouchableOpacity>
               <Text style={styles.fieldLabel}>End Date (YYYY-MM-DD)</Text>
-              <TextInput style={styles.input} value={myLeaveForm.endDate} onChangeText={v => setMyLeaveForm(f => ({ ...f, endDate: v }))} placeholder="2026-05-12" placeholderTextColor={theme.textMuted} />
+              <TouchableOpacity style={[styles.input, { justifyContent: 'center' }]} onPress={() => setCalState({ visible: true, targetField: 'myLeaveEndDate', initialDate: myLeaveForm.endDate })}>
+                <Text style={{ color: myLeaveForm.endDate ? theme.text : theme.textMuted }}>{myLeaveForm.endDate || 'Select Date'}</Text>
+              </TouchableOpacity>
               <Text style={styles.fieldLabel}>Reason</Text>
               <TextInput style={[styles.input, { height: 70, textAlignVertical: 'top' }]} value={myLeaveForm.reason} onChangeText={v => setMyLeaveForm(f => ({ ...f, reason: v }))} placeholder="Brief reason..." placeholderTextColor={theme.textMuted} multiline />
               <TouchableOpacity style={[styles.submitBtn, myLeaveSubmitting && { opacity: 0.6 }]} onPress={submitMyLeave} disabled={myLeaveSubmitting}>
@@ -834,6 +840,16 @@ export default function FacultyMoreScreen() {
           </ScrollView>
         )}
       </View>
+
+      <CustomCalendarPicker 
+        visible={calState.visible} 
+        onClose={() => setCalState({ ...calState, visible: false })} 
+        onSelect={(date) => {
+          if (calState.targetField === 'myLeaveStartDate') setMyLeaveForm(f => ({ ...f, startDate: date }));
+          else if (calState.targetField === 'myLeaveEndDate') setMyLeaveForm(f => ({ ...f, endDate: date }));
+        }}
+        initialDate={calState.initialDate}
+      />
     </View>
   );
 }

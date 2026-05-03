@@ -40,4 +40,16 @@ router.get('/gallery', async (req, res) => {
   }
 });
 
+// @route   GET /api/public/time
+// @desc    Get current server date in IST
+// @access  Public
+router.get('/time', (req, res) => {
+  const now = new Date();
+  // IST is UTC+5:30
+  const istOffset = 5.5 * 60 * 60 * 1000;
+  const istTime = new Date(now.getTime() + istOffset);
+  const dateStr = istTime.toISOString().split('T')[0];
+  res.json({ date: dateStr });
+});
+
 export default router;
