@@ -23,32 +23,57 @@ export default function FacultyAttendanceScreen() {
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    const fetchStudents = async () => {
+    const fetchData = async () => {
       try {
-        const res = await axios.get(`${API_URL}/api/faculty/students`, { headers: authHeaders() });
-        const list = Array.isArray(res.data) ? res.data : [];
+        const [studRes, attRes] = await Promise.all([
+          axios.get(`${API_URL}/api/faculty/students`, { headers: authHeaders() }),
+          axios.get(`${API_URL}/api/faculty/attendance/${date}`, { headers: authHeaders() }).catch(() => ({ data: null }))
+        ]);
+        
+        const list = Array.isArray(studRes.data) ? studRes.data : [];
         setStudents(list);
-        const init = {};
-        list.forEach(s => { init[s._id] = 'Present'; });
-        setRecords(init);
+        
+        if (attRes.data && attRes.data.records) {
+          setSubmitted(true);
+          const init = {};
+          attRes.data.records.forEach(r => { init[r.studentId] = r.status; });
+          setRecords(init);
+        } else {
+          const init = {};
+          list.forEach(s => { init[s._id] = 'Present'; });
+          setRecords(init);
+        }
       } catch (_) {}
       setLoading(false);
     };
-    fetchStudents();
-  }, []);
+    fetchData();
+  }, [date]);
 
-  const handleSubmit = async () => {
-    try {
-      setSubmitting(true);
-      const recordsArray = students.map(s => ({ studentId: s._id, status: records[s._id] || 'Present', remarks: '' }));
-      await axios.post(`${API_URL}/api/faculty/attendance`, { date, records: recordsArray }, { headers: authHeaders() });
-      setSubmitted(true);
-      Alert.alert('Saved!', 'Attendance submitted successfully.');
-    } catch (err) {
-      Alert.alert('Error', err.response?.data?.message || 'Could not save attendance.');
-    } finally {
-      setSubmitting(false);
-    }
+  const handleSubmit = () => {
+    Alert.alert(
+      'Confirm Attendance',
+      'Are you sure you want to submit? Attendance can only be saved once per day.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Submit', 
+          style: 'default',
+          onPress: async () => {
+            try {
+              setSubmitting(true);
+              const recordsArray = students.map(s => ({ studentId: s._id, status: records[s._id] || 'Present', remarks: '' }));
+              await axios.post(`${API_URL}/api/faculty/attendance`, { date, records: recordsArray }, { headers: authHeaders() });
+              setSubmitted(true);
+              Alert.alert('Saved!', 'Attendance submitted successfully.');
+            } catch (err) {
+              Alert.alert('Error', err.response?.data?.message || 'Could not save attendance.');
+            } finally {
+              setSubmitting(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   if (loading) return <LoadingOverlay visible={true} message="Loading attendance..." />;

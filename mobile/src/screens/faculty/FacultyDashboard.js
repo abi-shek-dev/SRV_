@@ -12,6 +12,7 @@ export default function FacultyDashboard() {
   const navigation = useNavigation();
   const { user, logout, authHeaders } = useAuth();
   const [stats, setStats] = useState({ students: 0, homework: 0, announcements: 0 });
+  const [attendanceTaken, setAttendanceTaken] = useState(false);
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -19,16 +20,19 @@ export default function FacultyDashboard() {
   const fetchData = async () => {
     try {
       const h = authHeaders();
-      const [studRes, hwRes, annRes] = await Promise.all([
+      const todayStr = new Date().toISOString().split('T')[0];
+      const [studRes, hwRes, annRes, attRes] = await Promise.all([
         axios.get(`${API_URL}/api/faculty/students`, { headers: h }),
         axios.get(`${API_URL}/api/faculty/homework`, { headers: h }),
         axios.get(`${API_URL}/api/faculty/announcements`, { headers: h }),
+        axios.get(`${API_URL}/api/faculty/attendance/${todayStr}`, { headers: h }).catch(() => ({ data: null }))
       ]);
       const students = Array.isArray(studRes.data) ? studRes.data : [];
       const hw = Array.isArray(hwRes.data) ? hwRes.data : [];
       const ann = Array.isArray(annRes.data) ? annRes.data : [];
       setStats({ students: students.length, homework: hw.length, announcements: ann.length });
       setAnnouncements(ann.slice(0, 3));
+      setAttendanceTaken(!!attRes.data && !!attRes.data.records);
     } catch (_) {}
     setLoading(false);
     setRefreshing(false);
@@ -69,6 +73,40 @@ export default function FacultyDashboard() {
         <StatCard icon="people-outline" label="Students" value={stats.students} color={theme.info} bg={theme.infoBg} border="#bfdbfe" onPress={() => navigation.navigate('Students')} />
         <StatCard icon="document-text-outline" label="Homework" value={stats.homework} color="#7c3aed" bg="#f5f3ff" border="#ddd6fe" onPress={() => navigation.navigate('Homework')} />
         <StatCard icon="megaphone-outline" label="Posts" value={stats.announcements} color={theme.amber} bg={theme.amberBg} border={theme.amberBorder} onPress={() => navigation.navigate('More')} />
+      </View>
+
+      {/* Daily Status */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Daily Status</Text>
+        <View style={{ gap: 10 }}>
+          {/* Homework Status */}
+          <TouchableOpacity style={[styles.statusCard, stats.homework > 0 ? styles.statusCardSuccess : styles.statusCardPending]} onPress={() => navigation.navigate('Homework')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={[styles.statusIconBox, stats.homework > 0 ? styles.statusIconSuccess : styles.statusIconPending]}>
+                <Ionicons name="document-text" size={20} color={stats.homework > 0 ? theme.emerald : theme.amber} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.statusTitle}>Homework</Text>
+                <Text style={styles.statusDesc}>{stats.homework > 0 ? `${stats.homework} assignment(s) given today` : 'Needs to be assigned'}</Text>
+              </View>
+              <Ionicons name={stats.homework > 0 ? "checkmark-circle" : "alert-circle"} size={24} color={stats.homework > 0 ? theme.emerald : theme.amber} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Attendance Status */}
+          <TouchableOpacity style={[styles.statusCard, attendanceTaken ? styles.statusCardSuccess : styles.statusCardPending]} onPress={() => navigation.navigate('Attendance')}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <View style={[styles.statusIconBox, attendanceTaken ? styles.statusIconSuccess : styles.statusIconPending]}>
+                <Ionicons name="people" size={20} color={attendanceTaken ? theme.emerald : theme.amber} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.statusTitle}>Attendance</Text>
+                <Text style={styles.statusDesc}>{attendanceTaken ? 'Attendance already submitted' : 'Needs to be taken'}</Text>
+              </View>
+              <Ionicons name={attendanceTaken ? "checkmark-circle" : "alert-circle"} size={24} color={attendanceTaken ? theme.emerald : theme.amber} />
+            </View>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Announcements */}
@@ -119,4 +157,14 @@ const styles = StyleSheet.create({
   annStripe: { width: 3, borderRadius: 2, backgroundColor: theme.amber },
   annTitle: { color: theme.text, fontWeight: '700', fontSize: 14, marginBottom: 4 },
   annBody: { color: theme.textSub, fontSize: 13, lineHeight: 18 },
+  statusCard: {
+    padding: 16, borderRadius: theme.radiusLg, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1
+  },
+  statusCardSuccess: { backgroundColor: theme.emeraldBg, borderColor: theme.emeraldBorder },
+  statusCardPending: { backgroundColor: theme.amberBg, borderColor: theme.amberBorder },
+  statusIconBox: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  statusIconSuccess: { backgroundColor: '#fff' },
+  statusIconPending: { backgroundColor: '#fff' },
+  statusTitle: { color: theme.text, fontSize: 16, fontWeight: '800' },
+  statusDesc: { color: theme.textSub, fontSize: 13, marginTop: 2 }
 });
