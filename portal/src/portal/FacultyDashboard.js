@@ -289,6 +289,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
   const [attDate, setAttDate] = useState(new Date().toISOString().split('T')[0]);
   const [attRecords, setAttRecords] = useState({});
   const [attMsg, setAttMsg] = useState({ text: '', type: '' });
+  const [approvedLeaves, setApprovedLeaves] = useState([]);
 
   // Announcements
   const [announcementForm, setAnnouncementForm] = useState({ title: '', message: '', priority: 'MEDIUM', toAllStudents: true });
@@ -299,14 +300,47 @@ export function FacultyDashboard({ section = 'dashboard' }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  const openAttendanceModal = () => {
+  const applyLeavesToAttendance = (dateStr, leavesList, baseRecords) => {
+    const targetDate = new Date(dateStr).setHours(0,0,0,0);
+    const newRecords = { ...baseRecords };
+    
+    students.forEach(s => {
+      const hasLeave = leavesList.some(l => {
+        const sid = l.studentId?._id || l.studentId;
+        if (sid !== s._id) return false;
+        const start = new Date(l.startDate).setHours(0,0,0,0);
+        const end = new Date(l.endDate).setHours(0,0,0,0);
+        return targetDate >= start && targetDate <= end;
+      });
+      if (hasLeave) {
+        newRecords[s._id] = 'Absent';
+      }
+    });
+    
+    setAttRecords(newRecords);
+  };
+
+  const openAttendanceModal = async () => {
+    setShowAttModal(true);
+    setAttMsg({ text: '', type: '' });
+    
     const initialRecords = {};
     students.forEach(s => {
       initialRecords[s._id] = 'Present';
     });
     setAttRecords(initialRecords);
-    setShowAttModal(true);
-    setAttMsg({ text: '', type: '' });
+
+    try {
+      const token = localStorage.getItem('schoolToken');
+      const res = await axios.get(`${API_URL}/api/faculty/leave-requests`, { 
+        headers: { Authorization: `Bearer ${token}` } 
+      });
+      const approved = res.data.filter(l => l.status === 'APPROVED');
+      setApprovedLeaves(approved);
+      applyLeavesToAttendance(attDate, approved, initialRecords);
+    } catch (error) {
+      console.error('Failed to fetch leaves for attendance mapping', error);
+    }
   };
 
   const markAllPresent = () => {
@@ -314,7 +348,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     students.forEach(s => {
       initialRecords[s._id] = 'Present';
     });
-    setAttRecords(initialRecords);
+    applyLeavesToAttendance(attDate, approvedLeaves, initialRecords);
   };
 
   // Behavior Form State
@@ -2090,7 +2124,13 @@ export function FacultyDashboard({ section = 'dashboard' }) {
           <form onSubmit={submitAttendance} className="flex flex-col overflow-hidden">
             <div className="shrink-0 mb-6">
               <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Date of Class</label>
-              <input type="date" required value={attDate} onChange={e => setAttDate(e.target.value)} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500" />
+              <input type="date" required value={attDate} onChange={e => {
+                const newDate = e.target.value;
+                setAttDate(newDate);
+                const initialRecords = {};
+                students.forEach(s => { initialRecords[s._id] = 'Present'; });
+                applyLeavesToAttendance(newDate, approvedLeaves, initialRecords);
+              }} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-emerald-500" />
             </div>
 
             <div className="space-y-2 overflow-y-auto pr-2 mb-6">
