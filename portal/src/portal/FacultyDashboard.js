@@ -300,6 +300,49 @@ export function FacultyDashboard({ section = 'dashboard' }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  // Absentees Modal State
+  const [showAbsenteesModal, setShowAbsenteesModal] = useState(false);
+  const [absenteesDate, setAbsenteesDate] = useState(new Date().toISOString().split('T')[0]);
+  const [absenteesList, setAbsenteesList] = useState([]);
+  const [absenteesLoading, setAbsenteesLoading] = useState(false);
+  const [absenteesMsg, setAbsenteesMsg] = useState({ text: '', type: '' });
+
+  const fetchAbsenteesForDate = async (dateStr) => {
+    setAbsenteesLoading(true);
+    setAbsenteesMsg({ text: '', type: '' });
+    try {
+      const token = localStorage.getItem('schoolToken');
+      const res = await axios.get(`${API_URL}/api/faculty/attendance/${dateStr}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const absentRecords = res.data.records.filter(r => r.status === 'Absent');
+      const absentStudentIds = absentRecords.map(r => String(r.studentId));
+      
+      const absentees = students.filter(s => absentStudentIds.includes(String(s._id)));
+      // Attach remarks from attendance if any
+      const enrichedAbsentees = absentees.map(s => {
+        const rec = absentRecords.find(r => String(r.studentId) === String(s._id));
+        return { ...s, attendanceRemark: rec?.remarks };
+      });
+      setAbsenteesList(enrichedAbsentees);
+    } catch (error) {
+      setAbsenteesList([]);
+      if (error.response && error.response.status === 404) {
+        setAbsenteesMsg({ text: 'No attendance marked for this date yet.', type: 'info' });
+      } else {
+        setAbsenteesMsg({ text: 'Error fetching absentees.', type: 'error' });
+      }
+    } finally {
+      setAbsenteesLoading(false);
+    }
+  };
+
+  const openAbsenteesModal = () => {
+    setShowAbsenteesModal(true);
+    fetchAbsenteesForDate(absenteesDate);
+  };
+
+
   const applyLeavesToAttendance = (dateStr, leavesList, baseRecords) => {
     const targetDate = new Date(dateStr).setHours(0,0,0,0);
     const newRecords = { ...baseRecords };
@@ -1810,6 +1853,13 @@ export function FacultyDashboard({ section = 'dashboard' }) {
                     <p className="text-xs text-slate-500">Select student to record attendance</p>
                   </div>
                 </button>
+                <button onClick={openAbsenteesModal} className={`${activeSection === 'attendance' ? 'flex w-full' : 'hidden'} items-start gap-3 rounded-xl border border-slate-200 p-3 text-left transition-colors hover:border-red-500 hover:bg-red-50 sm:items-center`}>
+                  <Users className="text-red-600" size={20} />
+                  <div className="min-w-0">
+                    <p className="font-semibold text-sm text-slate-900">View Absentees</p>
+                    <p className="text-xs text-slate-500">Show absentees for a specific date</p>
+                  </div>
+                </button>
                 <button onClick={openBehaviorModal} className={`${activeSection === 'attendance' ? 'hidden' : 'flex w-full'} items-start gap-3 rounded-xl border border-slate-200 p-3 text-left transition-colors hover:border-amber-500 hover:bg-amber-50 sm:items-center`}>
                   <AlertCircle className="text-amber-600" size={20} />
                   <div className="min-w-0">
@@ -2172,6 +2222,73 @@ export function FacultyDashboard({ section = 'dashboard' }) {
               Save Register
             </button>
           </form>
+        </div>
+      </div>
+    )
+  }
+
+  {/* Absentees Modal */}
+  {
+    showAbsenteesModal && (
+      <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/60 p-3 backdrop-blur-sm sm:items-center sm:p-4">
+        <div className="relative mx-auto my-3 flex max-h-[calc(100vh-1.5rem)] w-full max-w-lg flex-col rounded-3xl bg-white p-5 shadow-2xl sm:my-8 sm:max-h-[90vh] sm:p-8">
+          <button onClick={() => setShowAbsenteesModal(false)} className="absolute right-5 top-5 z-10 font-bold text-slate-400 hover:text-slate-700 sm:right-6 sm:top-6">✕</button>
+
+          <div className="mb-6 flex items-center justify-between shrink-0 pr-10">
+            <div>
+              <h3 className="text-2xl font-display font-bold text-slate-900">Absentees List</h3>
+              <p className="text-xs text-slate-500 font-bold uppercase tracking-wider">{absenteesList.length} Absent Students</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col overflow-hidden">
+            <div className="shrink-0 mb-6">
+              <label className="block text-xs font-bold text-slate-500 mb-2 uppercase tracking-wider">Date of Class</label>
+              <input type="date" required value={absenteesDate} onChange={e => {
+                const newDate = e.target.value;
+                setAbsenteesDate(newDate);
+                fetchAbsenteesForDate(newDate);
+              }} className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold text-slate-700 outline-none focus:ring-2 focus:ring-red-500" />
+            </div>
+
+            {absenteesMsg.text && (
+              <div className={`mb-4 px-4 py-3 shrink-0 rounded-xl text-sm font-semibold ${absenteesMsg.type === 'info' ? 'bg-blue-50 text-blue-700' : 'bg-red-50 text-red-700'}`}>
+                {absenteesMsg.text}
+              </div>
+            )}
+
+            <div className="space-y-2 overflow-y-auto pr-2 mb-6">
+              {absenteesLoading ? (
+                <div className="flex justify-center py-10">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-red-500 border-t-transparent"></div>
+                </div>
+              ) : absenteesList.length > 0 ? (
+                absenteesList.map(s => (
+                  <div key={s._id} className="flex items-center justify-between p-3 bg-red-50/50 border border-red-100 rounded-2xl">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-slate-900">{s.name}</span>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{s.srvNumber}</span>
+                      {s.attendanceRemark && <span className="text-xs italic text-red-600 mt-0.5">Note: {s.attendanceRemark}</span>}
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest bg-red-100 text-red-700 px-3 py-1.5 rounded-lg shadow-sm border border-red-200">
+                      Absent
+                    </span>
+                  </div>
+                ))
+              ) : !absenteesMsg.text && (
+                <div className="flex flex-col items-center justify-center py-12 text-slate-400 space-y-3 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <CheckCircle2 size={36} strokeWidth={1.5} className="text-emerald-400" />
+                  <span className="text-sm font-bold uppercase tracking-widest text-center">Perfect Attendance!</span>
+                </div>
+              )}
+            </div>
+
+            <div className="mt-auto shrink-0 pt-4 border-t border-slate-100">
+              <button type="button" onClick={() => setShowAbsenteesModal(false)} className="w-full py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition-colors">
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     )

@@ -542,6 +542,34 @@ router.post('/homework/cleanup', protect, async (req, res) => {
   }
 });
 
+// @route   GET /api/faculty/attendance/:date
+// @desc    Get attendance for a specific date
+// @access  Private (Faculty/Admin)
+router.get('/attendance/:date', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    const { date } = req.params;
+    let dateStr = date;
+    if (/^\d{2}-\d{2}-\d{4}$/.test(date)) {
+      const [dd, mm, yyyy] = date.split('-');
+      dateStr = `${yyyy}-${mm}-${dd}`;
+    }
+    
+    const attendanceDoc = await Attendance.findOne({
+      facultyId: req.user.id,
+      date: dateStr
+    });
+    
+    if (!attendanceDoc) {
+      return res.status(404).json({ message: 'No attendance record found for this date' });
+    }
+    
+    res.json(attendanceDoc);
+  } catch (error) {
+    console.error('[ATTENDANCE FETCH ERROR]', error.message);
+    res.status(500).json({ message: 'Error fetching attendance' });
+  }
+});
+
 // @route   POST /api/faculty/attendance
 // @desc    Submit daily or weekly attendance for the class
 // @access  Private (Faculty/Admin)
