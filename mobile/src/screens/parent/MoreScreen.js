@@ -90,7 +90,7 @@ export default function MoreScreen() {
 
   const submitVote = async (pollId, optionIdx) => {
     try {
-      await axios.post(`${API_URL}/api/parent/polls/${pollId}/vote`, { optionIndex: optionIdx }, { headers: authHeaders() });
+      await axios.post(`${API_URL}/api/parent/polls/${pollId}/respond`, { answers: [{ questionIndex: 0, optionIndex: optionIdx }] }, { headers: authHeaders() });
       const r = await axios.get(`${API_URL}/api/parent/polls`, { headers: authHeaders() });
       setPolls(Array.isArray(r.data) ? r.data : []);
     } catch (err) {

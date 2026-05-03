@@ -154,6 +154,64 @@ router.get('/memories', protect, parentOnly, async (req, res) => {
   }
 });
 
+// @route   GET /api/parent/attendance
+// @desc    Get attendance records for the linked student
+// @access  Private (Parent)
+router.get('/attendance', protect, parentOnly, async (req, res) => {
+  try {
+    const parentUser = await User.findById(req.user.id);
+    if (!parentUser?.studentId) return res.status(404).json({ message: 'No student linked' });
+
+    const student = await Student.findById(parentUser.studentId);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    const facultyId = student.facultyId?._id || student.facultyId;
+    const allLogs = await Attendance.find({ facultyId });
+
+    const attendanceFlat = allLogs
+      .flatMap(doc =>
+        (doc.records || [])
+          .filter(r => r.studentId && r.studentId.toString() === student._id.toString())
+          .map(r => ({ date: doc.date, status: r.status, remarks: r.remarks, academicYear: doc.academicYear }))
+      )
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.json(attendanceFlat);
+  } catch (error) {
+    console.error('[Parent Attendance Error]', error);
+    res.status(500).json({ message: 'Error fetching attendance' });
+  }
+});
+
+// @route   GET /api/parent/behavior
+// @desc    Get behavior records for the linked student
+// @access  Private (Parent)
+router.get('/behavior', protect, parentOnly, async (req, res) => {
+  try {
+    const parentUser = await User.findById(req.user.id);
+    if (!parentUser?.studentId) return res.status(404).json({ message: 'No student linked' });
+
+    const student = await Student.findById(parentUser.studentId);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    const facultyId = student.facultyId?._id || student.facultyId;
+    const allLogs = await Behavior.find({ facultyId });
+
+    const behaviorFlat = allLogs
+      .flatMap(doc =>
+        (doc.records || [])
+          .filter(r => r.studentId && r.studentId.toString() === student._id.toString() && r.score !== null)
+          .map(r => ({ date: doc.date, score: r.score, remarks: r.remarks }))
+      )
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.json(behaviorFlat);
+  } catch (error) {
+    console.error('[Parent Behavior Error]', error);
+    res.status(500).json({ message: 'Error fetching behavior records' });
+  }
+});
+
 // @route   GET /api/parent/homework/weekly
 router.get('/homework/weekly', protect, parentOnly, async (req, res) => {
   try {

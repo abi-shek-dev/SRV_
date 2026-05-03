@@ -20,7 +20,7 @@ export default function HomeworkScreen() {
 
   const fetchHomework = async () => {
     try {
-      const res = await axios.get(`${API_URL}/api/parent/homework`, { headers: authHeaders() });
+      const res = await axios.get(`${API_URL}/api/parent/homework/weekly`, { headers: authHeaders() });
       setHomeworkList(Array.isArray(res.data) ? res.data : []);
     } catch (_) {}
     setLoading(false);
@@ -73,7 +73,7 @@ export default function HomeworkScreen() {
         </View>
       ) : (
         homeworkList.map((hw) => {
-          const isPast = hw.deadline && new Date(hw.deadline) < new Date();
+          const isPast = hw.dueDate && new Date(hw.dueDate) < new Date();
           const hasSubmission = hw.submission;
           return (
             <View key={hw._id} style={styles.card}>
@@ -91,10 +91,10 @@ export default function HomeworkScreen() {
               </View>
               <Text style={styles.hwTitle}>{hw.title}</Text>
               {hw.description ? <Text style={styles.hwDesc}>{hw.description}</Text> : null}
-              {hw.deadline && (
+              {hw.dueDate && (
                 <View style={styles.metaRow}>
                   <Ionicons name="calendar-outline" size={13} color={theme.textMuted} />
-                  <Text style={styles.metaText}>Due: {new Date(hw.deadline).toLocaleDateString()}</Text>
+                  <Text style={styles.metaText}>Due: {new Date(hw.dueDate).toLocaleDateString()}</Text>
                 </View>
               )}
               {hw.fileUrl && (
