@@ -13,6 +13,7 @@ export default function FacultyDashboard() {
   const { user, logout, authHeaders } = useAuth();
   const [stats, setStats] = useState({ students: 0, homework: 0, announcements: 0 });
   const [attendanceTaken, setAttendanceTaken] = useState(false);
+  const [performance, setPerformance] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -21,11 +22,12 @@ export default function FacultyDashboard() {
     try {
       const h = authHeaders();
       const todayStr = new Date().toISOString().split('T')[0];
-      const [studRes, hwRes, annRes, attRes] = await Promise.all([
+      const [studRes, hwRes, annRes, attRes, perfRes] = await Promise.all([
         axios.get(`${API_URL}/api/faculty/students`, { headers: h }),
         axios.get(`${API_URL}/api/faculty/homework`, { headers: h }),
         axios.get(`${API_URL}/api/faculty/announcements`, { headers: h }),
-        axios.get(`${API_URL}/api/faculty/attendance/${todayStr}`, { headers: h }).catch(() => ({ data: null }))
+        axios.get(`${API_URL}/api/faculty/attendance/${todayStr}`, { headers: h }).catch(() => ({ data: null })),
+        axios.get(`${API_URL}/api/performance/me`, { headers: h }).catch(() => ({ data: null }))
       ]);
       const students = Array.isArray(studRes.data) ? studRes.data : [];
       const hw = Array.isArray(hwRes.data) ? hwRes.data : [];
@@ -33,6 +35,7 @@ export default function FacultyDashboard() {
       setStats({ students: students.length, homework: hw.length, announcements: ann.length });
       setAnnouncements(ann.slice(0, 3));
       setAttendanceTaken(!!attRes.data && !!attRes.data.records);
+      if (perfRes.data) setPerformance(perfRes.data);
     } catch (_) {}
     setLoading(false);
     setRefreshing(false);
@@ -67,6 +70,24 @@ export default function FacultyDashboard() {
           <Ionicons name="log-out-outline" size={20} color={theme.error} />
         </TouchableOpacity>
       </View>
+
+      {/* Performance Score */}
+      {performance && (
+        <View style={{ marginHorizontal: 16 }}>
+          <TouchableOpacity activeOpacity={0.8} onPress={() => navigation.navigate('More', { screen: 'tasks' })}>
+            <View style={styles.perfCard}>
+              <Text style={styles.perfTitle}>My Performance Score</Text>
+              <Text style={styles.perfSub}>Based on tasks, quality, feedback & contributions</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+                <View style={styles.perfPill}><Text style={styles.perfPillNum}>{performance.finalScore}</Text><Text style={styles.perfPillLabel}>Overall</Text></View>
+                <View style={styles.perfPill}><Text style={styles.perfPillNum}>{performance.taskScore}%</Text><Text style={styles.perfPillLabel}>Tasks</Text></View>
+                <View style={styles.perfPill}><Text style={styles.perfPillNum}>{performance.qualityScore}%</Text><Text style={styles.perfPillLabel}>Quality</Text></View>
+                <View style={styles.perfPill}><Text style={styles.perfPillNum}>{performance.feedbackScore}%</Text><Text style={styles.perfPillLabel}>Feedback</Text></View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Stat cards */}
       <View style={styles.statRow}>
@@ -166,5 +187,11 @@ const styles = StyleSheet.create({
   statusIconSuccess: { backgroundColor: '#fff' },
   statusIconPending: { backgroundColor: '#fff' },
   statusTitle: { color: theme.text, fontSize: 16, fontWeight: '800' },
-  statusDesc: { color: theme.textSub, fontSize: 13, marginTop: 2 }
+  statusDesc: { color: theme.textSub, fontSize: 13, marginTop: 2 },
+  perfCard: { borderRadius: theme.radius, padding: 16, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 10, elevation: 4, backgroundColor: '#4338ca', overflow: 'hidden', marginBottom: 16 },
+  perfTitle: { color: '#fff', fontSize: 18, fontWeight: '800' },
+  perfSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 },
+  perfPill: { backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12, alignItems: 'center', minWidth: 60 },
+  perfPillNum: { color: '#fff', fontSize: 18, fontWeight: '900' },
+  perfPillLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 9, fontWeight: '700', textTransform: 'uppercase', marginTop: 2 }
 });
