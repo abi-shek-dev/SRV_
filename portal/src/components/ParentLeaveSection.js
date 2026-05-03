@@ -9,6 +9,19 @@ export function ParentLeaveSection() {
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ leaveType: 'SICK', startDate: '', endDate: '', reason: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isTodayOnly, setIsTodayOnly] = useState(false);
+
+  const handleTodayOnlyToggle = (e) => {
+    const checked = e.target.checked;
+    setIsTodayOnly(checked);
+    if (checked) {
+      const d = new Date();
+      const today = new Date(d.getTime() - (d.getTimezoneOffset() * 60000)).toISOString().split('T')[0];
+      setForm(prev => ({ ...prev, startDate: today, endDate: today }));
+    } else {
+      setForm(prev => ({ ...prev, startDate: '', endDate: '' }));
+    }
+  };
 
   const fetchLeaves = async () => {
     try {
@@ -41,6 +54,7 @@ export function ParentLeaveSection() {
         headers: { Authorization: `Bearer ${token}` }
       });
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Leave request submitted', showConfirmButton: false, timer: 2000 });
+      setIsTodayOnly(false);
       setForm({ leaveType: 'SICK', startDate: '', endDate: '', reason: '' });
       fetchLeaves();
     } catch (err) {
@@ -70,19 +84,35 @@ export function ParentLeaveSection() {
                 <option value="OTHER">Other</option>
               </select>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+
+            <div className="flex items-center gap-3 rounded-xl border border-blue-100 bg-blue-50/50 p-3.5">
+              <input 
+                type="checkbox" 
+                id="todayOnly" 
+                checked={isTodayOnly} 
+                onChange={handleTodayOnlyToggle}
+                className="h-4 w-4 rounded border-blue-300 text-blue-600 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+              />
+              <label htmlFor="todayOnly" className="text-sm font-semibold text-blue-900 cursor-pointer select-none">
+                Request leave for <span className="font-bold underline decoration-blue-300 underline-offset-2">Today only</span>
+              </label>
+            </div>
+
+            <div className={`grid grid-cols-2 gap-3 transition-all duration-300 ${isTodayOnly ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500">Start Date</label>
                 <input 
                   type="date" required value={form.startDate} onChange={e => setForm({...form, startDate: e.target.value})}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isTodayOnly}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500 cursor-pointer disabled:cursor-not-allowed"
                 />
               </div>
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider text-slate-500">End Date</label>
                 <input 
                   type="date" required value={form.endDate} onChange={e => setForm({...form, endDate: e.target.value})}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500"
+                  disabled={isTodayOnly}
+                  className="mt-1 w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-slate-100 disabled:text-slate-500 cursor-pointer disabled:cursor-not-allowed"
                 />
               </div>
             </div>

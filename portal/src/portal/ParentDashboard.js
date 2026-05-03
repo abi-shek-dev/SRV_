@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
-import { LogOut, Bell, Download, FileText, Calendar as CalIcon, TrendingUp, Sparkles, CheckCircle2, Coffee, CreditCard, AlertCircle, Clock, CheckCheck, BookOpen, ChevronLeft, ChevronRight, History, ArrowRight, Archive, X, BookMarked, AlertCircleIcon, Home, Zap, MessageSquareMore, Image as ImageIcon, Star } from 'lucide-react';
+import { LogOut, Bell, Download, FileText, Calendar as CalIcon, TrendingUp, Sparkles, CheckCircle2, Coffee, CreditCard, AlertCircle, Clock, CheckCheck, BookOpen, ChevronLeft, ChevronRight, History, ArrowRight, Archive, X, BookMarked, AlertCircleIcon, Home, Zap, MessageSquareMore, Image as ImageIcon, Star, Loader2 } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Radar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from 'recharts';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
+import { toPng } from 'html-to-image';
 import API_URL from '../config/api.js';
 import Swal from 'sweetalert2';
 import { ParentPollsSection } from '../components/ParentPollsSection.js';
@@ -183,6 +183,7 @@ export function ParentDashboard({ section = 'dashboard' }) {
 const [data, setData] = useState({ student: null, records: [], homework: [], food: null, settings: {} });
   const [weeklyHomework, setWeeklyHomework] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isDownloadingReport, setIsDownloadingReport] = useState(false);
   
   // ========== Share Modal State ==========
   const [showPayModal, setShowPayModal] = useState(false);
@@ -364,25 +365,42 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
   const downloadReportCard = async () => {
     const input = reportCardRef.current;
     if (!input) return;
-    
-    // Temporarily make it visible for capture (off-screen)
-    const originalStyle = input.style.display;
-    input.style.display = 'block';
 
-    html2canvas(input, { scale: 3, useCORS: true, backgroundColor: '#ffffff' }).then((canvas) => {
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${data.student?.name || 'Student'}_ReportCard.pdf`);
-      
-      input.style.display = originalStyle;
-    }).catch(err => {
-      console.error('Report card generation error:', err);
-      input.style.display = originalStyle;
+    setIsDownloadingReport(true);
+    Swal.fire({
+      title: 'Generating Report Card...',
+      html: 'Please wait while we create your high-quality PDF.',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      }
     });
+
+    try {
+      const dataUrl = await toPng(input, { pixelRatio: 3, backgroundColor: '#ffffff', cacheBust: true });
+      const img = new Image();
+      img.src = dataUrl;
+      img.onload = () => {
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (img.height * pdfWidth) / img.width;
+        
+        pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+        pdf.save(`${data.student?.name || 'Student'}_ReportCard.pdf`);
+        setIsDownloadingReport(false);
+        Swal.fire({
+          icon: 'success',
+          title: 'Success!',
+          text: 'Report Card downloaded successfully.',
+          timer: 2000,
+          showConfirmButton: false
+        });
+      };
+    } catch (err) {
+      console.error('Report card generation error:', err);
+      setIsDownloadingReport(false);
+      Swal.fire('Error', 'Failed to generate report card PDF.', 'error');
+    }
   };
 
   const handlePayment = async () => {
@@ -948,10 +966,11 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
                       <button
                         type="button"
                         onClick={downloadReportCard}
-                        className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-emerald-50 active:scale-[0.98]"
+                        disabled={isDownloadingReport}
+                        className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-900 transition hover:bg-emerald-50 active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
                       >
-                        <Download size={16} />
-                        Report Card
+                        {isDownloadingReport ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                        {isDownloadingReport ? 'Generating...' : 'Report Card'}
                       </button>
                     </div>
                   </div>
@@ -1044,6 +1063,18 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
             </section>
           </div>
         </main>
+        {/* Hidden Report Card for PDF generation */}
+        <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', pointerEvents: 'none' }}>
+          <div ref={reportCardRef} className="w-[210mm] min-h-[297mm] bg-white">
+            <ReportCardPDF 
+              data={data} 
+              latestRecord={latestRecord} 
+              marksData={marksData} 
+              overallAcademicPercentage={overallAcademicPercentage}
+              attendancePercentage={finalAttendancePercentage}
+            />
+          </div>
+        </div>
       </div>
     );
   };
@@ -1180,8 +1211,13 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
           </div>
 
           {activeSection === 'dashboard' && (
-            <button onClick={downloadReportCard} className="w-full md:w-auto shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20 relative z-10">
-              <Download size={18} /> Download Report Card
+            <button 
+              onClick={downloadReportCard} 
+              disabled={isDownloadingReport}
+              className="w-full md:w-auto shrink-0 flex items-center justify-center gap-2 px-6 py-3 bg-slate-900 text-white font-semibold rounded-xl hover:bg-slate-800 transition-colors shadow-lg shadow-slate-900/20 relative z-10 disabled:opacity-70 disabled:cursor-not-allowed"
+            >
+              {isDownloadingReport ? <Loader2 size={18} className="animate-spin" /> : <Download size={18} />}
+              {isDownloadingReport ? 'Generating...' : 'Download Report Card'}
             </button>
           )}
         </div>
@@ -2225,8 +2261,8 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
       </div>
 
       {/* Hidden Report Card for PDF generation */}
-      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', pointerEvents: 'none', display: 'none' }}>
-        <div ref={reportCardRef}>
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', pointerEvents: 'none' }}>
+        <div ref={reportCardRef} className="w-[210mm] min-h-[297mm] bg-white">
           <ReportCardPDF 
             data={data} 
             latestRecord={latestRecord} 
