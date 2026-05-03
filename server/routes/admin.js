@@ -18,6 +18,7 @@ import Enquiry from '../models/Enquiry.js';
 import HomeworkSubmission from '../models/HomeworkSubmission.js';
 import LeaveRequest from '../models/LeaveRequest.js';
 import FacultyLeaveRequest from '../models/FacultyLeaveRequest.js';
+import Behavior from '../models/Behavior.js';
 import { notifyLeaveStatusChanged, notifyAnnouncement } from '../services/pushNotification.js';
 import Circular from '../models/Circular.js';
 import Transport from '../models/Transport.js';
@@ -776,6 +777,38 @@ router.put('/settings/fee-toggle', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @route   GET /api/admin/settings/academic-year
+// @desc    Get the academic year setting
+// @access  Private (Admin only)
+router.get('/settings/academic-year', protect, adminOnly, async (req, res) => {
+  try {
+    let setting = await Setting.findOne({ key: 'academicYear' });
+    if (!setting) setting = await Setting.create({ key: 'academicYear', value: { start: '', end: '' } });
+    res.json(setting.value);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching setting' });
+  }
+});
+
+// @route   PUT /api/admin/settings/academic-year
+// @desc    Toggle academic year setting
+// @access  Private (Admin only)
+router.put('/settings/academic-year', protect, adminOnly, async (req, res) => {
+  const { start, end } = req.body;
+  try {
+    let setting = await Setting.findOne({ key: 'academicYear' });
+    if (!setting) {
+      setting = await Setting.create({ key: 'academicYear', value: { start, end } });
+    } else {
+      setting.value = { start, end };
+      setting = await Setting.save(setting);
+    }
+    res.json({ message: 'Setting updated successfully', ...setting.value });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating setting' });
+  }
+});
+
 // @route   GET /api/admin/notifications
 // @desc    Get system notifications (FEE_ALERTs)
 // @access  Private (Admin only)
@@ -1153,7 +1186,7 @@ router.put('/feedback/:id', protect, adminOnly, async (req, res) => {
   const { status, staffNote } = req.body;
 
   try {
-    const feedback = await Feedback.findById(req.params.id);
+    let feedback = await Feedback.findById(req.params.id);
     if (!feedback) return res.status(404).json({ message: 'Feedback not found' });
 
     if (status !== undefined) feedback.status = status;
@@ -1161,9 +1194,6 @@ router.put('/feedback/:id', protect, adminOnly, async (req, res) => {
     feedback.updatedBy = req.user.id;
 
     feedback = await Feedback.save(feedback);
-    await feedback;
-    await feedback;
-    await feedback;
 
     res.json({ message: 'Feedback updated successfully.', feedback: enrichParentLinkedRecord(feedback) });
   } catch (error) {
@@ -1414,10 +1444,21 @@ router.get('/analytics', protect, adminOnly, async (req, res) => {
 // ══════════════════════════════════════════════════
 router.get('/export/students', protect, adminOnly, async (req, res) => {
   try {
-    let students = await Student.find();
     const { grade, section } = req.query;
+    let students = await Student.find();
     if (grade) students = students.filter(s => s.grade === grade);
     if (section) students = students.filter(s => s.section === section);
+
+    const GRADE_ORDER = { 'Pre KG': 1, 'LKG': 2, 'UKG': 3, 'I': 4, 'II': 5, 'III': 6, 'IV': 7, 'V': 8, 'VI': 9, 'VII': 10, 'VIII': 11, 'IX': 12, 'X': 13, 'XI': 14, 'XII': 15 };
+    students.sort((a, b) => {
+      const gA = GRADE_ORDER[a.grade] || 99;
+      const gB = GRADE_ORDER[b.grade] || 99;
+      if (gA !== gB) return gA - gB;
+      const secA = a.section || '';
+      const secB = b.section || '';
+      if (secA !== secB) return secA.localeCompare(secB);
+      return (a.name || '').localeCompare(b.name || '');
+    });
 
     const header = 'SRV Number,Name,Grade,Section,Group,Mother,Father,Guardian,Parent Mobile,DOB';
     const rows = students.map(s => [
@@ -1436,10 +1477,21 @@ router.get('/export/students', protect, adminOnly, async (req, res) => {
 
 router.get('/export/attendance', protect, adminOnly, async (req, res) => {
   try {
-    const { grade, section } = req.query;
+    const { grade, section, date } = req.query;
     let logs = await Attendance.find();
     if (grade) logs = logs.filter(l => l.grade === grade);
     if (section) logs = logs.filter(l => l.section === section);
+    if (date) {
+      logs = logs.filter(l => l.date && new Date(l.date).toISOString().split('T')[0] === date);
+    }
+
+    const GRADE_ORDER = { 'Pre KG': 1, 'LKG': 2, 'UKG': 3, 'I': 4, 'II': 5, 'III': 6, 'IV': 7, 'V': 8, 'VI': 9, 'VII': 10, 'VIII': 11, 'IX': 12, 'X': 13, 'XI': 14, 'XII': 15 };
+    logs.sort((a, b) => {
+      const gA = GRADE_ORDER[a.grade] || 99;
+      const gB = GRADE_ORDER[b.grade] || 99;
+      if (gA !== gB) return gA - gB;
+      return (a.section || '').localeCompare(b.section || '');
+    });
 
     const header = 'Date,Grade,Section,Student ID,Status,Remarks';
     const rows = [];
@@ -1459,10 +1511,18 @@ router.get('/export/attendance', protect, adminOnly, async (req, res) => {
 
 router.get('/export/fees', protect, adminOnly, async (req, res) => {
   try {
-    let students = await Student.find();
     const { grade, section } = req.query;
+    let students = await Student.find();
     if (grade) students = students.filter(s => s.grade === grade);
     if (section) students = students.filter(s => s.section === section);
+
+    const GRADE_ORDER = { 'Pre KG': 1, 'LKG': 2, 'UKG': 3, 'I': 4, 'II': 5, 'III': 6, 'IV': 7, 'V': 8, 'VI': 9, 'VII': 10, 'VIII': 11, 'IX': 12, 'X': 13, 'XI': 14, 'XII': 15 };
+    students.sort((a, b) => {
+      const gA = GRADE_ORDER[a.grade] || 99;
+      const gB = GRADE_ORDER[b.grade] || 99;
+      if (gA !== gB) return gA - gB;
+      return (a.section || '').localeCompare(b.section || '');
+    });
 
     const header = 'SRV Number,Name,Grade,Section,Term1 Status,Term1 Amount,Term1 Paid,Term2 Status,Term2 Amount,Term2 Paid,Term3 Status,Term3 Amount,Term3 Paid,Overall';
     const rows = students.map(s => {

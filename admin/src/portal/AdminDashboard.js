@@ -916,6 +916,7 @@ export function AdminDashboard({ section = 'home' }) {
   const ExportCenter = () => {
     const [exportGrade, setExportGrade] = useState('');
     const [exportSection, setExportSection] = useState('');
+    const [exportDate, setExportDate] = useState(new Date().toISOString().split('T')[0]);
     const [downloading, setDownloading] = useState('');
 
     const downloadCSV = async (type) => {
@@ -925,10 +926,14 @@ export function AdminDashboard({ section = 'home' }) {
         const params = new URLSearchParams();
         if (exportGrade) params.append('grade', exportGrade);
         if (exportSection) params.append('section', exportSection);
+        if (type === 'attendance' && exportDate) params.append('date', exportDate);
+        
         const res = await axios.get(`${API_URL}/api/admin/export/${type}?${params.toString()}`, {
           headers: { Authorization: `Bearer ${token}` },
           responseType: 'blob'
         });
+        
+        Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Download started...', showConfirmButton: false, timer: 3000 });
         const url = window.URL.createObjectURL(new Blob([res.data]));
         const a = document.createElement('a');
         a.href = url;
@@ -963,6 +968,10 @@ export function AdminDashboard({ section = 'home' }) {
               <option value="">All Sections</option>
               {['A','B','C'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500 uppercase">Date (For Attendance):</span>
+              <input type="date" value={exportDate} onChange={e => setExportDate(e.target.value)} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-400" />
+            </div>
           </div>
         </div>
 
