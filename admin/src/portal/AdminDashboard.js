@@ -2364,18 +2364,33 @@ export function AdminDashboard({ section = 'home' }) {
                     </div>
                   ) : (
                     <div className="space-y-3 text-sm">
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold mb-1 uppercase tracking-wider">Breakfast</p>
-                        {isEditing ? <input type="text" value={editFoodForm.breakfast} onChange={e => setEditFoodForm({...editFoodForm, breakfast: e.target.value})} className="w-full border rounded px-2 py-1 outline-none focus:ring-1 focus:ring-orange-500 text-xs" /> : <p className="font-medium text-slate-800 text-xs">{dayMenu.breakfast || '-'}</p>}
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold mb-1 uppercase tracking-wider">Lunch</p>
-                        {isEditing ? <input type="text" value={editFoodForm.lunch} onChange={e => setEditFoodForm({...editFoodForm, lunch: e.target.value})} className="w-full border rounded px-2 py-1 outline-none focus:ring-1 focus:ring-orange-500 text-xs" /> : <p className="font-medium text-slate-800 text-xs">{dayMenu.lunch || '-'}</p>}
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-slate-500 font-bold mb-1 uppercase tracking-wider">Snacks</p>
-                        {isEditing ? <input type="text" value={editFoodForm.snacks} onChange={e => setEditFoodForm({...editFoodForm, snacks: e.target.value})} className="w-full border rounded px-2 py-1 outline-none focus:ring-1 focus:ring-orange-500 text-xs" /> : <p className="font-medium text-slate-800 text-xs">{dayMenu.snacks || '-'}</p>}
-                      </div>
+                      {['breakfast', 'lunch', 'snacks'].map((mealType) => {
+                        const val = dayMenu[mealType] || '';
+                        const items = val.split(',').map(i => i.trim()).filter(Boolean);
+                        
+                        return (
+                          <div key={mealType}>
+                            <p className="text-[10px] text-slate-500 font-bold mb-1 uppercase tracking-wider">{mealType}</p>
+                            {isEditing ? (
+                              <input 
+                                type="text" 
+                                placeholder="e.g. Item 1, Item 2" 
+                                value={editFoodForm[mealType]} 
+                                onChange={e => setEditFoodForm({...editFoodForm, [mealType]: e.target.value})} 
+                                className="w-full border rounded px-2 py-1 outline-none focus:ring-1 focus:ring-orange-500 text-xs" 
+                              />
+                            ) : (
+                              items.length > 1 ? (
+                                <ul className="list-disc pl-4 text-xs font-medium text-slate-800 space-y-0.5">
+                                  {items.map((item, idx) => <li key={idx}>{item}</li>)}
+                                </ul>
+                              ) : (
+                                <p className="font-medium text-slate-800 text-xs">{val || '-'}</p>
+                              )
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>

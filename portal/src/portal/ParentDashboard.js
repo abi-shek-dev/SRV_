@@ -1020,18 +1020,33 @@ const [data, setData] = useState({ student: null, records: [], homework: [], foo
 
               {hasTodayMenu ? (
                 <div className="mt-6 grid gap-4 md:grid-cols-3">
-                  <div className="rounded-[1.5rem] border border-orange-200 bg-orange-50 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-orange-600">Breakfast</p>
-                    <p className="mt-3 text-lg font-display font-bold text-slate-900">{data.food?.breakfast || 'Not specified'}</p>
-                  </div>
-                  <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600">Lunch</p>
-                    <p className="mt-3 text-lg font-display font-bold text-slate-900">{data.food?.lunch || 'Not specified'}</p>
-                  </div>
-                  <div className="rounded-[1.5rem] border border-blue-200 bg-blue-50 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-blue-600">Snacks</p>
-                    <p className="mt-3 text-lg font-display font-bold text-slate-900">{data.food?.snacks || 'Not specified'}</p>
-                  </div>
+                  {['breakfast', 'lunch', 'snacks'].map((mealType) => {
+                    const val = data.food?.[mealType] || '';
+                    const items = val.split(',').map(i => i.trim()).filter(Boolean);
+                    
+                    const colorMap = {
+                      breakfast: { border: 'border-orange-200', bg: 'bg-orange-50', text: 'text-orange-600' },
+                      lunch: { border: 'border-emerald-200', bg: 'bg-emerald-50', text: 'text-emerald-600' },
+                      snacks: { border: 'border-blue-200', bg: 'bg-blue-50', text: 'text-blue-600' }
+                    };
+                    
+                    const c = colorMap[mealType];
+                    
+                    return (
+                      <div key={mealType} className={`rounded-[1.5rem] border ${c.border} ${c.bg} p-5`}>
+                        <p className={`text-xs font-semibold uppercase tracking-[0.16em] ${c.text}`}>{mealType}</p>
+                        <div className="mt-3">
+                          {items.length > 1 ? (
+                            <ul className="list-disc pl-5 text-lg font-display font-bold text-slate-900 space-y-1">
+                              {items.map((item, idx) => <li key={idx}>{item}</li>)}
+                            </ul>
+                          ) : (
+                            <p className="text-lg font-display font-bold text-slate-900">{val || 'Not specified'}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="mt-6 rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm font-semibold text-slate-500">

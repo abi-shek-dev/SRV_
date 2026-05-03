@@ -126,11 +126,19 @@ function Section({ title, children }) {
 }
 
 function MenuItem({ icon, label, value }) {
+  const items = String(value || '').split(',').map(i => i.trim()).filter(Boolean);
+  
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 6 }}>
-      <Ionicons name={icon} size={15} color={theme.emerald} style={{ marginRight: 10, width: 20 }} />
-      <Text style={{ color: theme.textSub, fontSize: 12, width: 72 }}>{label}</Text>
-      <Text style={{ color: theme.text, fontSize: 13, fontWeight: '600', flex: 1 }}>{value || '—'}</Text>
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 8 }}>
+      <Ionicons name={icon} size={15} color={theme.emerald} style={{ marginRight: 10, width: 20, marginTop: 2 }} />
+      <Text style={{ color: theme.textSub, fontSize: 12, width: 72, marginTop: 1 }}>{label}</Text>
+      <View style={{ flex: 1 }}>
+        {items.length > 1 ? items.map((item, idx) => (
+          <Text key={idx} style={{ color: theme.text, fontSize: 13, fontWeight: '600', marginBottom: 2 }}>• {item}</Text>
+        )) : (
+          <Text style={{ color: theme.text, fontSize: 13, fontWeight: '600' }}>{value || '—'}</Text>
+        )}
+      </View>
     </View>
   );
 }
