@@ -20,6 +20,7 @@ import FacultyLeaveRequest from '../models/FacultyLeaveRequest.js';
 import Circular from '../models/Circular.js';
 import Transport from '../models/Transport.js';
 import Library from '../models/Library.js';
+import FoodMenu from '../models/FoodMenu.js';
 import { notifyAttendanceAbsent, notifyHomeworkAssigned, notifyLeaveStatusChanged } from '../services/pushNotification.js';
 import { protect, facultyOrAdmin } from '../middleware/auth.js';
 import { archiveOldHomework } from '../utils/archiveHomework.js';
@@ -1289,6 +1290,18 @@ router.get('/circulars', protect, facultyOrAdmin, async (req, res) => {
     res.json(circulars);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching circulars' });
+  }
+});
+
+// ══════════════════════════════════════════════════
+// CAFETERIA MENU
+// ══════════════════════════════════════════════════
+router.get('/cafeteria', protect, async (req, res) => {
+  try {
+    const menu = await FoodMenu.find();
+    res.json(menu);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching cafeteria menu' });
   }
 });
 

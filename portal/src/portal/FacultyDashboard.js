@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Users, LogOut, CheckSquare, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Calendar as CalIcon, Clock, Edit2, Trash2, CalendarClock, X, Check, History, ArrowRight, Archive, ChevronDown, Megaphone, Bell, LayoutDashboard, ClipboardList, MessageSquareMore, Image as ImageIcon, Trophy, TrendingUp, Target, ExternalLink, AlertTriangle, Send, CheckCircle2, XCircle, Star, FileText } from 'lucide-react';
+import { Users, LogOut, CheckSquare, BookOpen, AlertCircle, ChevronLeft, ChevronRight, Calendar as CalIcon, Clock, Edit2, Trash2, CalendarClock, X, Check, History, ArrowRight, Archive, ChevronDown, Megaphone, Bell, LayoutDashboard, ClipboardList, MessageSquareMore, Image as ImageIcon, Trophy, TrendingUp, Target, ExternalLink, AlertTriangle, Send, CheckCircle2, XCircle, Star, FileText, Coffee } from 'lucide-react';
 import API_URL from '../config/api.js';
 import { OpinionPollSection } from '../components/OpinionPollSection.js';
 import { FeedbackInboxSection } from '../components/FeedbackInboxSection.js';
@@ -298,6 +298,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
   const [selectedAnnouncementStudents, setSelectedAnnouncementStudents] = useState([]);
   const [inboxAnnouncements, setInboxAnnouncements] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [weeklyMenu, setWeeklyMenu] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
   // Absentees Modal State
@@ -587,6 +588,10 @@ export function FacultyDashboard({ section = 'dashboard' }) {
       badge: 'Student Leaves',
       gradient: 'from-fuchsia-500 to-pink-500'
     },
+    'cafeteria': {
+      title: 'Cafeteria Menu',
+      description: 'View the weekly cafeteria menu for breakfast, lunch, and snacks.'
+    },
     'timetable': {
       title: 'Class Timetable',
       description: 'View the weekly class schedule for your assigned class.'
@@ -678,6 +683,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     fetchHomework();
     fetchAnnouncements(token);
     fetchInboxAnnouncements(token);
+    fetchWeeklyMenu(token);
   }, [section, user.role]);
 
   const fetchStudents = (token) => {
@@ -711,6 +717,12 @@ export function FacultyDashboard({ section = 'dashboard' }) {
       setInboxAnnouncements(res.data);
       setUnreadCount(res.data.length);
     }).catch(console.error);
+  };
+  
+  const fetchWeeklyMenu = (token) => {
+    axios.get(`${API_URL}/api/faculty/cafeteria`, {
+      headers: { Authorization: `Bearer ${token}` }
+    }).then(res => setWeeklyMenu(res.data)).catch(console.error);
   };
 
   const dismissInboxAnnouncement = async (announcementId) => {
@@ -1007,7 +1019,8 @@ export function FacultyDashboard({ section = 'dashboard' }) {
     { key: 'marks', title: 'Marks Entry', subtitle: 'Enter Subject Marks', icon: Trophy, badge: 'Academics', gradient: 'from-blue-600 to-purple-600' },
     { key: 'library', title: 'Class Library', subtitle: 'Issue & Return Books', icon: BookMarked, badge: 'Library', gradient: 'from-indigo-500 to-purple-500' },
     { key: 'transport', title: 'Class Transport', subtitle: 'Student Bus Routes', icon: Bus, badge: 'Transport', gradient: 'from-amber-500 to-orange-500' },
-    { key: 'circulars', title: 'Circulars', subtitle: 'Official Notices', icon: Megaphone, badge: 'Notices', gradient: 'from-cyan-500 to-blue-500' }
+    { key: 'circulars', title: 'Circulars', subtitle: 'Official Notices', icon: Megaphone, badge: 'Notices', gradient: 'from-cyan-500 to-blue-500' },
+    { key: 'cafeteria', title: 'Cafeteria', subtitle: 'Weekly Menu', icon: Coffee, badge: weeklyMenu.length || 'Menu', gradient: 'from-orange-500 to-yellow-500' }
   ];
 
   const notificationAction = (
@@ -2002,7 +2015,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
         </div>
 
       </div>
-      <div className={`${['events', 'polls', 'feedback', 'memories', 'my-leaves', 'student-leaves', 'timetable', 'marks', 'library', 'transport', 'circulars'].includes(activeSection) ? 'block' : 'hidden'} max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10`}>
+      <div className={`${['events', 'polls', 'feedback', 'memories', 'my-leaves', 'student-leaves', 'timetable', 'marks', 'library', 'transport', 'circulars', 'cafeteria'].includes(activeSection) ? 'block' : 'hidden'} max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-10`}>
         {activeSection === 'events' && <UpcomingEventsSection role="faculty" />}
         {activeSection === 'polls' && <OpinionPollSection role="faculty" />}
         {activeSection === 'feedback' && <FeedbackInboxSection role="faculty" />}
@@ -2014,6 +2027,56 @@ export function FacultyDashboard({ section = 'dashboard' }) {
         {activeSection === 'library' && <FacultyLibrarySection />}
         {activeSection === 'transport' && <FacultyTransportSection />}
         {activeSection === 'circulars' && <CircularsSection role="faculty" />}
+        
+        {activeSection === 'cafeteria' && (
+          <div className="rounded-3xl border border-slate-100 bg-white p-5 shadow-sm sm:p-8">
+            <div className="flex items-center gap-3 mb-6">
+              <Coffee className="text-orange-500" />
+              <h2 className="text-xl font-display font-bold text-slate-900">Cafeteria Menu</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+              {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => {
+                const isWeekend = day === 'Saturday' || day === 'Sunday';
+                const dayMenu = weeklyMenu.find(m => m.day === day) || { breakfast: '', lunch: '', snacks: '' };
+
+                return (
+                  <div key={day} className={`p-4 rounded-xl border ${isWeekend ? 'bg-slate-50 border-slate-200 opacity-70' : 'bg-white border-slate-200 shadow-sm'}`}>
+                    <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
+                      <h3 className="font-bold text-slate-800">{day}</h3>
+                    </div>
+                    
+                    {isWeekend ? (
+                      <div className="py-8 text-center flex flex-col items-center justify-center">
+                        <p className="text-slate-400 font-bold uppercase tracking-widest text-sm">Holiday</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 text-sm">
+                        {['breakfast', 'lunch', 'snacks'].map((mealType) => {
+                          const val = dayMenu[mealType] || '';
+                          const items = val.split(',').map(i => i.trim()).filter(Boolean);
+                          
+                          return (
+                            <div key={mealType}>
+                              <p className="text-[10px] text-slate-500 font-bold mb-1 uppercase tracking-wider">{mealType}</p>
+                              {items.length > 1 ? (
+                                <ul className="list-disc pl-4 text-xs font-medium text-slate-800 space-y-0.5">
+                                  {items.map((item, idx) => <li key={idx}>{item}</li>)}
+                                </ul>
+                              ) : (
+                                <p className="font-medium text-slate-800 text-xs">{val || '-'}</p>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ══════ MY TASKS & PERFORMANCE SECTION ══════ */ }
