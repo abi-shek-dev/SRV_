@@ -247,8 +247,9 @@ export default function FacultyMoreScreen() {
         ))}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-
+      <View style={{ flex: 1 }}>
+        {['behavior', 'announcements', 'events', 'polls', 'memories', 'mytasks', 'feedback'].includes(activeTab) && (
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         {/* BEHAVIOR */}
         {activeTab === 'behavior' && (
           <View style={styles.formCard}>
@@ -463,7 +464,8 @@ export default function FacultyMoreScreen() {
           </View>
         )}
 
-      </ScrollView>
+          </ScrollView>
+        )}
 
         {/* LEAVE REQUESTS */}
         {activeTab === 'leaves' && (
@@ -563,11 +565,21 @@ export default function FacultyMoreScreen() {
                   ) : (
                     <View style={{ gap: 8 }}>
                       {['breakfast', 'lunch', 'snacks'].map(mealType => {
-                        const val = dayMenu[mealType] || '-';
+                        const val = dayMenu[mealType];
+                        const items = val && val !== '-' ? val.split(',').map(s => s.trim()).filter(Boolean) : [];
                         return (
                           <View key={mealType}>
                             <Text style={{ color: theme.textMuted, fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>{mealType}</Text>
-                            <Text style={{ color: theme.text, fontSize: 13, fontWeight: '500' }}>{val}</Text>
+                            {items.length > 0 ? (
+                              items.map((item, idx) => (
+                                <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 4 }}>
+                                  <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: theme.amber, marginTop: 6 }} />
+                                  <Text style={{ color: theme.text, fontSize: 13, fontWeight: '500', flex: 1 }}>{item}</Text>
+                                </View>
+                              ))
+                            ) : (
+                              <Text style={{ color: theme.text, fontSize: 13, fontWeight: '500' }}>-</Text>
+                            )}
                           </View>
                         );
                       })}
@@ -819,7 +831,7 @@ export default function FacultyMoreScreen() {
             )}
           </ScrollView>
         )}
-
+      </View>
     </View>
   );
 }
