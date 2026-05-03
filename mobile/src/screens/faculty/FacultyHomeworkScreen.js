@@ -29,13 +29,29 @@ export default function FacultyHomeworkScreen() {
   const onRefresh = () => { setRefreshing(true); fetchHomework(); };
 
   const handleCreate = async () => {
-    if (!form.title.trim() || !form.subject.trim()) {
-      Alert.alert('Missing fields', 'Title and subject are required.');
+    if (!form.title.trim() || !form.subject.trim() || !form.deadline.trim()) {
+      Alert.alert('Missing fields', 'Title, subject, and deadline are required.');
       return;
     }
+    
+    // Parse deadline
+    const dDate = new Date(form.deadline);
+    if (isNaN(dDate.getTime())) {
+      Alert.alert('Invalid Date', 'Please use a valid YYYY-MM-DD format.');
+      return;
+    }
+
     try {
       setSubmitting(true);
-      await axios.post(`${API_URL}/api/faculty/homework`, form, { headers: authHeaders() });
+      const payload = {
+        title: form.title,
+        subject: form.subject,
+        description: form.description,
+        dueDate: dDate.toISOString(),
+        submissionDeadline: new Date(dDate.setHours(23, 59, 59, 999)).toISOString()
+      };
+      
+      await axios.post(`${API_URL}/api/faculty/homework`, payload, { headers: authHeaders() });
       setForm({ title: '', subject: '', description: '', deadline: '' });
       setShowForm(false);
       fetchHomework();

@@ -389,6 +389,7 @@ router.post('/homework', protect, facultyOrAdmin, async (req, res) => {
     // Push notification (fire-and-forget)
     notifyHomeworkAssigned(audience.grade, audience.section, subject, title).catch(() => {});
   } catch (error) {
+    console.error('[HOMEWORK CREATE ERROR]', error);
     res.status(500).json({ message: 'Server error adding homework' });
   }
 });

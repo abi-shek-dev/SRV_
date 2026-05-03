@@ -477,7 +477,8 @@ export default function FacultyMoreScreen() {
                 const statusBg = lv.status === 'APPROVED' ? theme.emeraldBg : lv.status === 'REJECTED' ? theme.errorBg : theme.amberBg;
                 return (
                   <View key={lv._id || i} style={styles.card}>
-                    <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
                       <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 16, backgroundColor: statusBg }}><Text style={{ color: statusColor, fontSize: 11, fontWeight: '700' }}>{lv.status}</Text></View>
                       <View style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 16, backgroundColor: theme.bg }}><Text style={{ color: theme.textSub, fontSize: 11, fontWeight: '600' }}>{lv.leaveType}</Text></View>
                     </View>
@@ -507,6 +508,7 @@ export default function FacultyMoreScreen() {
                         </View>
                       </View>
                     )}
+                    </View>
                   </View>
                 );
               })
