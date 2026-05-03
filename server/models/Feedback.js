@@ -34,7 +34,7 @@ const JOIN_SQL = `
 `;
 
 export async function find(where = {}, opts = {}) {
-  const colMap = { facultyId: 'f.faculty_id', parentId: 'f.parent_id', status: 'f.status' };
+  const colMap = { _id: 'f.id', id: 'f.id', facultyId: 'f.faculty_id', parentId: 'f.parent_id', status: 'f.status' };
   let sql = JOIN_SQL;
   const vals = []; const conds = [];
   for (const [k, v] of Object.entries(where)) {
@@ -52,7 +52,7 @@ export async function findById(id) {
 }
 
 export async function findOne(where) {
-  const colMap = { facultyId: 'f.faculty_id' };
+  const colMap = { _id: 'f.id', id: 'f.id', facultyId: 'f.faculty_id' };
   const keys = Object.keys(where);
   const conds = keys.map(k => `${colMap[k] || `f.${k}`} = ?`).join(' AND ');
   const [rows] = await pool.query(`${JOIN_SQL} WHERE ${conds} LIMIT 1`, Object.values(where));

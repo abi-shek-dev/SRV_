@@ -560,7 +560,7 @@ router.get('/attendance/:date', protect, facultyOrAdmin, async (req, res) => {
     });
     
     if (!attendanceDoc) {
-      return res.status(404).json({ message: 'No attendance record found for this date' });
+      return res.status(200).json({ notMarked: true, records: [] });
     }
     
     res.json(attendanceDoc);
@@ -969,7 +969,7 @@ router.put('/feedback/:id', protect, async (req, res) => {
   const { status, staffNote } = req.body;
 
   try {
-    const feedback = await Feedback.findOne({ _id: req.params.id, facultyId: req.user.id });
+    let feedback = await Feedback.findOne({ _id: req.params.id, facultyId: req.user.id });
     if (!feedback) return res.status(404).json({ message: 'Feedback not found' });
 
     if (status !== undefined) feedback.status = status;
@@ -977,8 +977,6 @@ router.put('/feedback/:id', protect, async (req, res) => {
     feedback.updatedBy = req.user.id;
 
     feedback = await Feedback.save(feedback);
-    await feedback;
-    await feedback;
 
     res.json({ message: 'Feedback updated successfully.', feedback: enrichParentLinkedRecord(feedback) });
   } catch (error) {

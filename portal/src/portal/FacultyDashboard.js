@@ -315,6 +315,12 @@ export function FacultyDashboard({ section = 'dashboard' }) {
       const res = await axios.get(`${API_URL}/api/faculty/attendance/${dateStr}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+      if (res.data.notMarked) {
+        setAbsenteesMsg({ text: 'No attendance marked for this date yet.', type: 'info' });
+        setAbsenteesList([]);
+        return;
+      }
+
       const absentRecords = res.data.records.filter(r => r.status === 'Absent');
       const absentStudentIds = absentRecords.map(r => String(r.studentId));
       
@@ -327,11 +333,7 @@ export function FacultyDashboard({ section = 'dashboard' }) {
       setAbsenteesList(enrichedAbsentees);
     } catch (error) {
       setAbsenteesList([]);
-      if (error.response && error.response.status === 404) {
-        setAbsenteesMsg({ text: 'No attendance marked for this date yet.', type: 'info' });
-      } else {
-        setAbsenteesMsg({ text: 'Error fetching absentees.', type: 'error' });
-      }
+      setAbsenteesMsg({ text: 'Error fetching absentees.', type: 'error' });
     } finally {
       setAbsenteesLoading(false);
     }
