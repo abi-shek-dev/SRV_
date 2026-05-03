@@ -916,7 +916,6 @@ export function AdminDashboard({ section = 'home' }) {
   const ExportCenter = () => {
     const [exportGrade, setExportGrade] = useState('');
     const [exportSection, setExportSection] = useState('');
-    const [exportDate, setExportDate] = useState(new Date().toISOString().split('T')[0]);
     const [downloading, setDownloading] = useState('');
 
     const downloadCSV = async (type) => {
@@ -926,7 +925,24 @@ export function AdminDashboard({ section = 'home' }) {
         const params = new URLSearchParams();
         if (exportGrade) params.append('grade', exportGrade);
         if (exportSection) params.append('section', exportSection);
-        if (type === 'attendance' && exportDate) params.append('date', exportDate);
+        
+        if (type === 'attendance') {
+          const { value: selectedDate } = await Swal.fire({
+            title: 'Select Date',
+            text: 'Choose the date to download attendance for:',
+            input: 'date',
+            inputValue: new Date().toISOString().split('T')[0],
+            showCancelButton: true,
+            confirmButtonText: 'Download',
+            confirmButtonColor: '#0f172a'
+          });
+          
+          if (!selectedDate) {
+            setDownloading('');
+            return;
+          }
+          params.append('date', selectedDate);
+        }
         
         const res = await axios.get(`${API_URL}/api/admin/export/${type}?${params.toString()}`, {
           headers: { Authorization: `Bearer ${token}` },
@@ -968,10 +984,6 @@ export function AdminDashboard({ section = 'home' }) {
               <option value="">All Sections</option>
               {['A','B','C'].map(s => <option key={s} value={s}>{s}</option>)}
             </select>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-slate-500 uppercase">Date (For Attendance):</span>
-              <input type="date" value={exportDate} onChange={e => setExportDate(e.target.value)} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-slate-400" />
-            </div>
           </div>
         </div>
 
