@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  ActivityIndicator, Alert, Linking, Image, TextInput
+  ActivityIndicator, Alert, Image, TextInput
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
 import theme from '../../config/theme';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 export default function MoreScreen() {
   const { user, logout, authHeaders } = useAuth();
   const [activeTab, setActiveTab] = useState('fees');
+  const [initialLoading, setInitialLoading] = useState(true);
   const [student, setStudent] = useState(null);
   const [events, setEvents] = useState([]);
   const [polls, setPolls] = useState([]);
@@ -35,12 +37,11 @@ export default function MoreScreen() {
   const [circulars, setCirculars] = useState([]);
   const [transportInfo, setTransportInfo] = useState(null);
 
-  // Library & Teacher Contact
+  // Library
   const [libraryBooks, setLibraryBooks] = useState([]);
-  const [teacherContact, setTeacherContact] = useState(null);
 
-  // Announcements
-  const [announcements, setAnnouncements] = useState([]);
+  // EC Skills
+  const [ecSkills, setEcSkills] = useState([]);
 
   // Report Card / Marks
   const [reportCard, setReportCard] = useState(null);
@@ -68,9 +69,21 @@ export default function MoreScreen() {
     axios.get(`${API_URL}/api/parent/circulars`, { headers: h }).then(r => setCirculars(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     axios.get(`${API_URL}/api/parent/transport`, { headers: h }).then(r => setTransportInfo(r.data)).catch(() => {});
     axios.get(`${API_URL}/api/parent/library`, { headers: h }).then(r => setLibraryBooks(Array.isArray(r.data) ? r.data : [])).catch(() => {});
-    axios.get(`${API_URL}/api/parent/teacher-contact`, { headers: h }).then(r => setTeacherContact(r.data)).catch(() => {});
-    axios.get(`${API_URL}/api/parent/announcements`, { headers: h }).then(r => setAnnouncements(Array.isArray(r.data) ? r.data : [])).catch(() => {});
-    axios.get(`${API_URL}/api/parent/report-card`, { headers: h }).then(r => setReportCard(r.data)).catch(() => {});
+    axios.get(`${API_URL}/api/parent/report-card`, { headers: h }).then(r => {
+      setReportCard(r.data);
+      // Extract EC Skills from the latest academic record
+      const records = Array.isArray(r.data?.academics) ? r.data.academics : [];
+      const latest = records.length > 0 ? records[records.length - 1] : null;
+      if (latest?.ecSkills) {
+        const sk = latest.ecSkills;
+        setEcSkills([
+          { skill: 'CDC', score: sk.cdc || 0 },
+          { skill: 'SUITS', score: sk.suits || 0 },
+          { skill: 'SRV Dev', score: sk.srvSkillDevelopment || 0 },
+        ].filter(s => s.score > 0));
+      }
+    }).catch(() => {});
+    setInitialLoading(false);
   }, []);
 
   const submitVote = async (pollId, optionIdx) => {
@@ -113,7 +126,6 @@ export default function MoreScreen() {
 
   const TABS = [
     { id: 'fees', label: 'Fees', icon: 'wallet-outline' },
-    { id: 'announcements', label: 'Notices', icon: 'megaphone-outline' },
     { id: 'events', label: 'Events', icon: 'calendar-outline' },
     { id: 'polls', label: 'Polls', icon: 'bar-chart-outline' },
     { id: 'memories', label: 'Memories', icon: 'images-outline' },
@@ -124,11 +136,12 @@ export default function MoreScreen() {
     { id: 'transport', label: 'Bus', icon: 'bus-outline' },
     { id: 'library', label: 'Library', icon: 'library-outline' },
     { id: 'marks', label: 'Marks', icon: 'ribbon-outline' },
-    { id: 'contact', label: 'Teacher', icon: 'chatbubbles-outline' },
+    { id: 'skills', label: 'EC Skills', icon: 'sparkles-outline' },
   ];
 
   return (
     <View style={styles.root}>
+      <LoadingOverlay visible={initialLoading} message="Loading features..." />
       <View style={styles.header}>
         <Text style={styles.title}>More</Text>
         <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
@@ -441,68 +454,26 @@ export default function MoreScreen() {
           </ScrollView>
         )}
 
-        {/* TEACHER CONTACT / WHATSAPP */}
-        {activeTab === 'contact' && (
+        {/* EC SKILLS */}
+        {activeTab === 'skills' && (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
-            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Class Teacher Contact</Text>
-            {!teacherContact ? <EmptyState icon="person-outline" text="No teacher assigned yet." /> : (
-              <View style={[styles.card, { flexDirection: 'column', padding: 20 }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                  <View style={{ width: 50, height: 50, borderRadius: 25, backgroundColor: theme.primaryBg, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ color: theme.primary, fontSize: 20, fontWeight: '800' }}>{teacherContact.teacherName?.[0]}</Text>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>EC Skills Framework</Text>
+            <Text style={{ color: theme.textSub, fontSize: 12, marginBottom: 8 }}>Extracurricular skill analysis and scores</Text>
+            {ecSkills.length === 0 ? <EmptyState icon="sparkles-outline" text="No EC Skill evaluations published yet." /> : (
+              <View style={{ gap: 12 }}>
+                {ecSkills.map((skill, idx) => (
+                  <View key={idx} style={[styles.card, { flexDirection: 'column', gap: 10 }]}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Text style={{ color: theme.text, fontWeight: '800', fontSize: 15 }}>{skill.skill}</Text>
+                      <Text style={{ color: theme.amber, fontWeight: '900', fontSize: 22 }}>{skill.score}<Text style={{ color: theme.textMuted, fontSize: 13, fontWeight: '600' }}>/5</Text></Text>
+                    </View>
+                    <View style={{ height: 8, backgroundColor: theme.amberBg, borderRadius: 4, overflow: 'hidden' }}>
+                      <View style={{ height: 8, backgroundColor: theme.amber, borderRadius: 4, width: `${(skill.score / 5) * 100}%` }} />
+                    </View>
                   </View>
-                  <View>
-                    <Text style={{ color: theme.text, fontSize: 18, fontWeight: '800' }}>{teacherContact.teacherName}</Text>
-                    <Text style={{ color: theme.textSub, fontSize: 13 }}>Class Teacher ({teacherContact.grade}-{teacherContact.section})</Text>
-                  </View>
-                </View>
-
-                {teacherContact.contactNumber ? (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12, backgroundColor: theme.bg, padding: 12, borderRadius: 12 }}>
-                    <Ionicons name="call" size={20} color={theme.textSub} />
-                    <Text style={{ color: theme.text, fontSize: 15, fontWeight: '600' }}>{teacherContact.contactNumber}</Text>
-                  </View>
-                ) : (
-                  <Text style={{ color: theme.textMuted, fontSize: 13, marginBottom: 12 }}>Phone number not provided.</Text>
-                )}
-
-                {teacherContact.whatsappLink ? (
-                  <TouchableOpacity onPress={() => Linking.openURL(teacherContact.whatsappLink).catch(() => Alert.alert('Error', 'Invalid WhatsApp link'))} style={{ backgroundColor: '#25D366', paddingVertical: 14, borderRadius: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 8 }}>
-                    <Ionicons name="logo-whatsapp" size={20} color="#fff" />
-                    <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>Join Class WhatsApp Group</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <View style={{ backgroundColor: theme.bg, padding: 14, borderRadius: 12, alignItems: 'center' }}>
-                    <Text style={{ color: theme.textSub, fontSize: 13 }}>WhatsApp link not provided.</Text>
-                  </View>
-                )}
+                ))}
               </View>
             )}
-          </ScrollView>
-        )}
-
-        {/* ANNOUNCEMENTS */}
-        {activeTab === 'announcements' && (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
-            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>School Notices</Text>
-            {announcements.length === 0 ? <EmptyState icon="megaphone-outline" text="No announcements yet." /> :
-              announcements.map((ann, i) => {
-                const priorityColor = ann.priority === 'HIGH' ? '#ef4444' : ann.priority === 'MEDIUM' ? theme.amber : theme.textSub;
-                const priorityBg = ann.priority === 'HIGH' ? '#fef2f2' : ann.priority === 'MEDIUM' ? theme.amberBg : theme.bg;
-                return (
-                  <View key={ann._id || i} style={[styles.card, { flexDirection: 'column', borderLeftWidth: 4, borderLeftColor: priorityColor, paddingLeft: 14 }]}>
-                    <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', marginBottom: 6 }}>
-                      <View style={{ paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, backgroundColor: priorityBg }}>
-                        <Text style={{ color: priorityColor, fontSize: 10, fontWeight: '700' }}>{ann.priority}</Text>
-                      </View>
-                      <Text style={{ color: theme.textMuted, fontSize: 10 }}>{new Date(ann.createdAt).toLocaleDateString()}</Text>
-                    </View>
-                    <Text style={styles.cardTitle}>{ann.title}</Text>
-                    <Text style={styles.cardDesc}>{ann.message}</Text>
-                  </View>
-                );
-              })
-            }
           </ScrollView>
         )}
 

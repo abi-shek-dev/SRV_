@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
 import theme from '../../config/theme';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 export default function StudentsScreen() {
   const { authHeaders } = useAuth();
@@ -31,7 +32,7 @@ export default function StudentsScreen() {
     s.srvNumber.toLowerCase().includes(search.toLowerCase())
   );
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color={theme.amber} size="large" /></View>;
+  if (loading) return <LoadingOverlay visible={true} message="Loading students..." />;
   if (selected) return <StudentDetail student={selected} onBack={() => setSelected(null)} authHeaders={authHeaders} />;
 
   return (

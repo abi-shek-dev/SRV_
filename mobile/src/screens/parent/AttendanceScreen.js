@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
 import theme from '../../config/theme';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 export default function AttendanceScreen() {
   const { authHeaders } = useAuth();
@@ -33,7 +34,7 @@ export default function AttendanceScreen() {
   const pctColor = pct >= 75 ? theme.emerald : theme.error;
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator color={theme.emerald} size="large" /></View>;
+    return <LoadingOverlay visible={true} message="Loading attendance..." />;
   }
 
   return (

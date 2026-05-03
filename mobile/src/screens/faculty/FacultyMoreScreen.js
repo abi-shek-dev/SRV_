@@ -5,10 +5,12 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
 import theme from '../../config/theme';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 export default function FacultyMoreScreen() {
   const { logout, authHeaders, user, token } = useAuth();
   const [activeTab, setActiveTab] = useState('behavior');
+  const [initialLoading, setInitialLoading] = useState(true);
   const [students, setStudents] = useState([]);
   const [events, setEvents] = useState([]);
   const [polls, setPolls] = useState([]);
@@ -43,8 +45,8 @@ export default function FacultyMoreScreen() {
   const [timetable, setTimetable] = useState([]);
   const [ttDay, setTtDay] = useState('');
 
-  // Profile settings
-  const [waInfo, setWaInfo] = useState({ whatsappLink: '', contactNumber: '' });
+  // Cafeteria
+  const [weeklyMenu, setWeeklyMenu] = useState([]);
 
   // Circulars
   const [circulars, setCirculars] = useState([]);
@@ -86,7 +88,7 @@ export default function FacultyMoreScreen() {
       setFeedbackDrafts(list.reduce((a, fb) => ({ ...a, [fb._id]: { status: fb.status, staffNote: fb.staffNote || '' } }), {}));
     }).catch(() => {});
     axios.get(`${API_URL}/api/faculty/leave-requests`, { headers: h }).then(r => setLeaveRequests(Array.isArray(r.data) ? r.data : [])).catch(() => {});
-    axios.get(`${API_URL}/api/faculty/whatsapp-info`, { headers: h }).then(r => setWaInfo(r.data)).catch(() => {});
+    axios.get(`${API_URL}/api/faculty/cafeteria`, { headers: h }).then(r => setWeeklyMenu(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     axios.get(`${API_URL}/api/faculty/circulars`, { headers: h }).then(r => setCirculars(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     axios.get(`${API_URL}/api/faculty/my-transport`, { headers: h }).then(r => setMyTransport(r.data)).catch(() => {});
     axios.get(`${API_URL}/api/faculty/transport`, { headers: h }).then(r => setClassRoster(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -102,6 +104,7 @@ export default function FacultyMoreScreen() {
           setTtDay(days[new Date().getDay()]);
         }).catch(() => {});
     }
+    setInitialLoading(false);
   }, []);
 
   const submitBehavior = async () => {
@@ -167,15 +170,7 @@ export default function FacultyMoreScreen() {
     } finally { setSubmitting(false); }
   };
 
-  const updateWaInfo = async () => {
-    setSubmitting(true);
-    try {
-      await axios.put(`${API_URL}/api/faculty/whatsapp-info`, waInfo, { headers: authHeaders() });
-      Alert.alert('Success', 'Contact settings updated!');
-    } catch (err) {
-      Alert.alert('Error', 'Failed to update settings');
-    } finally { setSubmitting(false); }
-  };
+
 
   const submitMyLeave = async () => {
     if (!myLeaveForm.startDate || !myLeaveForm.endDate) return Alert.alert('Missing dates', 'Start and end dates are required.');
@@ -230,11 +225,12 @@ export default function FacultyMoreScreen() {
     { id: 'circulars', label: 'Circulars', icon: 'document-text-outline' },
     { id: 'transport', label: 'Transport', icon: 'bus-outline' },
     { id: 'library', label: 'Library', icon: 'library-outline' },
-    { id: 'profile', label: 'Profile', icon: 'person-outline' },
+    { id: 'cafeteria', label: 'Cafeteria', icon: 'cafe-outline' },
   ];
 
   return (
     <View style={styles.root}>
+      <LoadingOverlay visible={initialLoading} message="Loading features..." />
       <View style={styles.header}>
         <Text style={styles.title}>More</Text>
         <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
@@ -546,20 +542,40 @@ export default function FacultyMoreScreen() {
           </ScrollView>
         )}
 
-        {/* PROFILE SETTINGS */}
-        {activeTab === 'profile' && (
+        {/* CAFETERIA MENU */}
+        {activeTab === 'cafeteria' && (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
-            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Contact Settings</Text>
-            <View style={styles.card}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardDesc}>Parents will see these details in their portal to contact you or join your class group.</Text>
-                <TextInput style={[styles.input, { marginTop: 12 }]} placeholder="WhatsApp Group Link (e.g. https://chat.whatsapp.com/...)" value={waInfo.whatsappLink} onChangeText={t => setWaInfo({ ...waInfo, whatsappLink: t })} />
-                <TextInput style={[styles.input, { marginTop: 8 }]} placeholder="Contact Phone Number" keyboardType="phone-pad" value={waInfo.contactNumber} onChangeText={t => setWaInfo({ ...waInfo, contactNumber: t })} />
-                <TouchableOpacity style={[styles.submitBtn, { marginTop: 12 }]} onPress={updateWaInfo} disabled={submitting}>
-                  <Text style={styles.submitBtnText}>{submitting ? 'Saving...' : 'Save Settings'}</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Cafeteria Menu</Text>
+            <Text style={{ color: theme.textSub, fontSize: 12, marginBottom: 8 }}>Weekly breakfast, lunch & snacks schedule.</Text>
+            {['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(day => {
+              const isWeekend = day === 'Saturday' || day === 'Sunday';
+              const dayMenu = weeklyMenu.find(m => m.day === day) || { breakfast: '', lunch: '', snacks: '' };
+              return (
+                <View key={day} style={[styles.card, { flexDirection: 'column', gap: 8, opacity: isWeekend ? 0.6 : 1 }]}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: theme.border, paddingBottom: 8 }}>
+                    <Text style={{ color: theme.text, fontWeight: '800', fontSize: 14 }}>{day}</Text>
+                    {isWeekend && <View style={{ backgroundColor: theme.bg, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}><Text style={{ color: theme.textMuted, fontSize: 10, fontWeight: '700' }}>Holiday</Text></View>}
+                  </View>
+                  {isWeekend ? (
+                    <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+                      <Text style={{ color: theme.textMuted, fontWeight: '700', fontSize: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Holiday</Text>
+                    </View>
+                  ) : (
+                    <View style={{ gap: 8 }}>
+                      {['breakfast', 'lunch', 'snacks'].map(mealType => {
+                        const val = dayMenu[mealType] || '-';
+                        return (
+                          <View key={mealType}>
+                            <Text style={{ color: theme.textMuted, fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 2 }}>{mealType}</Text>
+                            <Text style={{ color: theme.text, fontSize: 13, fontWeight: '500' }}>{val}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  )}
+                </View>
+              );
+            })}
           </ScrollView>
         )}
 

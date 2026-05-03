@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
 import theme from '../../config/theme';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 export default function BehaviorScreen() {
   const { authHeaders } = useAuth();
@@ -35,7 +36,7 @@ export default function BehaviorScreen() {
   };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator color={theme.emerald} size="large" /></View>;
+    return <LoadingOverlay visible={true} message="Loading behavior..." />;
   }
 
   return (

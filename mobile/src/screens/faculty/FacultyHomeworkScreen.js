@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
 import theme from '../../config/theme';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 export default function FacultyHomeworkScreen() {
   const { authHeaders } = useAuth();
@@ -54,7 +55,7 @@ export default function FacultyHomeworkScreen() {
     ]);
   };
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color={theme.amber} size="large" /></View>;
+  if (loading) return <LoadingOverlay visible={true} message="Loading homework..." />;
 
   return (
     <View style={styles.root}>

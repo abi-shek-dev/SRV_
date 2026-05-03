@@ -224,6 +224,46 @@ router.post('/memories', protect, facultyOrAdmin, async (req, res) => {
   }
 });
 
+// @route   GET /api/faculty/marks/:studentId
+// @desc    Get academic records for a specific student
+// @access  Private (Faculty/Admin)
+router.get('/marks/:studentId', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    const records = await AcademicRecord.find({ studentId: req.params.studentId });
+    // Flatten marks into array format the mobile app expects
+    const flat = [];
+    records.forEach(rec => {
+      if (rec.marks) {
+        Object.entries(rec.marks).forEach(([subject, score]) => {
+          if (score > 0) flat.push({ subject, score, maxScore: 100, term: rec.term });
+        });
+      }
+    });
+    res.json(flat);
+  } catch (error) {
+    console.error('[Marks Fetch Error]', error.message);
+    res.status(500).json({ message: 'Error fetching marks' });
+  }
+});
+
+// @route   GET /api/faculty/behavior/:studentId
+// @desc    Get behavior logs for a specific student
+// @access  Private (Faculty/Admin)
+router.get('/behavior/:studentId', protect, facultyOrAdmin, async (req, res) => {
+  try {
+    const allBehavior = await Behavior.find({ facultyId: req.user.id });
+    const studentLogs = allBehavior.flatMap(doc =>
+      (doc.records || [])
+        .filter(r => r.studentId && r.studentId.toString() === req.params.studentId)
+        .map(r => ({ date: doc.date, score: r.score, remarks: r.remarks }))
+    );
+    res.json(studentLogs);
+  } catch (error) {
+    console.error('[Behavior Fetch Error]', error.message);
+    res.status(500).json({ message: 'Error fetching behavior' });
+  }
+});
+
 // @route   POST /api/faculty/marks
 // @desc    Add or Update academic records (Marks, Attendance, Behaviour)
 // @access  Private (Faculty/Admin)

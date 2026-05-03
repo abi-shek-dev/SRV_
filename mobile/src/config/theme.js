@@ -33,6 +33,14 @@ const theme = {
   info: '#2563eb',
   infoBg: '#eff6ff',
 
+  // Primary — Indigo
+  primary: '#4f46e5',
+  primaryBg: '#EEF2FF',
+
+  // Orange (cafeteria accent)
+  orange: '#f97316',
+  orangeBg: '#fff7ed',
+
   // Tab bar
   tabBg: '#ffffff',
   tabActive: '#059669',

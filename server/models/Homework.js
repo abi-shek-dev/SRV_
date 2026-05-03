@@ -71,7 +71,7 @@ export async function create(data) {
 }
 
 export async function updateMany(where, update) {
-  const colMap = { grade: 'grade', section: 'section', facultyId: 'faculty_id', archived: 'archived' };
+  const colMap = { grade: 'grade', section: 'section', facultyId: 'faculty_id', archived: 'archived', createdAt: 'created_at', dueDate: 'due_date' };
   const setData = update['$set'] || update;
   const fields = {};
   for (const [k, v] of Object.entries(setData)) { fields[colMap[k] || k] = v; }

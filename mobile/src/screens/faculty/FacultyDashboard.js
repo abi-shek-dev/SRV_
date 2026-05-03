@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
 import theme from '../../config/theme';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 export default function FacultyDashboard() {
+  const navigation = useNavigation();
   const { user, logout, authHeaders } = useAuth();
   const [stats, setStats] = useState({ students: 0, homework: 0, announcements: 0 });
   const [announcements, setAnnouncements] = useState([]);
@@ -35,7 +38,7 @@ export default function FacultyDashboard() {
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator color={theme.amber} size="large" /></View>;
+    return <LoadingOverlay visible={true} message="Loading dashboard..." />;
   }
 
   return (
@@ -63,9 +66,9 @@ export default function FacultyDashboard() {
 
       {/* Stat cards */}
       <View style={styles.statRow}>
-        <StatCard icon="people-outline" label="Students" value={stats.students} color={theme.info} bg={theme.infoBg} border="#bfdbfe" />
-        <StatCard icon="document-text-outline" label="Homework" value={stats.homework} color="#7c3aed" bg="#f5f3ff" border="#ddd6fe" />
-        <StatCard icon="megaphone-outline" label="Posts" value={stats.announcements} color={theme.amber} bg={theme.amberBg} border={theme.amberBorder} />
+        <StatCard icon="people-outline" label="Students" value={stats.students} color={theme.info} bg={theme.infoBg} border="#bfdbfe" onPress={() => navigation.navigate('Students')} />
+        <StatCard icon="document-text-outline" label="Homework" value={stats.homework} color="#7c3aed" bg="#f5f3ff" border="#ddd6fe" onPress={() => navigation.navigate('Homework')} />
+        <StatCard icon="megaphone-outline" label="Posts" value={stats.announcements} color={theme.amber} bg={theme.amberBg} border={theme.amberBorder} onPress={() => navigation.navigate('More')} />
       </View>
 
       {/* Announcements */}
@@ -87,13 +90,13 @@ export default function FacultyDashboard() {
   );
 }
 
-function StatCard({ icon, label, value, color, bg, border }) {
+function StatCard({ icon, label, value, color, bg, border, onPress }) {
   return (
-    <View style={[styles.statCard, { backgroundColor: bg, borderColor: border }]}>
+    <TouchableOpacity onPress={onPress} activeOpacity={0.7} style={[styles.statCard, { backgroundColor: bg, borderColor: border }]}>
       <Ionicons name={icon} size={20} color={color} />
       <Text style={[styles.statValue, { color }]}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 

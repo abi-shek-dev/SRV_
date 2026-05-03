@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import API_URL from '../../config/api';
 import theme from '../../config/theme';
+import LoadingOverlay from '../../components/LoadingOverlay';
 
 const STATUS_OPTIONS = [
   { key: 'Present', label: 'P', color: theme.emerald, bg: theme.emeraldBg, border: theme.emeraldBorder },
@@ -50,7 +51,7 @@ export default function FacultyAttendanceScreen() {
     }
   };
 
-  if (loading) return <View style={styles.center}><ActivityIndicator color={theme.amber} size="large" /></View>;
+  if (loading) return <LoadingOverlay visible={true} message="Loading attendance..." />;
 
   const presentCount = Object.values(records).filter(s => s === 'Present').length;
   const absentCount = Object.values(records).filter(s => s === 'Absent').length;
