@@ -21,15 +21,20 @@ export default function ParentDashboard() {
   const fetchData = async () => {
     try {
       const h = authHeaders();
-      const [studentRes, annRes, cafRes] = await Promise.all([
-        axios.get(`${API_URL}/api/parent/student`, { headers: h }),
-        axios.get(`${API_URL}/api/parent/announcements`, { headers: h }),
-        axios.get(`${API_URL}/api/parent/cafeteria`, { headers: h }),
+      const [dashRes, annRes] = await Promise.all([
+        axios.get(`${API_URL}/api/parent/dashboard`, { headers: h }),
+        axios.get(`${API_URL}/api/parent/announcements`, { headers: h })
       ]);
-      setStudent(studentRes.data);
+      setStudent(dashRes.data.student);
       setAnnouncements(Array.isArray(annRes.data) ? annRes.data.slice(0, 3) : []);
-      setCafeteria(Array.isArray(cafRes.data) ? cafRes.data : []);
-    } catch (_) {}
+      
+      // Cafeteria in the dashboard response is just the single `food` object for today,
+      // but the mobile app expects an array for todayMenu() to find.
+      // Wait, let's just create an array with that one food object.
+      setCafeteria(dashRes.data.food ? [dashRes.data.food] : []);
+    } catch (err) {
+      console.error('[ParentDashboard] Error fetching data:', err.message);
+    }
     setLoading(false);
     setRefreshing(false);
   };

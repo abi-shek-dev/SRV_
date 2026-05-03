@@ -48,16 +48,16 @@ export default function MoreScreen() {
 
   useEffect(() => {
     const h = authHeaders();
-    axios.get(`${API_URL}/api/parent/student`, { headers: h }).then(r => setStudent(r.data)).catch(() => {});
+    axios.get(`${API_URL}/api/parent/dashboard`, { headers: h }).then(r => setStudent(r.data.student)).catch(() => {});
     axios.get(`${API_URL}/api/parent/events`, { headers: h }).then(r => setEvents(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     axios.get(`${API_URL}/api/parent/polls`, { headers: h }).then(r => setPolls(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     axios.get(`${API_URL}/api/parent/memories`, { headers: h }).then(r => setMemories(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     axios.get(`${API_URL}/api/parent/feedback`, { headers: h }).then(r => setFeedbacks(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     axios.get(`${API_URL}/api/parent/leave`, { headers: h }).then(r => setLeaves(Array.isArray(r.data) ? r.data : [])).catch(() => {});
     // Load timetable if student data available
-    axios.get(`${API_URL}/api/parent/student`, { headers: h }).then(studentRes => {
-      if (studentRes.data?.grade && studentRes.data?.section) {
-        axios.get(`${API_URL}/api/timetable/${studentRes.data.grade}/${studentRes.data.section}`, { headers: h })
+    axios.get(`${API_URL}/api/parent/dashboard`, { headers: h }).then(studentRes => {
+      if (studentRes.data?.student?.grade && studentRes.data?.student?.section) {
+        axios.get(`${API_URL}/api/timetable/${studentRes.data.student.grade}/${studentRes.data.student.section}`, { headers: h })
           .then(r => {
             setTimetable(r.data.periods || []);
             const days = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
@@ -163,11 +163,11 @@ export default function MoreScreen() {
         ))}
       </ScrollView>
 
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
+      <View style={{ flex: 1 }}>
 
         {/* FEES */}
         {activeTab === 'fees' && student && (
-          <View style={{ gap: 10 }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 10, paddingBottom: 32 }}>
             <FeeTerm label="Term 1" status={student.fees?.term1} amount={student.fees?.term1Amount} paid={student.fees?.term1Paid} />
             <FeeTerm label="Term 2" status={student.fees?.term2} amount={student.fees?.term2Amount} paid={student.fees?.term2Paid} />
             <FeeTerm label="Term 3" status={student.fees?.term3} amount={student.fees?.term3Amount} paid={student.fees?.term3Paid} />
@@ -182,69 +182,75 @@ export default function MoreScreen() {
                 Overall: {student.fees?.overall || 'Unpaid'}
               </Text>
             </View>
-          </View>
+          </ScrollView>
         )}
 
         {/* EVENTS */}
         {activeTab === 'events' && (
-          events.length === 0 ? <EmptyState icon="calendar-outline" text="No upcoming events" /> :
-          events.map((e, i) => (
-            <View key={e._id || i} style={styles.card}>
-              <View style={styles.eventDateBadge}>
-                <Text style={styles.eventDay}>{new Date(e.date).getDate()}</Text>
-                <Text style={styles.eventMonth}>{new Date(e.date).toLocaleString('default', { month: 'short' })}</Text>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 10 }}>
+            {events.length === 0 ? <EmptyState icon="calendar-outline" text="No upcoming events" /> :
+            events.map((e, i) => (
+              <View key={e._id || i} style={styles.card}>
+                <View style={styles.eventDateBadge}>
+                  <Text style={styles.eventDay}>{new Date(e.date).getDate()}</Text>
+                  <Text style={styles.eventMonth}>{new Date(e.date).toLocaleString('default', { month: 'short' })}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.cardTitle}>{e.title}</Text>
+                  {e.description ? <Text style={styles.cardDesc}>{e.description}</Text> : null}
+                </View>
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.cardTitle}>{e.title}</Text>
-                {e.description ? <Text style={styles.cardDesc}>{e.description}</Text> : null}
-              </View>
-            </View>
-          ))
+            ))}
+          </ScrollView>
         )}
 
         {/* POLLS */}
         {activeTab === 'polls' && (
-          polls.length === 0 ? <EmptyState icon="bar-chart-outline" text="No active polls" /> :
-          polls.map((p, i) => (
-            <View key={p._id || i} style={[styles.card, { marginBottom: 12 }]}>
-              <Text style={styles.cardTitle}>{p.question}</Text>
-              {(p.options || []).map((opt, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={[styles.pollOption, p.userVote === idx && styles.pollOptionVoted]}
-                  onPress={() => !p.userVote && submitVote(p._id, idx)}
-                >
-                  <Text style={[styles.pollOptionText, p.userVote === idx && { color: '#fff' }]}>{opt.text || opt}</Text>
-                  {p.userVote === idx && <Ionicons name="checkmark-circle" size={14} color="#fff" />}
-                </TouchableOpacity>
-              ))}
-            </View>
-          ))
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 10 }}>
+            {polls.length === 0 ? <EmptyState icon="bar-chart-outline" text="No active polls" /> :
+            polls.map((p, i) => (
+              <View key={p._id || i} style={[styles.card, { marginBottom: 12 }]}>
+                <Text style={styles.cardTitle}>{p.question}</Text>
+                {(p.options || []).map((opt, idx) => (
+                  <TouchableOpacity
+                    key={idx}
+                    style={[styles.pollOption, p.userVote === idx && styles.pollOptionVoted]}
+                    onPress={() => !p.userVote && submitVote(p._id, idx)}
+                  >
+                    <Text style={[styles.pollOptionText, p.userVote === idx && { color: '#fff' }]}>{opt.text || opt}</Text>
+                    {p.userVote === idx && <Ionicons name="checkmark-circle" size={14} color="#fff" />}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            ))}
+          </ScrollView>
         )}
 
         {/* MEMORIES */}
         {activeTab === 'memories' && (
-          memories.length === 0 ? <EmptyState icon="images-outline" text="No memories yet" /> :
-          memories.map((m, i) => (
-            <View key={m._id || i} style={[styles.memCard, { marginBottom: 12 }]}>
-              {m.resourceType === 'image' && (
-                <Image source={{ uri: m.secureUrl }} style={styles.memImage} resizeMode="cover" />
-              )}
-              <View style={{ padding: 12 }}>
-                <Text style={styles.cardTitle}>{m.title}</Text>
-                {m.description ? <Text style={styles.cardDesc}>{m.description}</Text> : null}
-                <TouchableOpacity style={styles.dlBtn} onPress={() => Linking.openURL(m.secureUrl.replace('/upload/', '/upload/fl_attachment/'))}>
-                  <Ionicons name="download-outline" size={13} color={theme.emerald} />
-                  <Text style={styles.dlText}>Download</Text>
-                </TouchableOpacity>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 12 }}>
+            {memories.length === 0 ? <EmptyState icon="images-outline" text="No memories yet" /> :
+            memories.map((m, i) => (
+              <View key={m._id || i} style={[styles.memCard, { marginBottom: 12 }]}>
+                {m.resourceType === 'image' && (
+                  <Image source={{ uri: m.secureUrl }} style={styles.memImage} resizeMode="cover" />
+                )}
+                <View style={{ padding: 12 }}>
+                  <Text style={styles.cardTitle}>{m.title}</Text>
+                  {m.description ? <Text style={styles.cardDesc}>{m.description}</Text> : null}
+                  <TouchableOpacity style={styles.dlBtn} onPress={() => Linking.openURL(m.secureUrl.replace('/upload/', '/upload/fl_attachment/'))}>
+                    <Ionicons name="download-outline" size={13} color={theme.emerald} />
+                    <Text style={styles.dlText}>Download</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ))
+            ))}
+          </ScrollView>
         )}
 
         {/* FEEDBACK */}
         {activeTab === 'feedback' && (
-          <View style={{ gap: 12 }}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 32, gap: 12 }}>
             {/* Submit Form */}
             <View style={styles.fbFormCard}>
               <Text style={styles.fbFormTitle}>Send Feedback</Text>
@@ -292,9 +298,8 @@ export default function MoreScreen() {
                 );
               })
             }
-          </View>
+          </ScrollView>
         )}
-      </ScrollView>
 
         {/* LEAVE REQUESTS */}
         {activeTab === 'leave' && (
@@ -398,36 +403,99 @@ export default function MoreScreen() {
 
         {/* TRANSPORT */}
         {activeTab === 'transport' && (
-          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, gap: 12 }}>
-            <Text style={{ color: theme.text, fontSize: 16, fontWeight: '800', marginBottom: 4 }}>Bus Information</Text>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: 16, paddingBottom: 32 }}>
             {!transportInfo ? (
-              <View style={styles.card}><Text style={styles.cardDesc}>No transport assigned for your child.</Text></View>
+              <View style={{ alignItems: 'center', paddingTop: 60, gap: 12 }}>
+                <Text style={{ fontSize: 48 }}>🚌</Text>
+                <Text style={{ color: theme.textMuted, fontSize: 15, fontWeight: '600' }}>No transport assigned</Text>
+              </View>
             ) : (
-              <View style={[styles.card, { gap: 8 }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#EEF2FF', alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 20 }}>🚌</Text>
+              <View style={{ gap: 12 }}>
+
+                {/* Hero Banner */}
+                <View style={{ backgroundColor: '#1E3A5F', borderRadius: 18, padding: 20, flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+                  <View style={{ width: 60, height: 60, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 30 }}>🚌</Text>
                   </View>
-                  <View>
-                    <Text style={styles.cardTitle}>{transportInfo.routeName}</Text>
-                    <Text style={styles.cardDesc}>Bus: {transportInfo.busNumber || 'N/A'}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Route</Text>
+                    <Text style={{ color: '#fff', fontSize: 20, fontWeight: '900' }}>{transportInfo.routeName || 'N/A'}</Text>
+                    <Text style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, marginTop: 2 }}>Bus: {transportInfo.busNumber || 'N/A'}</Text>
                   </View>
                 </View>
-                <View style={{ backgroundColor: theme.bg, borderRadius: 12, padding: 12, gap: 4 }}>
-                  <Text style={{ color: theme.text, fontSize: 12, fontWeight: '700' }}>Driver: {transportInfo.driverName || 'N/A'}</Text>
-                  <Text style={{ color: theme.textSub, fontSize: 11 }}>📞 {transportInfo.driverPhone || 'N/A'}</Text>
-                  {transportInfo.helperName ? <Text style={{ color: theme.textSub, fontSize: 11 }}>Helper: {transportInfo.helperName} ({transportInfo.helperPhone || '-'})</Text> : null}
-                </View>
-                {transportInfo.stopName && (
-                  <View style={{ backgroundColor: '#ECFDF5', borderRadius: 12, padding: 12, borderWidth: 1, borderColor: '#A7F3D0' }}>
-                    <Text style={{ color: '#059669', fontSize: 12, fontWeight: '700' }}>Your Stop: {transportInfo.stopName}</Text>
-                    <Text style={{ color: '#059669', fontSize: 11 }}>Pickup: {transportInfo.pickupTime || '-'} • Drop: {transportInfo.dropTime || '-'}</Text>
+
+                {/* Staff Card */}
+                <View style={{ backgroundColor: theme.surface, borderRadius: 16, borderWidth: 1, borderColor: theme.border, overflow: 'hidden' }}>
+                  <View style={{ paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.border, backgroundColor: theme.bg }}>
+                    <Text style={{ color: theme.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 }}>Staff</Text>
                   </View>
-                )}
+
+                  {/* Driver */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: theme.amberBg, alignItems: 'center', justifyContent: 'center' }}>
+                        <Ionicons name="person-outline" size={18} color={theme.amber} />
+                      </View>
+                      <View>
+                        <Text style={{ color: theme.textMuted, fontSize: 11, fontWeight: '600' }}>Driver</Text>
+                        <Text style={{ color: theme.text, fontSize: 15, fontWeight: '700' }}>{transportInfo.driverName || 'N/A'}</Text>
+                      </View>
+                    </View>
+                    <Text style={{ color: theme.emerald, fontSize: 14, fontWeight: '700' }}>📞 {transportInfo.driverPhone || '—'}</Text>
+                  </View>
+
+                  {/* Helper */}
+                  {transportInfo.helperName ? (
+                    <>
+                      <View style={{ height: 1, backgroundColor: theme.border }} />
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                          <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#EFF6FF', alignItems: 'center', justifyContent: 'center' }}>
+                            <Ionicons name="person-add-outline" size={18} color={theme.info} />
+                          </View>
+                          <View>
+                            <Text style={{ color: theme.textMuted, fontSize: 11, fontWeight: '600' }}>Helper</Text>
+                            <Text style={{ color: theme.text, fontSize: 15, fontWeight: '700' }}>{transportInfo.helperName}</Text>
+                          </View>
+                        </View>
+                        <Text style={{ color: theme.emerald, fontSize: 14, fontWeight: '700' }}>📞 {transportInfo.helperPhone || '—'}</Text>
+                      </View>
+                    </>
+                  ) : null}
+                </View>
+
+                {/* Stop Card */}
+                {transportInfo.stopName ? (
+                  <View style={{ backgroundColor: theme.surface, borderRadius: 16, borderWidth: 1, borderColor: theme.border, overflow: 'hidden' }}>
+                    <View style={{ paddingHorizontal: 16, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: theme.border, backgroundColor: theme.bg }}>
+                      <Text style={{ color: theme.textMuted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.8 }}>Your Stop</Text>
+                    </View>
+                    <View style={{ paddingHorizontal: 16, paddingTop: 14, paddingBottom: 6 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons name="location" size={18} color="#059669" />
+                        <Text style={{ color: theme.text, fontSize: 17, fontWeight: '800' }}>{transportInfo.stopName}</Text>
+                      </View>
+                    </View>
+                    <View style={{ flexDirection: 'row', gap: 10, padding: 12 }}>
+                      <View style={{ flex: 1, backgroundColor: '#ECFDF5', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
+                        <Text style={{ color: '#059669', fontSize: 10, fontWeight: '700', letterSpacing: 0.5, marginBottom: 4 }}>PICKUP</Text>
+                        <Text style={{ color: '#059669', fontSize: 18, fontWeight: '900' }}>{transportInfo.pickupTime || '—'}</Text>
+                      </View>
+                      <View style={{ flex: 1, backgroundColor: '#FFF7ED', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
+                        <Text style={{ color: '#EA580C', fontSize: 10, fontWeight: '700', letterSpacing: 0.5, marginBottom: 4 }}>DROP</Text>
+                        <Text style={{ color: '#EA580C', fontSize: 18, fontWeight: '900' }}>{transportInfo.dropTime || '—'}</Text>
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
+
               </View>
             )}
           </ScrollView>
         )}
+
+
+
 
         {/* LIBRARY */}
         {activeTab === 'library' && (
@@ -505,6 +573,7 @@ export default function MoreScreen() {
           </ScrollView>
         )}
 
+      </View>
     </View>
   );
 }

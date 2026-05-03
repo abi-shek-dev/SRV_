@@ -3,7 +3,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform, Alert } from 'react-native';
 import axios from 'axios';
-import { API_URL } from '../config/api';
+import API_URL from '../config/api';
 
 // Configure how notifications appear when app is foregrounded
 Notifications.setNotificationHandler({
@@ -60,7 +60,7 @@ export async function registerForPushNotifications() {
 
     return token;
   } catch (error) {
-    console.error('[Push] Token error:', error);
+    console.log('[Push] Token error (Ignored in Expo Go):', error.message);
     return null;
   }
 }
