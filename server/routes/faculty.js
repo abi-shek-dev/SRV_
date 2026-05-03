@@ -1247,7 +1247,7 @@ router.get('/transport', protect, facultyOrAdmin, async (req, res) => {
   try {
     const context = await getFacultyClassContext(req.user.id);
     if (!context) return res.json([]);
-    const { grade, section } = context;
+    const { assignedGrade: grade, assignedSection: section } = context;
 
     // We fetch all students in this class, then their transport records
     const students = await Student.find({ grade, section });
@@ -1288,7 +1288,7 @@ router.get('/library/issues', protect, facultyOrAdmin, async (req, res) => {
   try {
     const context = await getFacultyClassContext(req.user.id);
     if (!context) return res.json([]);
-    const { grade, section } = context;
+    const { assignedGrade: grade, assignedSection: section } = context;
     
     // Fetch all issues
     const issues = await Library.findAllIssues({ status: 'ISSUED' });
@@ -1326,7 +1326,7 @@ router.post('/library/return/:id', protect, facultyOrAdmin, async (req, res) => 
 router.get('/circulars', protect, facultyOrAdmin, async (req, res) => {
   try {
     const context = await getFacultyClassContext(req.user.id);
-    const filters = context ? { targetGrade: context.grade, targetSection: context.section } : {};
+    const filters = context ? { targetGrade: context.assignedGrade, targetSection: context.assignedSection } : {};
     const circulars = await Circular.findAll(filters);
     res.json(circulars);
   } catch (error) {

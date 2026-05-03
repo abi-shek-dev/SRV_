@@ -163,7 +163,12 @@ export default function FacultyMoreScreen() {
     if (!annForm.title.trim() || !annForm.body.trim()) return Alert.alert('Missing fields', 'Title and body are required.');
     try {
       setSubmitting(true);
-      await axios.post(`${API_URL}/api/faculty/announcements`, annForm, { headers: authHeaders() });
+      const payload = {
+        title: annForm.title,
+        message: annForm.body,
+        toAllStudents: true
+      };
+      await axios.post(`${API_URL}/api/faculty/announcements`, payload, { headers: authHeaders() });
       setAnnForm({ title: '', body: '' }); setShowAnnForm(false);
       const r = await axios.get(`${API_URL}/api/faculty/announcements`, { headers: authHeaders() });
       setAnnouncements(Array.isArray(r.data) ? r.data : []);
