@@ -35,6 +35,7 @@ export default function App() {
           <Route path="/faculty/library"       element={<FacultyDashboard section="library" />} />
           <Route path="/faculty/transport"     element={<FacultyDashboard section="transport" />} />
           <Route path="/faculty/circulars"     element={<FacultyDashboard section="circulars" />} />
+          <Route path="/faculty/cafeteria"     element={<FacultyDashboard section="cafeteria" />} />
         </Route>
 
         {/* Parent Routes */}
