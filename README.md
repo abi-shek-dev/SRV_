@@ -490,6 +490,150 @@ pm2 logs srv-backend
 
 ---
 
+## 🚦 Going Live — Switching localhost to Production URLs
+
+When deploying to a live/production server, you must replace all `localhost` references with your real server IP or domain. Below is a complete checklist of every file that needs updating.
+
+> **Tip:** Find your server's public IP with `curl ifconfig.me` (Linux) or check your router/VPS dashboard.
+
+---
+
+### 1. Backend Server — CORS allowed origins
+
+**File:** `server/server.js` → Lines 27–30
+
+```js
+// Replace each localhost entry with your live domain/IP
+'http://localhost:3000',   →   'https://your-frontend-domain.com'
+'http://localhost:3001',   →   'https://your-admin-domain.com'
+'http://localhost:3002',   →   (remove or replace if unused)
+'http://localhost:3003',   →   'https://your-portal-domain.com'
+```
+
+Or add your production origins alongside the existing localhost ones so both work.
+
+---
+
+### 2. Backend Server — `.env` file
+
+**File:** `server/.env`
+
+```env
+# If MySQL runs on a different machine (e.g. a separate DB server)
+DB_HOST=localhost   →   DB_HOST=your-db-server-ip
+
+# Add your production frontend origins (comma-separated or set multiple in server.js)
+CORS_ORIGIN=https://your-frontend-domain.com
+```
+
+> If MySQL is on the **same machine** as the server, `DB_HOST=localhost` is correct — no change needed.
+
+---
+
+### 3. Frontend Public Website — Portal Login Button
+
+**File:** `frontend/src/components/Navbar.js` → Lines **164** and **266**
+
+```js
+// Desktop nav button (line 164)
+href="http://localhost:3003/login"   →   href="https://your-portal-domain.com/login"
+
+// Mobile nav drawer (line 266)
+href="http://localhost:3003/login"   →   href="https://your-portal-domain.com/login"
+```
+
+---
+
+### 4. Frontend Public Website — API base URL
+
+**File:** `frontend/src/config/api.js`
+
+```js
+// Current (auto-switches between local and Vercel fallback):
+const API_URL = import.meta.env.VITE_API_URL
+  || (window.location.hostname === 'localhost'
+      ? 'http://localhost:5001'
+      : 'https://srv-backend-psi.vercel.app');   // ← update this fallback URL
+```
+
+**Recommended:** Set `VITE_API_URL` in `frontend/.env` instead of relying on the fallback:
+
+```env
+VITE_API_URL=https://your-backend-domain.com
+```
+
+Then rebuild: `npm run build`
+
+---
+
+### 5. Admin Portal — API base URL
+
+**File:** `admin/src/config/api.js`
+
+```js
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+//                                                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+//                              This fallback is fine for dev.
+//                              For production, set VITE_API_URL in admin/.env
+```
+
+**`admin/.env`:**
+
+```env
+VITE_API_URL=https://your-backend-domain.com
+```
+
+Then rebuild: `npm run build`
+
+---
+
+### 6. Faculty & Parent Portal — API base URL
+
+**File:** `portal/src/config/api.js`
+
+```js
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001';
+```
+
+**`portal/.env`:**
+
+```env
+VITE_API_URL=https://your-backend-domain.com
+```
+
+Then rebuild: `npm run build`
+
+---
+
+### 7. Mobile App — API base URL
+
+**File:** `mobile/src/config/api.js` → Line **4**
+
+```js
+// Change this to your live server's public IP or domain
+const API_URL = 'http://localhost:5001';   →   const API_URL = 'https://your-backend-domain.com';
+```
+
+> The mobile app does **not** use `VITE_API_URL` — the URL is hardcoded directly in this file.
+
+---
+
+### Quick Reference Checklist
+
+| # | File | What to Change | Change to |
+|---|------|---------------|-----------|
+| 1 | `server/server.js` lines 27–30 | `localhost:3000–3003` in CORS list | Your live frontend/admin/portal domain(s) |
+| 2 | `server/.env` | `CORS_ORIGIN=` | Your live frontend origin(s) |
+| 3 | `frontend/src/components/Navbar.js` lines 164 & 266 | `http://localhost:3003/login` | `https://your-portal-domain.com/login` |
+| 4 | `frontend/.env` | `VITE_API_URL=` | `https://your-backend-domain.com` |
+| 5 | `admin/.env` | `VITE_API_URL=` | `https://your-backend-domain.com` |
+| 6 | `portal/.env` | `VITE_API_URL=` | `https://your-backend-domain.com` |
+| 7 | `mobile/src/config/api.js` line 4 | `http://localhost:5001` | `https://your-backend-domain.com` |
+
+> After updating `.env` files for the web portals, always run `npm run build` in that folder to bake the new URL into the production bundle.
+
+---
+
 ## 🐛 Troubleshooting
 
 | Problem | Solution |
