@@ -17,9 +17,19 @@
   --color-surface: #ffffff;
 }
 
+:root {
+  --srv-forest: #0d3b2a;
+  --srv-forest-deep: #052e16;
+  --srv-gold: #f59e0b;
+  --srv-mist: rgba(255, 255, 255, 0.72);
+  --srv-line: rgba(15, 23, 42, 0.08);
+}
+
 body {
   font-family: var(--font-sans);
-  background-color: var(--color-bg);
+  background:
+    radial-gradient(circle at top, rgba(245, 158, 11, 0.08), transparent 28%),
+    linear-gradient(180deg, #f8fafc 0%, #f7fbf7 45%, #f8fafc 100%);
   color: var(--color-primary);
   -webkit-font-smoothing: antialiased;
 }
@@ -37,6 +47,17 @@ html, body, #root {
 
 #root {
   flex-grow: 1;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 12% 18%, rgba(5, 150, 105, 0.08), transparent 22%),
+    radial-gradient(circle at 88% 12%, rgba(245, 158, 11, 0.06), transparent 20%);
+  pointer-events: none;
+  z-index: -1;
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -66,4 +87,95 @@ h1, h2, h3, h4, h5, h6 {
   font-family: "IBM Plex Serif", serif;
   font-weight: 600;
   font-style: normal;
+}
+
+.srv-site-shell {
+  position: relative;
+  isolation: isolate;
+}
+
+.srv-site-shell::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.09), transparent 24%),
+    radial-gradient(circle at left center, rgba(5, 150, 105, 0.07), transparent 24%);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.srv-page-shell {
+  position: relative;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.11), transparent 24%),
+    radial-gradient(circle at left 30%, rgba(16, 185, 129, 0.08), transparent 20%),
+    linear-gradient(180deg, rgba(248, 250, 252, 0.98) 0%, rgba(246, 251, 247, 0.98) 55%, rgba(248, 250, 252, 1) 100%);
+}
+
+.srv-page-shell::before,
+.srv-page-shell::after {
+  content: "";
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(70px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.srv-page-shell::before {
+  top: 120px;
+  right: -120px;
+  width: 320px;
+  height: 320px;
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.srv-page-shell::after {
+  bottom: 8%;
+  left: -120px;
+  width: 300px;
+  height: 300px;
+  background: rgba(16, 185, 129, 0.1);
+}
+
+.srv-page-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+.srv-page-container {
+  position: relative;
+}
+
+.srv-page-shell .bg-white {
+  background-color: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.srv-page-shell .border-slate-100,
+.srv-page-shell .border-slate-200 {
+  border-color: rgba(15, 23, 42, 0.08);
+}
+
+.srv-page-shell .shadow-xl,
+.srv-page-shell .shadow-2xl,
+.srv-page-shell .shadow-lg,
+.srv-page-shell .shadow-sm {
+  box-shadow: 0 24px 80px rgba(15, 23, 42, 0.08);
+}
+
+.srv-panel-dark {
+  background:
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.16), transparent 30%),
+    linear-gradient(145deg, #052e16 0%, #14532d 45%, #0f172a 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 24px 90px rgba(5, 46, 22, 0.28);
+}
+
+.srv-theme-frame {
+  border: 1px solid var(--srv-line);
+  box-shadow: 0 24px 90px rgba(15, 23, 42, 0.08);
 }

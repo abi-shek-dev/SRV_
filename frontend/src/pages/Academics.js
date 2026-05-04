@@ -18,22 +18,42 @@ const skillItems = [
   { title: 'Self-Management', desc: 'Building strong work ethic, initiative, and a positive attitude towards work.' },
 ];
 
+const landingHighlights = [
+  {
+    title: 'Recognized Curriculum',
+    description: 'SRV follows the Tamil Nadu Directorate curriculum and builds a strong academic foundation from kindergarten to upper secondary.',
+  },
+  {
+    title: 'Balanced Learning',
+    description: 'Students grow through a healthy mix of classroom learning, co-curricular participation, discipline, and value-based education.',
+  },
+  {
+    title: 'Language Strength',
+    description: 'Special emphasis is given to communication and language development in Hindi, English, Tamil, and Arabic.',
+  },
+];
+
 export function Academics() {
   return (
-    <div className="flex flex-col bg-slate-50 min-h-screen">
-      <PageHero title="Academics" breadcrumb="Academics" />
+    <div className="srv-page-shell flex min-h-screen flex-col bg-slate-50">
+      <PageHero
+        title="Academic learning at SRV is built to shape knowledge, discipline, confidence, and lifelong curiosity."
+        breadcrumb="Academics"
+        description="We believe in comprehensive education that motivates children to pursue new opportunities while growing through strong academics, language skills, values, and co-curricular exposure."
+        highlights={landingHighlights}
+      />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-20 w-full">
+      <div className="srv-page-container mx-auto w-full max-w-7xl px-4 pb-20 pt-20 sm:px-6 lg:px-8">
 
         {/* Section 1 - Overview + Diamond Image */}
-        <div className="grid lg:grid-cols-2 gap-16 items-center mb-24">
+        <div className="mb-24 grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
 
           {/* Diamond Image Collage */}
           <motion.div
             initial={{ opacity: 0, x: -40 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="relative h-[480px] hidden md:block"
+            className="relative h-[320px] sm:h-[420px] md:h-[480px]"
           >
             <motion.div
               animate={{ y: [-12, 12, -12] }}
@@ -41,27 +61,27 @@ export function Academics() {
               className="absolute inset-0"
             >
               {/* Center Diamond */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rotate-45 rounded-[2.5rem] overflow-hidden border-8 border-white shadow-2xl z-20">
+              <div className="absolute left-1/2 top-1/2 z-20 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rotate-45 overflow-hidden rounded-[1.75rem] border-4 border-white shadow-2xl sm:h-60 sm:w-60 sm:rounded-[2.25rem] sm:border-[6px] md:h-72 md:w-72 lg:rounded-[2.5rem] lg:border-8">
                 <img
-                  src={getPageImage(academicImages, 0, "https://images.unsplash.com/photo-1546410531-bb4caa6b424d?q=80&w=2942&auto=format&fit=crop")}
+                  src={getPageImage(academicImages, 0, academicImages[0]?.url)}
                   className="-rotate-45 scale-[1.35] object-cover w-full h-full"
                   alt="Student"
                   referrerPolicy="no-referrer"
                 />
               </div>
               {/* Top Right */}
-              <div className="absolute top-4 right-4 w-44 h-44 rotate-45 rounded-3xl overflow-hidden border-8 border-white shadow-xl z-10">
+              <div className="absolute right-6 top-6 z-10 h-28 w-28 rotate-45 overflow-hidden rounded-2xl border-4 border-white shadow-xl sm:h-36 sm:w-36 sm:rounded-3xl sm:border-[6px] md:right-4 md:top-4 md:h-44 md:w-44 lg:border-8">
                 <img
-                  src={getPageImage(academicImages, 1, "https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2000&auto=format&fit=crop")}
+                  src={getPageImage(academicImages, 1, academicImages[1]?.url)}
                   className="-rotate-45 scale-150 object-cover w-full h-full"
                   alt="Classroom"
                   referrerPolicy="no-referrer"
                 />
               </div>
               {/* Bottom Left */}
-              <div className="absolute bottom-4 left-4 w-44 h-44 rotate-45 rounded-3xl overflow-hidden border-8 border-white shadow-xl z-10">
+              <div className="absolute bottom-6 left-6 z-10 h-28 w-28 rotate-45 overflow-hidden rounded-2xl border-4 border-white shadow-xl sm:h-36 sm:w-36 sm:rounded-3xl sm:border-[6px] md:bottom-4 md:left-4 md:h-44 md:w-44 lg:border-8">
                 <img
-                  src={getPageImage(academicImages, 2, "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=2940&auto=format&fit=crop")}
+                  src={getPageImage(academicImages, 2, academicImages[2]?.url)}
                   className="-rotate-45 scale-150 object-cover w-full h-full"
                   alt="Science"
                   referrerPolicy="no-referrer"
@@ -79,7 +99,7 @@ export function Academics() {
           >
             <div>
               <span className="text-amber-500 font-semibold tracking-widest uppercase text-sm mb-3 block">Our School</span>
-              <h2 className="text-3xl lg:text-4xl font-display font-bold text-slate-900 leading-tight mb-5">
+              <h2 className="mb-5 text-3xl font-display font-bold leading-tight text-slate-900 sm:text-4xl">
                 Sri Ramakrishna Vidyalaya<br />Matriculation School
               </h2>
             </div>
@@ -107,7 +127,7 @@ export function Academics() {
           viewport={{ once: true }}
           className="mb-20"
         >
-          <div className="bg-white rounded-3xl p-10 md:p-14 shadow-xl border border-slate-100">
+          <div className="rounded-3xl border border-slate-100 bg-white p-6 shadow-xl sm:p-10 md:p-14">
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 shrink-0">
                 <Users size={22} />
@@ -141,9 +161,9 @@ export function Academics() {
           initial={{ opacity: 0, y: 30 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          className="grid lg:grid-cols-2 gap-12 items-start"
+          className="grid items-start gap-8 lg:grid-cols-2 lg:gap-12"
         >
-          <div className="bg-emerald-900 rounded-3xl p-10 md:p-12 text-white h-full">
+          <div className="h-full rounded-3xl bg-slate-900 p-6 text-white sm:p-10 md:p-12">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shrink-0">
                 <Lightbulb size={20} className="text-white" />

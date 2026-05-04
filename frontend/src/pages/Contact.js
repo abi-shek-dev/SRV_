@@ -4,6 +4,28 @@ import { useState } from 'react';
 import Swal from 'sweetalert2';
 import { PageHero } from '../components/PageHero';
 import { StatsCtaBanner } from '../components/StatsCtaBanner';
+import {
+  SCHOOL_LOCATION_HELPER,
+  SCHOOL_LOCATION_LABEL,
+  SCHOOL_LOCATION_LINK,
+  SCHOOL_PHONE_DISPLAY,
+  SCHOOL_PHONE_LINK,
+} from '../config/siteContact';
+
+const landingHighlights = [
+  {
+    title: 'Visit The Campus',
+    description: 'Reach out to plan a school visit and experience the learning environment, facilities, and student culture firsthand.',
+  },
+  {
+    title: 'Talk To Our Team',
+    description: 'Get support for admissions, curriculum questions, and general school information from our office team.',
+  },
+  {
+    title: 'Send An Enquiry',
+    description: 'Use the contact form to share your message and we will get back to you as quickly as possible.',
+  },
+];
 
 export function Contact() {
   const handleSubmit = (e) => {
@@ -19,13 +41,19 @@ export function Contact() {
   };
 
   return (
-    <div className="flex flex-col bg-slate-50 min-h-screen relative overflow-x-hidden">
-      <PageHero title="Contact Us" breadcrumb="Contact" />
-      {/* Background elements */}
-      <div className="absolute top-0 right-0 -mr-64 -mt-64 w-[800px] h-[800px] rounded-full bg-emerald-100/40 blur-[120px] pointer-events-none" />
-      <div className="absolute bottom-0 left-0 -ml-64 -mb-64 w-[600px] h-[600px] rounded-full bg-amber-100/40 blur-[100px] pointer-events-none" />
+    <div className="srv-page-shell relative flex min-h-screen flex-col overflow-x-hidden bg-slate-50">
+      <PageHero
+        title="Connect with the SRV team for admissions, school information, and campus support."
+        breadcrumb="Contact Us"
+        description="Whether you are exploring admission, planning a visit, or simply need guidance, we are here to help you with clear and friendly support."
+        highlights={landingHighlights}
+      />
+      <div className="srv-page-container relative mx-auto w-full max-w-7xl px-4 pb-16 pt-20 sm:px-6 lg:px-8">
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute -right-64 -top-64 h-[800px] w-[800px] rounded-full bg-emerald-100/40 blur-[120px]" />
+          <div className="absolute -bottom-64 -left-64 h-[600px] w-[600px] rounded-full bg-amber-100/40 blur-[100px]" />
+        </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full pt-20 pb-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -50,9 +78,9 @@ export function Contact() {
             className="lg:col-span-5 space-y-6"
           >
             {[
-              { icon: MapPin, title: "Campus Address", desc: "SRV Matriculation School,\nTamil Nadu, India", color: "emerald" },
-              { icon: Phone, title: "Phone Number", desc: "+91 04327 252435\nMon - Sat, 8:30am - 5:00pm", color: "amber" },
-              { icon: Mail, title: "Email Address", desc: "info@srvmschool.in\nadmissions@srvmschool.in", color: "emerald" }
+              { icon: MapPin, title: "Campus Address", color: "emerald" },
+              { icon: Phone, title: "Phone Number", color: "amber" },
+              { icon: Mail, title: "Email Address", color: "emerald" }
             ].map((item, idx) => (
               <div key={idx} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow flex items-start gap-5 group">
                 <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105
@@ -61,7 +89,32 @@ export function Contact() {
                 </div>
                 <div>
                   <h4 className="font-display font-semibold text-slate-900 text-lg mb-2">{item.title}</h4>
-                  <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">{item.desc}</p>
+                  {item.title === 'Campus Address' ? (
+                    <div className="space-y-1 text-sm leading-relaxed">
+                      <p className="text-slate-600">{SCHOOL_LOCATION_LABEL}</p>
+                      <a
+                        href={SCHOOL_LOCATION_LINK}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-emerald-700 hover:text-emerald-600"
+                      >
+                        {SCHOOL_LOCATION_HELPER}
+                      </a>
+                    </div>
+                  ) : null}
+                  {item.title === 'Phone Number' ? (
+                    <div className="space-y-1 text-sm leading-relaxed">
+                      <a href={SCHOOL_PHONE_LINK} className="text-slate-600 hover:text-amber-600">
+                        {SCHOOL_PHONE_DISPLAY}
+                      </a>
+                      <p className="text-slate-600">Mon - Sat, 8:30am - 5:00pm</p>
+                    </div>
+                  ) : null}
+                  {item.title === 'Email Address' ? (
+                    <p className="text-slate-600 text-sm leading-relaxed whitespace-pre-line">
+                      {"info@srvmschool.in\nadmissions@srvmschool.in"}
+                    </p>
+                  ) : null}
                 </div>
               </div>
             ))}

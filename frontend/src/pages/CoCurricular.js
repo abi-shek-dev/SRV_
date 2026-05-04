@@ -31,32 +31,37 @@ const activities = [
   }
 ];
 
+const landingHighlights = [
+  {
+    title: 'Sports And Athletics',
+    description: 'Structured physical activities help students build fitness, resilience, teamwork, and sporting confidence.',
+  },
+  {
+    title: 'Arts And Expression',
+    description: 'Music, dance, drama, and literary activities give students space to express talent with joy and creativity.',
+  },
+  {
+    title: 'Clubs And Leadership',
+    description: 'Clubs and societies encourage initiative, collaboration, communication, and meaningful student participation.',
+  },
+];
+
 export function CoCurricular() {
   return (
-    <div className="flex flex-col bg-slate-50 min-h-screen overflow-x-hidden relative">
-      <PageHero title="Co-Curricular" breadcrumb="Co-Curricular" />
-      
-      {/* Dynamic Background */}
-      <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-emerald-100/30 rounded-full blur-[100px] -z-0" />
-      <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-amber-100/30 rounded-full blur-[100px] -z-0" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full pt-20 pb-16">
+    <div className="srv-page-shell relative flex min-h-screen flex-col overflow-x-hidden bg-slate-50">
+      <PageHero
+        title="Beyond the classroom, students discover talent, teamwork, confidence, and joyful self-expression."
+        breadcrumb="Co-Curricular"
+        description="SRV encourages learners to explore interests, develop unique abilities, and build memorable friendships through a rich mix of sports, arts, clubs, and activities."
+        highlights={landingHighlights}
+      />
+      <div className="srv-page-container relative mx-auto w-full max-w-7xl px-4 pb-16 pt-20 sm:px-6 lg:px-8">
+        <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+          <div className="absolute -top-24 -right-40 h-[600px] w-[600px] rounded-full bg-emerald-100/30 blur-[100px]" />
+          <div className="absolute bottom-0 -left-32 h-[500px] w-[500px] rounded-full bg-amber-100/30 blur-[100px]" />
+        </div>
         
         {/* Header Block */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-16"
-        >
-          <span className="text-emerald-600 font-semibold tracking-widest uppercase text-sm mb-4 block">
-            Beyond the Classroom
-          </span>
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-display font-bold text-slate-900 mb-6">Co-curricular Activities</h1>
-          <p className="text-base md:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
-            Discover a limitless world of opportunities to explore profound interests, develop unique talents, and build lifelong, meaningful friendships.
-          </p>
-        </motion.div>
-
         {/* Bento Grid Layout */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-20">
           
@@ -68,7 +73,7 @@ export function CoCurricular() {
             className="group relative md:col-span-2 lg:col-span-2 bg-slate-900 rounded-3xl overflow-hidden shadow-2xl isolate h-[350px] sm:h-[400px]"
           >
             <img 
-              src={getPageImage(coCurricularImages, 0, "https://images.unsplash.com/photo-1526676037777-05a232554f77?q=80&w=2940&auto=format&fit=crop")} 
+              src={getPageImage(coCurricularImages, 0, coCurricularImages[0]?.url)} 
               alt="Sports"
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             />
@@ -129,7 +134,7 @@ export function CoCurricular() {
             className="group relative md:col-span-2 lg:col-span-2 bg-slate-900 rounded-3xl overflow-hidden shadow-2xl isolate h-[350px]"
           >
             <img 
-              src={getPageImage(coCurricularImages, 1, "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?q=80&w=2940&auto=format&fit=crop")} 
+              src={getPageImage(coCurricularImages, 1, coCurricularImages[1]?.url)} 
               alt="Literary"
               className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
             />

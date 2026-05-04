@@ -39,12 +39,32 @@ const admissionProcess = [
   },
 ];
 
+const landingHighlights = [
+  {
+    title: 'Open All Year',
+    description: 'Admissions are open throughout the year, giving families the flexibility to begin the process when the timing is right.',
+  },
+  {
+    title: 'Holistic Schooling',
+    description: 'Students enter a learning environment that values academic excellence, discipline, character, and all-round development.',
+  },
+  {
+    title: 'Guided Admission Path',
+    description: 'Our admissions team supports families with a clear, welcoming process from enquiry to enrollment.',
+  },
+];
+
 export function Admission() {
   return (
-    <div className="flex flex-col bg-slate-50 min-h-screen overflow-x-hidden relative">
-      <PageHero title="Admissions" breadcrumb="Admission" />
+    <div className="srv-page-shell relative flex min-h-screen flex-col overflow-x-hidden bg-slate-50">
+      <PageHero
+        title="A welcoming admission journey into value-based education, discipline, and all-round student growth."
+        breadcrumb="Admissions"
+        description="SRV offers a supportive pathway for families seeking a school that nurtures both academic progress and strong character from the very beginning."
+        highlights={landingHighlights}
+      />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 sm:pt-24 pb-20 w-full overflow-hidden">
+      <div className="srv-page-container mx-auto w-full overflow-hidden px-4 pb-20 pt-16 sm:px-6 sm:pt-24 lg:px-8 max-w-7xl">
 
         {/* Intro */}
         <motion.div
@@ -96,7 +116,7 @@ export function Admission() {
 
           {/* Right Column: Interactive Vertical Timeline */}
           <div className="lg:col-span-5 relative">
-            <div className="bg-emerald-900 rounded-3xl p-8 sm:p-10 shadow-2xl text-white relative isolate overflow-hidden">
+            <div className="bg-slate-900 rounded-3xl p-8 sm:p-10 shadow-2xl text-white relative isolate overflow-hidden">
               <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/20 rounded-full blur-[60px] -z-10" />
               
               <div className="mb-10 text-center sm:text-left">
@@ -159,7 +179,7 @@ export function Admission() {
             
             <div className="relative w-full h-full min-h-[250px] lg:min-h-full rounded-2xl overflow-hidden shadow-2xl hidden md:block border border-white/10">
               <img 
-                src={getPageImage(admissionsImages, 0, "https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=2940&auto=format&fit=crop")} 
+                src={getPageImage(admissionsImages, 0, admissionsImages[0]?.url)} 
                 alt="Students" 
                 className="absolute inset-0 w-full h-full object-cover"
               />

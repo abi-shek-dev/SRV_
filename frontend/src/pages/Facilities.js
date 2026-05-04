@@ -1,8 +1,12 @@
 import { motion } from 'motion/react';
 import { PageHero } from '../components/PageHero';
 import { StatsCtaBanner } from '../components/StatsCtaBanner';
-import { Building2, Volleyball, Microscope, Monitor, Tv, BookOpen, Trophy, Users } from 'lucide-react';
+import { Building2, Volleyball, Microscope, Monitor, Tv, BookOpen, Trophy, Users, Utensils } from 'lucide-react';
 import { facilitiesImages, getPageImage } from '../config/pageImages';
+
+import imgFood1 from '../assets/Facilities/FOOD/14.png';
+import imgFood2 from '../assets/Facilities/FOOD/15.png';
+import imgFood3 from '../assets/Facilities/FOOD/16.png';
 
 const infrastructureItems = [
   { icon: Microscope, label: 'Science Labs', color: 'emerald' },
@@ -32,22 +36,42 @@ const colorMap = {
   amber: 'bg-amber-100 text-amber-600',
 };
 
+const landingHighlights = [
+  {
+    title: 'Modern Learning Spaces',
+    description: 'Science labs, computer labs, smart classrooms, and a resource room support focused and practical learning.',
+  },
+  {
+    title: 'Sports And Movement',
+    description: 'Students benefit from dedicated grounds and courts that encourage physical fitness, teamwork, and competition.',
+  },
+  {
+    title: 'All-Round Exposure',
+    description: 'Infrastructure at SRV is designed to support academics, events, exhibitions, club activities, and student growth every day.',
+  },
+];
+
 export function Facilities() {
   return (
-    <div className="flex flex-col bg-slate-50 min-h-screen">
-      <PageHero title="Facilities" breadcrumb="Facilities" />
+    <div className="srv-page-shell flex min-h-screen flex-col bg-slate-50">
+      <PageHero
+        title="A campus designed to support learning, discovery, movement, and daily student wellbeing."
+        breadcrumb="Facilities"
+        description="SRV provides a clean, organized, and student-friendly environment with the essential infrastructure needed for strong academics and all-round development."
+        highlights={landingHighlights}
+      />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-20 w-full">
+      <div className="srv-page-container mx-auto w-full max-w-7xl px-4 pb-20 pt-20 sm:px-6 lg:px-8">
 
         {/* Section 1 — Infrastructure & Facilities with Diamond Collage */}
-        <div className="grid lg:grid-cols-2 gap-16 items-center mb-24">
+        <div className="mb-24 grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
 
           {/* Diamond Image Collage */}
           <motion.div
             initial={{ opacity: 0, x: -40 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="relative h-[480px] hidden md:block"
+            className="relative h-[320px] sm:h-[420px] md:h-[480px]"
           >
             <motion.div
               animate={{ y: [-10, 10, -10] }}
@@ -55,27 +79,27 @@ export function Facilities() {
               className="absolute inset-0"
             >
               {/* Center Diamond */}
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-72 h-72 rotate-45 rounded-[2.5rem] overflow-hidden border-8 border-white shadow-2xl z-20">
+              <div className="absolute left-1/2 top-1/2 z-20 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rotate-45 overflow-hidden rounded-[1.75rem] border-4 border-white shadow-2xl sm:h-60 sm:w-60 sm:rounded-[2.25rem] sm:border-[6px] md:h-72 md:w-72 lg:rounded-[2.5rem] lg:border-8">
                 <img
-                  src={getPageImage(facilitiesImages, 0, "https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=2940&auto=format&fit=crop")}
+                  src={getPageImage(facilitiesImages, 0, facilitiesImages[0]?.url)}
                   className="-rotate-45 scale-[1.35] object-cover w-full h-full"
                   alt="Students on Campus"
                   referrerPolicy="no-referrer"
                 />
               </div>
               {/* Top Right */}
-              <div className="absolute top-4 right-4 w-44 h-44 rotate-45 rounded-3xl overflow-hidden border-8 border-white shadow-xl z-10">
+              <div className="absolute right-6 top-6 z-10 h-28 w-28 rotate-45 overflow-hidden rounded-2xl border-4 border-white shadow-xl sm:h-36 sm:w-36 sm:rounded-3xl sm:border-[6px] md:right-4 md:top-4 md:h-44 md:w-44 lg:border-8">
                 <img
-                  src={getPageImage(facilitiesImages, 1, "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=2940&auto=format&fit=crop")}
+                  src={getPageImage(facilitiesImages, 1, facilitiesImages[1]?.url)}
                   className="-rotate-45 scale-150 object-cover w-full h-full"
                   alt="Science Lab"
                   referrerPolicy="no-referrer"
                 />
               </div>
               {/* Bottom Left */}
-              <div className="absolute bottom-4 left-4 w-44 h-44 rotate-45 rounded-3xl overflow-hidden border-8 border-white shadow-xl z-10">
+              <div className="absolute bottom-6 left-6 z-10 h-28 w-28 rotate-45 overflow-hidden rounded-2xl border-4 border-white shadow-xl sm:h-36 sm:w-36 sm:rounded-3xl sm:border-[6px] md:bottom-4 md:left-4 md:h-44 md:w-44 lg:border-8">
                 <img
-                  src={getPageImage(facilitiesImages, 2, "https://images.unsplash.com/photo-1511629091441-ee46146481b6?q=80&w=2940&auto=format&fit=crop")}
+                  src={getPageImage(facilitiesImages, 2, facilitiesImages[2]?.url)}
                   className="-rotate-45 scale-150 object-cover w-full h-full"
                   alt="Sports Ground"
                   referrerPolicy="no-referrer"
@@ -93,7 +117,7 @@ export function Facilities() {
           >
             <div>
               <span className="text-amber-500 font-semibold tracking-widest uppercase text-sm mb-3 block">Our Infrastructure</span>
-              <h2 className="text-3xl lg:text-4xl font-display font-bold text-slate-900 leading-tight mb-5">
+              <h2 className="mb-5 text-3xl font-display font-bold leading-tight text-slate-900 sm:text-4xl">
                 Infrastructure &<br />Facilities
               </h2>
             </div>
@@ -117,14 +141,14 @@ export function Facilities() {
         </div>
 
         {/* Section 2 — Sports + Programs */}
-        <div className="grid md:grid-cols-2 gap-8 mb-20">
+        <div className="mb-20 grid gap-8 md:grid-cols-2">
 
           {/* Sports Facilities */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="bg-white rounded-2xl p-10 shadow-xl border border-slate-100"
+            className="rounded-2xl border border-slate-100 bg-white p-6 shadow-xl sm:p-10"
           >
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 shrink-0">
@@ -151,7 +175,7 @@ export function Facilities() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ delay: 0.1 }}
-            className="bg-emerald-900 rounded-2xl p-10 shadow-xl text-white"
+            className="rounded-2xl bg-slate-900 p-6 text-white shadow-xl sm:p-10"
           >
             <div className="flex items-center gap-3 mb-2">
               <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center shrink-0">
@@ -174,6 +198,54 @@ export function Facilities() {
           </motion.div>
         </div>
 
+        {/* Section 2.5 - Cafeteria & Dining */}
+        <div className="mb-24 grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
+          <motion.div
+            initial={{ opacity: 0, x: -40 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="space-y-6"
+          >
+            <div>
+              <span className="text-amber-500 font-semibold tracking-widest uppercase text-sm mb-3 block">Student Wellbeing</span>
+              <h2 className="mb-5 text-3xl font-display font-bold leading-tight text-slate-900 sm:text-4xl">
+                Hygienic Cafeteria &<br />Dining
+              </h2>
+            </div>
+            <p className="text-slate-600 text-[15px] leading-relaxed">
+              Our campus features a spacious, clean, and modern cafeteria designed to provide students with nutritious and delicious meals throughout the day. We prioritize hygiene, food quality, and a balanced diet to ensure our students remain energetic and focused.
+            </p>
+            <p className="text-slate-600 text-[15px] leading-relaxed">
+              With a comfortable seating arrangement and strict safety protocols, the dining area serves as a vibrant social hub where students can relax, interact, and build friendships while enjoying their meals.
+            </p>
+            <div className="flex flex-wrap gap-2.5 pt-2">
+                <span className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-emerald-100 text-emerald-600 border border-current/10">
+                  <Utensils size={14} strokeWidth={2.5} />
+                  Nutritious Meals
+                </span>
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 40 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            viewport={{ once: true }}
+            className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:h-[450px]"
+          >
+            <div className="relative min-h-[240px] overflow-hidden rounded-3xl border-4 border-white bg-slate-100 shadow-xl sm:min-h-0">
+              <img src={imgFood1} alt="Cafeteria seating" className="absolute inset-0 w-full h-full object-cover" />
+            </div>
+            <div className="grid h-full min-h-0 grid-cols-2 gap-4 sm:grid-cols-1 sm:grid-rows-2">
+              <div className="relative min-h-[180px] overflow-hidden rounded-3xl border-4 border-white bg-slate-100 shadow-xl sm:min-h-0">
+                <img src={imgFood2} alt="Nutritious food" className="absolute inset-0 w-full h-full object-cover" />
+              </div>
+              <div className="relative min-h-[180px] overflow-hidden rounded-3xl border-4 border-white bg-slate-100 shadow-xl sm:min-h-0">
+                <img src={imgFood3} alt="Students dining" className="absolute inset-0 w-full h-full object-cover" />
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
         {/* Section 3 — Facilities Grid Cards */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -187,12 +259,12 @@ export function Facilities() {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
           {[
-            { img: getPageImage(facilitiesImages, 3, 'https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2000&auto=format&fit=crop'), label: 'Smart Classrooms', desc: 'Equipped with LCD projectors and interactive boards for immersive learning.' },
-            { img: getPageImage(facilitiesImages, 4, 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=2940&auto=format&fit=crop'), label: 'Science Laboratories', desc: 'Fully equipped labs for Physics, Chemistry, and Biology experiments.' },
-            { img: getPageImage(facilitiesImages, 5, 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?q=80&w=2940&auto=format&fit=crop'), label: 'Computer Labs', desc: 'Modern computer labs for digital skills and software learning.' },
-            { img: getPageImage(facilitiesImages, 6, 'https://images.unsplash.com/photo-1546410531-bb4caa6b424d?q=80&w=2942&auto=format&fit=crop'), label: 'Resource Room', desc: 'A dedicated space to facilitate research, self-study, and collaborative work.' },
-            { img: getPageImage(facilitiesImages, 7, 'https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=2940&auto=format&fit=crop'), label: 'Sports Ground', desc: 'Volleyball, cricket, football and basketball facilities for physical fitness.' },
-            { img: getPageImage(facilitiesImages, 8, 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?q=80&w=2940&auto=format&fit=crop'), label: 'Auditorium', desc: 'A spacious auditorium for cultural events, competitions, and assemblies.' },
+            { img: getPageImage(facilitiesImages, 3, facilitiesImages[3]?.url), label: 'Smart Classrooms', desc: 'Equipped with LCD projectors and interactive boards for immersive learning.' },
+            { img: getPageImage(facilitiesImages, 4, facilitiesImages[4]?.url), label: 'Science Laboratories', desc: 'Fully equipped labs for Physics, Chemistry, and Biology experiments.' },
+            { img: getPageImage(facilitiesImages, 5, facilitiesImages[5]?.url), label: 'Computer Labs', desc: 'Modern computer labs for digital skills and software learning.' },
+            { img: getPageImage(facilitiesImages, 6, facilitiesImages[6]?.url), label: 'Resource Room', desc: 'A dedicated space to facilitate research, self-study, and collaborative work.' },
+            { img: getPageImage(facilitiesImages, 7, facilitiesImages[7]?.url), label: 'Sports Ground', desc: 'Volleyball, cricket, football and basketball facilities for physical fitness.' },
+            { img: getPageImage(facilitiesImages, 8, facilitiesImages[8]?.url), label: 'Auditorium', desc: 'A spacious auditorium for cultural events, competitions, and assemblies.' },
           ].map((item, i) => (
             <motion.div
               key={item.label}

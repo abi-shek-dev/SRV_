@@ -28,6 +28,7 @@ dist/
 build/
 server/dist/
 frontend/dist/
+frontend/src/assets/
 admin/dist/
 faculty/dist/
 parent/dist/

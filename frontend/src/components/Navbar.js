@@ -67,33 +67,33 @@ export function Navbar() {
         className={twMerge(
           'fixed w-full top-0 z-50 transition-all duration-500 ease-in-out',
           scrolled || isOpen
-            ? 'glass !bg-white/90 shadow-sm py-2'
-            : 'bg-transparent py-4'
+            ? 'glass !bg-white/88 border-b border-white/50 py-2 shadow-[0_24px_70px_rgba(15,23,42,0.10)]'
+            : 'bg-transparent py-3 sm:py-4'
         )}
       >
         {/* ── Inner container: full width up to 1400px, generous side padding ── */}
-        <div className="w-full max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto w-full max-w-[1400px] px-4 sm:px-6 xl:px-8">
           <div className="flex items-center justify-between gap-2">
 
             {/* ── Logo ── */}
-            <Link to="/" className="flex items-center gap-2.5 group shrink-0">
-              <div className="w-12 h-12 md:w-14 md:h-14 bg-emerald-900 rounded-[16px] p-[3px] shadow-md flex items-center justify-center transition-transform duration-300 group-hover:scale-105 shrink-0">
-                <div className="w-full h-full bg-white rounded-[13px] flex items-center justify-center overflow-hidden p-1">
+            <Link to="/" className="group flex shrink-0 items-center gap-2 sm:gap-2.5">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[14px] bg-emerald-900 p-[3px] shadow-md transition-transform duration-300 group-hover:scale-105 sm:h-12 sm:w-12 md:h-14 md:w-14 md:rounded-[16px]">
+                <div className="flex h-full w-full items-center justify-center overflow-hidden rounded-[11px] bg-white p-1 sm:rounded-[13px]">
                   <img src={srvLogo} alt="SRV Logo" className="w-full h-full object-contain scale-[1.15]" />
                 </div>
               </div>
               <div className="flex flex-col leading-none">
                 <span
                   className={twMerge(
-                    'font-display text-xl font-bold tracking-tight transition-colors duration-300',
-                    scrolled ? 'text-slate-900' : 'text-white'
+                  'font-display text-lg font-bold tracking-tight transition-colors duration-300 sm:text-xl',
+                    scrolled ? 'text-slate-900' : 'text-white drop-shadow'
                   )}
                 >
                   SRV
                 </span>
                 <span
                   className={twMerge(
-                    'text-[9px] uppercase tracking-widest font-semibold transition-colors duration-300 -mt-0.5',
+                    '-mt-0.5 text-[8px] font-semibold uppercase tracking-[0.28em] transition-colors duration-300 sm:text-[9px] sm:tracking-widest',
                     scrolled ? 'text-emerald-700' : 'text-emerald-200'
                   )}
                 >
@@ -103,7 +103,7 @@ export function Navbar() {
             </Link>
 
             {/* ── Desktop Nav — visible at lg (1024px+) ── */}
-            <nav className="hidden lg:flex items-center gap-1 xl:gap-2 flex-1 justify-center">
+            <nav className="hidden flex-1 items-center justify-center gap-1 2xl:gap-2 xl:flex">
               {navLinks.map((link) => {
                 const isActive = location.pathname === link.path;
                 return (
@@ -111,7 +111,7 @@ export function Navbar() {
                     <Link
                       to={link.path}
                       className={twMerge(
-                        'flex items-center gap-0.5 text-[13px] xl:text-[14px] font-medium transition-colors py-2 px-2 xl:px-2.5 relative whitespace-nowrap rounded-lg',
+                        'relative flex items-center gap-0.5 whitespace-nowrap rounded-lg px-2 py-2 text-[13px] font-medium transition-colors 2xl:px-2.5 2xl:text-[14px]',
                         scrolled
                           ? isActive
                             ? 'text-amber-600'
@@ -139,7 +139,7 @@ export function Navbar() {
                     {/* Dropdown */}
                     {link.dropdown && (
                       <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 opacity-0 translate-y-2 invisible group-hover:opacity-100 group-hover:translate-y-0 group-hover:visible transition-all duration-300 z-50">
-                        <div className="glass !bg-white/95 shadow-xl border border-slate-100 rounded-2xl py-2 w-52 flex flex-col overflow-hidden">
+                        <div className="glass !bg-white/92 shadow-[0_24px_70px_rgba(15,23,42,0.12)] border border-white/50 rounded-2xl py-2 w-52 flex flex-col overflow-hidden">
                           {link.dropdown.map((drop) => (
                             <Link
                               key={drop.name}
@@ -163,7 +163,7 @@ export function Navbar() {
               <a
                 href="https://srv-admin-gamma.vercel.app/login"
                 className={twMerge(
-                  'hidden md:flex items-center gap-1.5 px-3 xl:px-4 py-2 rounded-full font-semibold text-xs xl:text-sm transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5 whitespace-nowrap border',
+                  'hidden items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-2 text-xs font-semibold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg md:flex xl:px-4 xl:text-sm',
                   scrolled
                     ? 'bg-slate-900 text-white hover:bg-slate-700 border-slate-900'
                     : 'bg-white/10 text-white hover:bg-white/20 border-white/30 backdrop-blur-sm'
@@ -177,10 +177,10 @@ export function Navbar() {
               <Link
                 to="/contact"
                 className={twMerge(
-                  'hidden lg:flex items-center gap-1.5 px-3 xl:px-5 py-2 rounded-full font-semibold text-xs xl:text-sm transition-all duration-300 shadow-md hover:shadow-lg hover:-translate-y-0.5 whitespace-nowrap',
+                  'hidden items-center gap-1.5 whitespace-nowrap rounded-full px-3 py-2 text-xs font-semibold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg xl:flex xl:px-5 xl:text-sm',
                   scrolled
                     ? 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-emerald-500/25'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700 shadow-black/10'
+                    : 'bg-[linear-gradient(135deg,#f59e0b_0%,#d97706_100%)] text-white hover:brightness-105 shadow-black/10'
                 )}
               >
                 Contact Us
@@ -189,7 +189,7 @@ export function Navbar() {
               {/* Hamburger — shown below lg */}
               <button
                 className={twMerge(
-                  'lg:hidden p-2 rounded-lg transition-colors',
+                  'rounded-lg p-2 transition-colors xl:hidden',
                   scrolled || isOpen
                     ? 'text-slate-800 hover:bg-slate-100'
                     : 'text-white hover:bg-white/10'
@@ -210,7 +210,7 @@ export function Navbar() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="lg:hidden bg-white/95 backdrop-blur-xl border-t border-slate-100 shadow-2xl overflow-hidden mt-2"
+              className="mt-2 overflow-hidden border-t border-slate-100 bg-white/95 shadow-2xl backdrop-blur-xl xl:hidden"
             >
               <nav
                 className="flex flex-col py-4 px-4 gap-1 max-h-[75vh] overflow-y-auto overscroll-contain"

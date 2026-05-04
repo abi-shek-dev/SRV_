@@ -149,7 +149,7 @@ export function Home() {
   }, [currentMediaIndex]);
 
   return (
-    <div className="flex flex-col bg-slate-50 relative">
+    <div className="srv-page-shell relative flex flex-col bg-slate-50">
 
       {/* Premium Minimal Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
@@ -187,7 +187,7 @@ export function Home() {
           <div className="absolute inset-0 bg-black/30" />
         </div>
 
-        <div className="relative z-10 w-full max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-10">
+        <div className="relative z-10 mx-auto w-full max-w-5xl px-4 pt-24 text-center sm:px-6 sm:pt-16 lg:px-8">
           <AnimatePresence>
             {currentMediaIndex > 0 && (
               <motion.div
@@ -200,7 +200,7 @@ export function Home() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.2 }}
-                  className="text-4xl sm:text-5xl md:text-6xl lg:text-[68px] font-display font-semibold text-white leading-tight mb-6 drop-shadow-lg tracking-wide luxurious-roman-regular"
+                  className="luxurious-roman-regular mb-6 text-4xl font-display font-semibold leading-[1.1] tracking-wide text-white drop-shadow-lg sm:text-5xl md:text-6xl lg:text-[68px]"
                 >
                   SRV Matriculation School
                 </motion.h1>
@@ -209,7 +209,7 @@ export function Home() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.4 }}
-                  className="text-lg md:text-2xl text-white/90 mb-12 max-w-3xl leading-relaxed drop-shadow-md font-light"
+                  className="mb-10 max-w-3xl px-2 text-base font-light leading-relaxed text-white/90 drop-shadow-md sm:mb-12 sm:px-0 sm:text-lg md:text-2xl"
                 >
                   Empowering minds, shaping the future, and achieving excellence.
                 </motion.p>
@@ -218,17 +218,17 @@ export function Home() {
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.8, delay: 0.5 }}
-                  className="flex justify-center flex-col sm:flex-row items-center gap-6"
+                  className="flex flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6"
                 >
                   <Link
                     to="/about"
-                    className="px-8 py-3.5 bg-white/10 backdrop-blur-md border border-white/40 text-white rounded-full font-medium hover:bg-white/20 transition-all duration-300 min-w-[180px]"
+                    className="w-full rounded-full border border-white/40 bg-white/10 px-8 py-3.5 font-medium text-white transition-all duration-300 hover:bg-white/20 sm:w-auto sm:min-w-[180px]"
                   >
                     Know More
                   </Link>
                   <Link
                     to="/contact"
-                    className="px-8 py-3.5 bg-white text-slate-900 rounded-full font-medium hover:bg-green-100 transition-all duration-300 min-w-[180px] hover:border-2 hover:border-green-300"
+                    className="w-full rounded-full bg-white px-8 py-3.5 font-medium text-slate-900 transition-all duration-300 hover:border-2 hover:border-green-300 hover:bg-green-100 sm:w-auto sm:min-w-[180px]"
                   >
                     Contact Us
                   </Link>
@@ -240,9 +240,9 @@ export function Home() {
       </section>
 
       {/* Stats Bar */}
-      <section className="relative z-20 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto w-full py-16">
-        <div className="bg-white shadow-xl shadow-green-50 rounded-2xl p-8 md:p-12 border border-green-300">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12 divide-x-0 md:divide-x divide-slate-200/60">
+      <section className="relative z-20 mx-auto w-full max-w-7xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8">
+        <div className="rounded-2xl border border-green-300 bg-white p-6 shadow-xl shadow-green-50 sm:p-8 md:p-12">
+          <div className="grid grid-cols-1 gap-6 divide-slate-200/60 sm:grid-cols-2 sm:gap-8 xl:grid-cols-4 xl:gap-12 xl:divide-x">
             {[
               { label: 'Enrolled Students', value: '1,200+' },
               { label: 'Expert Faculty', value: '150+' },
@@ -255,9 +255,9 @@ export function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true, margin: "-100px" }}
                 transition={{ delay: index * 0.1 }}
-                className="text-center md:px-4 luxurious-roman-regular"
+                className="luxurious-roman-regular text-center xl:px-4"
               >
-                <div className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-2">
+                <div className="mb-2 text-3xl font-display font-bold text-slate-900 sm:text-4xl md:text-5xl">
                   <AnimatedCounter value={stat.value} />
                 </div>
                 <div className="text-emerald-600 text-sm md:text-base font-semibold tracking-wide uppercase">{stat.label}</div>
@@ -268,16 +268,16 @@ export function Home() {
       </section>
 
       {/* Welcome Section */}
-      <section className="py-24 bg-white relative overflow-hidden">
+      <section className="relative overflow-hidden bg-white py-16 sm:py-20 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
 
             {/* Image Composition (Diamond Layout) */}
             <motion.div
               initial={{ opacity: 0, x: -40 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              className="relative h-[600px] hidden md:block"
+              className="relative h-[320px] sm:h-[420px] md:h-[500px] lg:h-[600px]"
             >
               <motion.div
                 animate={{ y: [-15, 15, -15] }}
@@ -286,16 +286,16 @@ export function Home() {
                 style={{ willChange: 'transform' }}
               >
                 {/* Center Diamond */}
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 rotate-45 rounded-[2.5rem] overflow-hidden border-8 border-white shadow-2xl z-20">
-                  <img src="https://images.unsplash.com/photo-1546410531-bb4caa6b424d?q=80&w=2942&auto=format&fit=crop" className="-rotate-45 scale-[1.35] object-cover w-full h-full" alt="Students" referrerPolicy="no-referrer" />
+                <div className="absolute left-1/2 top-1/2 z-20 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rotate-45 overflow-hidden rounded-[1.75rem] border-4 border-white shadow-2xl sm:h-60 sm:w-60 sm:rounded-[2.25rem] sm:border-[6px] md:h-72 md:w-72 lg:h-80 lg:w-80 lg:rounded-[2.5rem] lg:border-8">
+                  <img src={heroImg4} className="-rotate-45 scale-[1.35] object-cover w-full h-full" alt="Students" />
                 </div>
                 {/* Top Right Diamond */}
-                <div className="absolute top-4 right-4 w-48 h-48 rotate-45 rounded-3xl overflow-hidden border-8 border-white shadow-xl z-10">
-                  <img src="https://images.unsplash.com/photo-1509062522246-3755977927d7?q=80&w=2000&auto=format&fit=crop" className="-rotate-45 scale-150 object-cover w-full h-full" alt="Campus trees" referrerPolicy="no-referrer" />
+                <div className="absolute right-6 top-6 z-10 h-28 w-28 rotate-45 overflow-hidden rounded-2xl border-4 border-white shadow-xl sm:h-36 sm:w-36 sm:rounded-3xl sm:border-[6px] md:right-4 md:top-4 md:h-40 md:w-40 lg:h-48 lg:w-48 lg:border-8">
+                  <img src={heroImg5} className="-rotate-45 scale-150 object-cover w-full h-full" alt="Campus trees" />
                 </div>
                 {/* Bottom Left Diamond */}
-                <div className="absolute bottom-4 left-4 w-48 h-48 rotate-45 rounded-3xl overflow-hidden border-8 border-white shadow-xl z-10">
-                  <img src="https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=2940&auto=format&fit=crop" className="-rotate-45 scale-150 object-cover w-full h-full" alt="Activities" referrerPolicy="no-referrer" />
+                <div className="absolute bottom-6 left-6 z-10 h-28 w-28 rotate-45 overflow-hidden rounded-2xl border-4 border-white shadow-xl sm:h-36 sm:w-36 sm:rounded-3xl sm:border-[6px] md:bottom-4 md:left-4 md:h-40 md:w-40 lg:h-48 lg:w-48 lg:border-8">
+                  <img src={heroImg3} className="-rotate-45 scale-150 object-cover w-full h-full" alt="Activities" />
                 </div>
               </motion.div>
             </motion.div>
@@ -307,11 +307,11 @@ export function Home() {
               viewport={{ once: true }}
               className="space-y-6"
             >
-              <h2 className="text-3xl md:text-[2.5xl] lg:text-4xl font-display font-bold text-amber-500 leading-tight ">
+              <h2 className="text-3xl font-display font-bold leading-tight text-amber-500 sm:text-4xl lg:text-4xl">
                 Welcome To Sri Ramakrishna Vidyalaya Matriculation School
               </h2>
 
-              <div className="space-y-4 text-slate-700 leading-relaxed text-[15px]">
+              <div className="space-y-4 text-sm leading-relaxed text-slate-700 sm:text-[15px]">
                 <p>
                   Sri Ramakrishna Vidyalaya Matriculation School (SRV) Uppilliapuram serves the educational needs of more than 10 nearby villages of Uppilliapuram & Pachamalai hills in Tiruchirappalli district. SRV School is established in 13.07.1988 by Mr. Sivanesan. It is a co-educational school offering classes from Kindergarten to Class X. School is recognized by government of Tamilnadu.
                 </p>
@@ -345,12 +345,12 @@ export function Home() {
       </section>
 
       {/* Why Choose Us / Features */}
-      <section className="py-32 bg-slate-50 relative">
+      <section className="relative bg-slate-50 py-20 sm:py-24 lg:py-32">
         {/* Subtle background decoration */}
         <div className="absolute top-0 right-0 w-1/3 h-1/2 bg-amber-100/40 rounded-full blur-[120px] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-20">
+          <div className="mb-16 text-center sm:mb-20">
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -364,7 +364,7 @@ export function Home() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: 0.1 }}
-              className="text-4xl md:text-5xl font-display font-bold text-slate-900 mb-6 "
+              className="mb-6 text-3xl font-display font-bold text-slate-900 sm:text-4xl md:text-5xl"
             >
               Excellence in Every Step
             </motion.h3>
@@ -387,7 +387,7 @@ export function Home() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.1, duration: 0.6 }}
-                className="group p-8 rounded-xl bg-white border border-slate-100 shadow-xl shadow-slate-200/40 hover:shadow-2xl hover:shadow-emerald-900/10 hover:-translate-y-2 transition-all duration-300 relative overflow-hidden"
+                className="group relative overflow-hidden rounded-xl border border-slate-100 bg-white p-6 shadow-xl shadow-slate-200/40 transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl hover:shadow-emerald-900/10 sm:p-8"
               >
                 {/* Decorative hover gradient */}
                 <div className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -411,7 +411,7 @@ export function Home() {
       </section>
 
       {/* Skill Development Section */}
-      <section className="py-24 bg-white relative overflow-hidden">
+      <section className="relative overflow-hidden bg-white py-16 sm:py-20 lg:py-24">
         {/* Decorative Dotted Pattern (from the image) */}
         <div className="absolute top-8 right-8 p-8 opacity-20 hidden lg:block pointer-events-none">
           <svg width="250" height="250" viewBox="0 0 200 200">
@@ -425,7 +425,7 @@ export function Home() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-16 items-center flex-col-reverse lg:flex-row">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
 
             {/* Text Content */}
             <motion.div
@@ -434,11 +434,11 @@ export function Home() {
               viewport={{ once: true }}
               className="space-y-6 lg:order-1 order-2"
             >
-              <h2 className="text-3xl md:text-[2.5xl] lg:text-4xl font-display font-medium text-amber-500 leading-tight">
+              <h2 className="text-3xl font-display font-medium leading-tight text-amber-500 sm:text-4xl lg:text-4xl">
                 Skill development
               </h2>
 
-              <div className="text-slate-700 leading-relaxed text-[15px] space-y-4">
+              <div className="space-y-4 text-sm leading-relaxed text-slate-700 sm:text-[15px]">
                 <p>
                   <strong className="text-slate-900 font-semibold">Go beyond academics</strong> and develop the essential skills needed for success in the 21st century. Our comprehensive Extracurricular (EC) Program equips you with not only core subject expertise but also the <strong className="text-slate-900 font-semibold">highly sought-after employability skills</strong> employers crave:
                 </p>
@@ -479,15 +479,15 @@ export function Home() {
               initial={{ opacity: 0, x: 40 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              className="relative lg:h-[600px] flex items-center justify-center lg:justify-end lg:order-2 order-1"
+              className="order-1 relative flex items-center justify-center lg:order-2 lg:h-[600px] lg:justify-end"
             >
               <motion.div
                 animate={{ y: [-15, 15, -15] }}
                 transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
-                className="relative w-full max-w-lg aspect-square rounded-[100px] sm:rounded-[200px] shadow-xl overflow-hidden z-20 border-8 border-white/50"
+                className="relative z-20 aspect-square w-full max-w-[20rem] overflow-hidden rounded-[60px] border-4 border-white/50 shadow-xl sm:max-w-md sm:rounded-[120px] sm:border-[6px] lg:max-w-lg lg:rounded-[200px] lg:border-8"
                 style={{ willChange: 'transform' }}
               >
-                <img src="https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=2940&auto=format&fit=crop" className="object-cover w-full h-full scale-105" alt="Students" referrerPolicy="no-referrer" />
+                <img src={heroImg2} className="object-cover w-full h-full scale-105" alt="Students" />
               </motion.div>
             </motion.div>
 
@@ -496,7 +496,7 @@ export function Home() {
       </section>
 
       {/* Co-Curricular Activities Section */}
-      <section className="py-24 bg-slate-50 relative overflow-hidden">
+      <section className="relative overflow-hidden bg-slate-50 py-16 sm:py-20 lg:py-24">
         {/* Decorative Dotted Pattern */}
         <div className="absolute top-8 left-8 p-8 opacity-20 hidden lg:block pointer-events-none">
           <svg width="250" height="250" viewBox="0 0 200 200">
@@ -510,7 +510,7 @@ export function Home() {
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
+          <div className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
 
             {/* Blob Image Layout */}
             <motion.div
@@ -523,10 +523,10 @@ export function Home() {
               <motion.div
                 animate={{ y: [-15, 15, -15] }}
                 transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
-                className="relative w-full max-w-lg aspect-square shadow-xl overflow-hidden z-20 border-8 border-white/50"
+                className="relative z-20 aspect-square w-full max-w-[20rem] overflow-hidden border-4 border-white/50 shadow-xl sm:max-w-md sm:border-[6px] lg:max-w-lg lg:border-8"
                 style={{ borderRadius: '60% 40% 30% 70% / 60% 30% 70% 40%', willChange: 'transform' }}
               >
-                <img src="https://images.unsplash.com/photo-1546410531-bb4caa6b424d?q=80&w=2942&auto=format&fit=crop" className="object-cover w-full h-full scale-105" alt="Kids playing outside" referrerPolicy="no-referrer" />
+                <img src={heroImg1} className="object-cover w-full h-full scale-105" alt="Kids playing outside" />
               </motion.div>
             </motion.div>
 
@@ -537,11 +537,11 @@ export function Home() {
               viewport={{ once: true }}
               className="space-y-6"
             >
-              <h2 className="text-3xl md:text-[2.5xl] lg:text-4xl font-display font-medium text-amber-500 leading-tight">
+              <h2 className="text-3xl font-display font-medium leading-tight text-amber-500 sm:text-4xl lg:text-4xl">
                 Co-Curricular Activities
               </h2>
 
-              <div className="text-slate-700 leading-relaxed text-[15px] space-y-4">
+              <div className="space-y-4 text-sm leading-relaxed text-slate-700 sm:text-[15px]">
                 <p>
                   Our school offers a variety of co-curricular activities to complement academic learning and foster personal growth.
                 </p>
@@ -586,11 +586,11 @@ export function Home() {
       </section>
 
       {/* Footer CTA & Stats Banner */}
-      <section className="py-24 relative overflow-hidden bg-slate-900">
+      <section className="relative overflow-hidden bg-slate-900 py-16 sm:py-20 lg:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 luxurious-roman-regular">
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-12 mb-20 border-b border-white/10 pb-20 mt-8">
+          <div className="mt-8 mb-14 grid grid-cols-1 gap-8 border-b border-white/10 pb-14 sm:mb-20 sm:grid-cols-2 sm:gap-12 sm:pb-20 xl:grid-cols-4">
             {/* Stat 1 */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
@@ -650,7 +650,7 @@ export function Home() {
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
             >
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-display font-semibold text-white mb-6 leading-tight">
+              <h2 className="mb-6 text-3xl font-display font-semibold leading-tight text-white sm:text-4xl lg:text-5xl">
                 Educating the next generation of leaders
               </h2>
               <p className="text-slate-300 leading-relaxed text-[16px]">
@@ -664,7 +664,7 @@ export function Home() {
               viewport={{ once: true }}
               className="lg:text-right"
             >
-              <Link to="/contact" className="inline-flex items-center justify-center px-10 py-4 bg-amber-500 text-white rounded-md font-bold hover:bg-amber-600 transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5">
+              <Link to="/contact" className="inline-flex w-full items-center justify-center rounded-md bg-amber-500 px-10 py-4 font-bold text-white shadow-md transition-all hover:-translate-y-0.5 hover:bg-amber-600 hover:shadow-lg sm:w-auto">
                 Contact Us
               </Link>
             </motion.div>

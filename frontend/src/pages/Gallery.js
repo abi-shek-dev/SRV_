@@ -23,6 +23,21 @@ const optimizeCloudinaryUrl = (url) => {
   return normalizedUrl.replace('/upload/', '/upload/f_auto,q_auto,c_limit,w_1600/');
 };
 
+const landingHighlights = [
+  {
+    title: 'Campus Moments',
+    description: 'Explore everyday learning, student engagement, celebrations, and memorable moments from across the SRV campus.',
+  },
+  {
+    title: 'Events And Achievements',
+    description: 'The gallery showcases academic events, co-curricular experiences, and the spirit of school life in action.',
+  },
+  {
+    title: 'Live Media Updates',
+    description: 'Photos can be refreshed through the connected gallery folder so the page keeps growing with new school memories.',
+  },
+];
+
 export function Gallery() {
   const [cloudImages, setCloudImages] = useState([]);
   const [galleryFolder, setGalleryFolder] = useState(cloudinaryGalleryFolder);
@@ -67,49 +82,54 @@ export function Gallery() {
   const usingCloudGallery = cloudImages.length > 0;
 
   return (
-    <div className="flex flex-col bg-slate-50 min-h-screen">
-      <PageHero title="Gallery" breadcrumb="Gallery" />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 w-full">
+    <div className="srv-page-shell flex min-h-screen flex-col bg-slate-50">
+      <PageHero
+        title="A visual journey through campus life, celebrations, learning, and student achievements."
+        breadcrumb="Gallery"
+        description="Step into the everyday world of SRV through images that reflect our school culture, events, and the joy of student participation."
+        highlights={landingHighlights}
+      />
+      <div className="srv-page-container mx-auto w-full max-w-7xl px-4 pb-8 pt-20 sm:px-6 lg:px-8">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-center mb-16"
+          className="text-center"
         >
           <span className="text-emerald-600 font-semibold tracking-[0.28em] uppercase text-sm mb-4 block">
             Our Campus Life
           </span>
-          <h2 className="text-3xl md:text-5xl font-semibold text-slate-900 tracking-tight max-w-4xl mx-auto">
-            Dome gallery effect with live Cloudinary media
+          <h2 className="mx-auto max-w-4xl text-3xl font-semibold tracking-tight text-slate-900 sm:text-4xl md:text-5xl">
+            Interactive 3D Media Gallery
           </h2>
-          <p className="text-lg text-slate-600 max-w-3xl mx-auto leading-relaxed mt-5">
-            Upload gallery photos once and this page will fetch them from the Cloudinary folder{' '}
-            <span className="font-semibold text-slate-900">{galleryFolder}</span> automatically.
+          <p className="mx-auto mt-5 max-w-3xl text-base leading-relaxed text-slate-600 sm:text-lg">
+            Experience our vibrant campus life, memorable events, and student achievements through an immersive 3D gallery. Interact with the dome to explore our school's finest moments.
           </p>
-          {!usingCloudGallery && !loading && (
-            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-4 py-2 inline-flex mt-6">
-              No Cloudinary gallery images found yet, so Dome Gallery is temporarily using the {galleryFolderPath} until uploads are added.
-            </p>
-          )}
         </motion.div>
+      </div>
 
+      <div className="w-full px-4 sm:px-8 lg:px-12 pb-16">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 1 }}
-          className="w-full h-[640px] md:h-[820px] rounded-[2rem] overflow-hidden relative shadow-[0_40px_120px_rgba(15,23,42,0.18)] bg-[#090611] mb-10 ring-1 ring-slate-900/5"
+          className="relative mx-auto h-[60vh] sm:h-[70vh] md:h-[80vh] lg:h-[90vh] w-full max-w-[2000px] overflow-hidden rounded-[2rem] sm:rounded-[3rem] bg-[#090611] shadow-[0_40px_120px_rgba(15,23,42,0.18)] ring-1 ring-slate-900/5"
         >
           <DomeGallery
             images={domeImages}
-            fit={0.8}
-            minRadius={600}
+            fit={0.85}
+            minRadius={320}
+            maxRadius={800}
             maxVerticalRotationDeg={0}
             segments={34}
             dragDampening={2}
+            padFactor={0.16}
+            openedImageWidth="min(92vw, 640px)"
+            openedImageHeight="min(92vw, 640px)"
             grayscale
           />
         </motion.div>
 
-        <div className="text-center text-sm text-slate-500">
+        <div className="text-center text-sm text-slate-500 mt-6">
           Tap or click any tile to open it. Drag sideways to rotate the dome.
         </div>
       </div>
