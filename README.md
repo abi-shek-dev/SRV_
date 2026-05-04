@@ -12,7 +12,7 @@ srv/
 ├── admin/        # Admin portal — React + Vite (port 3001)
 ├── portal/       # Faculty & Parent portal — React + Vite (port 3003)
 ├── mobile/       # Faculty & Parent mobile app — Expo / React Native
-└── frontend/     # (legacy / separate — not covered here)
+└── frontend/     # Public school website — React + Vite (port 3000)
 ```
 
 ---
@@ -53,6 +53,14 @@ srv/
 - Push notification support (expo-notifications)
 - File picker and PDF submission (expo-document-picker)
 - Persistent auth via AsyncStorage
+
+### 🌍 Public Website (`/frontend`)
+- School's public-facing marketing website
+- Pages: Home, About, Academics, Admission, Facilities, Gallery, News, Contact, Skill Development, Co-Curricular
+- Smooth scroll (Lenis), animations (Motion / Framer Motion)
+- Interactive dome-style photo gallery
+- Stats & CTA banners, responsive Navbar and Footer
+- Env-aware API base URL (auto-switches between local and production backend)
 
 ### ⚙️ Backend Server (`/server`)
 - RESTful API built with Express 5 + MySQL 2
@@ -306,9 +314,66 @@ npx expo run:android --variant release
 
 ---
 
+### Step 7 — Configure & Run the Public Website (Frontend)
+
+#### 7.1 — Install dependencies
+
+```bash
+cd ../frontend
+npm install
+```
+
+#### 7.2 — Add local assets
+
+The `src/assets/` folder is **gitignored**. Place your local images and videos there before starting:
+
+```
+src/assets/
+├── home/                        # Hero images and videos
+├── fav_logo/                    # Logos and favicon variants
+├── Gallery/                     # Gallery media
+└── Skill Development/
+    └── Activity logo/           # Club/activity logos
+```
+
+#### 7.3 — Create the `.env` file
+
+```bash
+# frontend/.env
+VITE_API_URL=http://your-server-ip-or-domain:5001
+GEMINI_API_KEY=your_gemini_api_key_here   # only if using AI features
+```
+
+#### 7.4 — Run in development mode
+
+```bash
+npm run dev
+```
+
+Access at: `http://localhost:3000`  
+Or from another device on the same network: `http://your-server-ip:3000`
+
+#### 7.5 — Build for production (serve as static files)
+
+```bash
+npm run build
+```
+
+Then serve the `dist/` folder:
+
+```bash
+npx serve dist -l 3000
+```
+
+Or with **Nginx** (see the [Nginx section](#-optional-nginx-reverse-proxy) below).
+
+> **Important:** `VITE_API_URL` is baked into the bundle at build time. Always set it correctly in `.env` **before** running `npm run build`.
+
+---
+
 ## 🔒 Running All Services Together
 
-Open **4 separate terminal windows/tabs** and run each:
+Open **5 separate terminal windows/tabs** and run each:
 
 | Terminal | Command | Default Port |
 |----------|---------|-------------|
@@ -316,6 +381,7 @@ Open **4 separate terminal windows/tabs** and run each:
 | 2 — Admin | `cd admin && npm run dev` | `3001` |
 | 3 — Portal | `cd portal && npm run dev` | `3003` |
 | 4 — Mobile | `cd mobile && npx expo start` | Expo CLI |
+| 5 — Frontend | `cd frontend && npm run dev` | `3000` |
 
 ---
 
@@ -349,6 +415,13 @@ server {
     location /portal/ {
         root /path/to/srv/portal/dist;
         try_files $uri $uri/ /portal/index.html;
+    }
+
+    # Public Website Frontend (serve built dist/)
+    location / {
+        root /path/to/srv/frontend/dist;
+        index index.html;
+        try_files $uri $uri/ /index.html;
     }
 }
 ```
@@ -407,6 +480,13 @@ pm2 logs srv-backend
 | Variable | Description |
 |----------|-------------|
 | `VITE_API_URL` | Full URL of the backend API (e.g. `http://192.168.1.10:5001`) |
+
+### `frontend/.env`
+
+| Variable | Description |
+|----------|-------------|
+| `VITE_API_URL` | Full URL of the backend API (e.g. `http://192.168.1.10:5001`) |
+| `GEMINI_API_KEY` | Google Gemini API key (only required if AI features are used) |
 
 ---
 
