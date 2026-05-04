@@ -161,7 +161,7 @@ export function Navbar() {
             <div className="flex items-center gap-2 shrink-0">
               {/* Portal Login — always visible on md+ */}
               <a
-                href="https://srv-admin-gamma.vercel.app/login"
+                href="http://localhost:3003/login"
                 className={twMerge(
                   'hidden items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-2 text-xs font-semibold transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg md:flex xl:px-4 xl:text-sm',
                   scrolled
@@ -263,7 +263,7 @@ export function Navbar() {
                   className="flex flex-col mt-1"
                 >
                   <a
-                    href="https://srv-admin-gamma.vercel.app/login"
+                    href="http://localhost:3003/login"
                     className="px-4 py-3.5 rounded-xl text-[15px] font-medium flex items-center justify-between text-slate-700 hover:bg-slate-50 transition-colors"
                   >
                     Portal Login
