@@ -44,6 +44,7 @@ export default function App() {
           <Route path="/admin/circulars"         element={<AdminDashboard section="circulars" />} />
           <Route path="/admin/transport"         element={<AdminDashboard section="transport" />} />
           <Route path="/admin/library"           element={<AdminDashboard section="library" />} />
+          <Route path="/admin/fees"              element={<AdminDashboard section="fees" />} />
         </Route>
 
         <Route path="*" element={<NotFound />} />

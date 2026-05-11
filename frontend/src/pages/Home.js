@@ -280,22 +280,22 @@ export function Home() {
               className="relative h-[320px] sm:h-[420px] md:h-[500px] lg:h-[600px]"
             >
               <motion.div
-                animate={{ y: [-15, 15, -15] }}
-                transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+                animate={{ y: [-8, 8, -8] }}
+                transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
                 className="absolute inset-0"
                 style={{ willChange: 'transform' }}
               >
                 {/* Center Diamond */}
                 <div className="absolute left-1/2 top-1/2 z-20 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rotate-45 overflow-hidden rounded-[1.75rem] border-4 border-white shadow-2xl sm:h-60 sm:w-60 sm:rounded-[2.25rem] sm:border-[6px] md:h-72 md:w-72 lg:h-80 lg:w-80 lg:rounded-[2.5rem] lg:border-8">
-                  <img src={heroImg4} className="-rotate-45 scale-[1.35] object-cover w-full h-full" alt="Students" />
+                  <img src={heroImg4} loading="lazy" decoding="async" className="-rotate-45 scale-[1.35] object-cover w-full h-full" alt="Students" />
                 </div>
                 {/* Top Right Diamond */}
                 <div className="absolute right-6 top-6 z-10 h-28 w-28 rotate-45 overflow-hidden rounded-2xl border-4 border-white shadow-xl sm:h-36 sm:w-36 sm:rounded-3xl sm:border-[6px] md:right-4 md:top-4 md:h-40 md:w-40 lg:h-48 lg:w-48 lg:border-8">
-                  <img src={heroImg5} className="-rotate-45 scale-150 object-cover w-full h-full" alt="Campus trees" />
+                  <img src={heroImg5} loading="lazy" decoding="async" className="-rotate-45 scale-150 object-cover w-full h-full" alt="Campus trees" />
                 </div>
                 {/* Bottom Left Diamond */}
                 <div className="absolute bottom-6 left-6 z-10 h-28 w-28 rotate-45 overflow-hidden rounded-2xl border-4 border-white shadow-xl sm:h-36 sm:w-36 sm:rounded-3xl sm:border-[6px] md:bottom-4 md:left-4 md:h-40 md:w-40 lg:h-48 lg:w-48 lg:border-8">
-                  <img src={heroImg3} className="-rotate-45 scale-150 object-cover w-full h-full" alt="Activities" />
+                  <img src={heroImg3} loading="lazy" decoding="async" className="-rotate-45 scale-150 object-cover w-full h-full" alt="Activities" />
                 </div>
               </motion.div>
             </motion.div>
@@ -482,12 +482,12 @@ export function Home() {
               className="order-1 relative flex items-center justify-center lg:order-2 lg:h-[600px] lg:justify-end"
             >
               <motion.div
-                animate={{ y: [-15, 15, -15] }}
-                transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+                animate={{ y: [-8, 8, -8] }}
+                transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
                 className="relative z-20 aspect-square w-full max-w-[20rem] overflow-hidden rounded-[60px] border-4 border-white/50 shadow-xl sm:max-w-md sm:rounded-[120px] sm:border-[6px] lg:max-w-lg lg:rounded-[200px] lg:border-8"
                 style={{ willChange: 'transform' }}
               >
-                <img src={heroImg2} className="object-cover w-full h-full scale-105" alt="Students" />
+                <img src={heroImg2} loading="lazy" decoding="async" className="object-cover w-full h-full scale-105" alt="Students" />
               </motion.div>
             </motion.div>
 
@@ -521,12 +521,12 @@ export function Home() {
             >
               {/* Organic blob shape using border-radius */}
               <motion.div
-                animate={{ y: [-15, 15, -15] }}
-                transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+                animate={{ y: [-8, 8, -8] }}
+                transition={{ duration: 10, repeat: Infinity, ease: 'easeInOut' }}
                 className="relative z-20 aspect-square w-full max-w-[20rem] overflow-hidden border-4 border-white/50 shadow-xl sm:max-w-md sm:border-[6px] lg:max-w-lg lg:border-8"
                 style={{ borderRadius: '60% 40% 30% 70% / 60% 30% 70% 40%', willChange: 'transform' }}
               >
-                <img src={heroImg1} className="object-cover w-full h-full scale-105" alt="Kids playing outside" />
+                <img src={heroImg1} loading="lazy" decoding="async" className="object-cover w-full h-full scale-105" alt="Kids playing outside" />
               </motion.div>
             </motion.div>
 

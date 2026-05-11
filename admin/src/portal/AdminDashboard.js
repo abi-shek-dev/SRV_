@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Users, UserPlus, BookOpen, LogOut, CheckCircle2, Coffee, Trash2, Edit2, Save, X, Megaphone, GraduationCap, CalendarDays, ClipboardList, MessageSquareMore, BellRing, ArrowUpCircle, UtensilsCrossed, LayoutDashboard, ShieldAlert, ChevronLeft, Image as ImageIcon, Trophy, Target, ClipboardCheck, BarChart3, Download, FileSpreadsheet, Clock, FileText, Bus, ScrollText, ArrowUpRight, Library, RefreshCw } from 'lucide-react';
+import { Users, UserPlus, BookOpen, LogOut, CheckCircle2, Coffee, Trash2, Edit2, Save, X, Megaphone, GraduationCap, CalendarDays, ClipboardList, MessageSquareMore, BellRing, ArrowUpCircle, UtensilsCrossed, LayoutDashboard, ShieldAlert, ChevronLeft, Image as ImageIcon, Trophy, Target, ClipboardCheck, BarChart3, Download, FileSpreadsheet, Clock, FileText, Bus, ScrollText, ArrowUpRight, Library, RefreshCw, IndianRupee } from 'lucide-react';
 import API_URL from '../config/api.js';
 import Swal from 'sweetalert2';
 import { OpinionPollSection } from '../components/OpinionPollSection.js';
@@ -13,6 +13,7 @@ import { MemoriesSection } from '../components/MemoriesSection.js';
 import { AnalyticsDashboard } from '../components/AnalyticsDashboard.js';
 import { FacultyLeavesAdminSection } from '../components/FacultyLeavesAdminSection.js';
 import { TimetableManagement } from '../components/TimetableManagement.js';
+import { FeeManagementSection } from '../components/FeeManagementSection.js';
 
 export function AdminDashboard({ section = 'home' }) {
   const hasValidFamilyDetails = (profile) => Boolean(
@@ -55,7 +56,7 @@ export function AdminDashboard({ section = 'home' }) {
   const [facultyMsg, setFacultyMsg] = useState({ text: '', type: '' });
 
   // Student Form State
-  const [studentForm, setStudentForm] = useState({ name: '', grade: '', section: '', group: '', dateOfBirth: '', admissionNumber: '', motherName: '', fatherName: '', guardianName: '', parentMobileNumber: '' });
+  const [studentForm, setStudentForm] = useState({ name: '', grade: '', section: '', group: '', dateOfBirth: '', admissionNumber: '', motherName: '', fatherName: '', guardianName: '', parentMobileNumber: '', term1Amount: 4500, term2Amount: 4500, term3Amount: 4500, additionalFees: 0 });
   const [studentMsg, setStudentMsg] = useState({ text: '', type: '' });
   const [editingSrvId, setEditingSrvId] = useState(null);
   const [editSrvValue, setEditSrvValue] = useState('');
@@ -589,7 +590,7 @@ export function AdminDashboard({ section = 'home' }) {
           });
         }, 180);
       }
-      setStudentForm({ name: '', grade: '', section: '', group: '', dateOfBirth: '', admissionNumber: '', motherName: '', fatherName: '', guardianName: '', parentMobileNumber: '' });
+      setStudentForm({ name: '', grade: '', section: '', group: '', dateOfBirth: '', admissionNumber: '', motherName: '', fatherName: '', guardianName: '', parentMobileNumber: '', term1Amount: 4500, term2Amount: 4500, term3Amount: 4500, additionalFees: 0 });
       setStats(prev => ({...prev, totalStudents: prev.totalStudents + 1}));
       fetchStudents(token); // dynamically refresh the table
     } catch (err) {
@@ -649,7 +650,8 @@ export function AdminDashboard({ section = 'home' }) {
     { key: 'promotion', title: 'Student Promotion', subtitle: 'Advance Students to Next Grade', icon: ArrowUpRight, badge: 'New', gradient: 'from-amber-500 to-orange-600' },
     { key: 'circulars', title: 'Circulars', subtitle: 'Publish School Circulars', icon: ScrollText, badge: 'New', gradient: 'from-emerald-500 to-teal-600' },
     { key: 'transport', title: 'Transport', subtitle: 'Bus Routes & Assignments', icon: Bus, badge: 'New', gradient: 'from-sky-500 to-blue-700' },
-    { key: 'library', title: 'Library', subtitle: 'Manage Books & Issues', icon: Library, badge: 'New', gradient: 'from-indigo-500 to-cyan-500' }
+    { key: 'library', title: 'Library', subtitle: 'Manage Books & Issues', icon: Library, badge: 'New', gradient: 'from-indigo-500 to-cyan-500' },
+    { key: 'fees', title: 'Fee Management', subtitle: 'Track & Record Payments', icon: IndianRupee, badge: 'New', gradient: 'from-green-600 to-emerald-500' }
   ];
 
   const pageMeta = {
@@ -720,6 +722,10 @@ export function AdminDashboard({ section = 'home' }) {
     library: {
       title: 'Library Management',
       description: 'Manage book inventory, track issues and returns, and monitor overdue items.'
+    },
+    fees: {
+      title: 'Fee Management',
+      description: 'View, search, filter, and record student fee payments. Print A4 fee receipts.'
     }
   };
 
@@ -2085,6 +2091,35 @@ export function AdminDashboard({ section = 'home' }) {
                   className="w-full min-w-0 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-amber-500" 
                 />
               )}
+
+              {/* Fee Structure Section */}
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 space-y-3">
+                <p className="text-sm font-bold text-emerald-800 flex items-center gap-2"><IndianRupee size={16} /> Fee Structure (set during admission)</p>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Term 1 Fee (₹)</label>
+                    <input type="number" value={studentForm.term1Amount} onChange={e => setStudentForm({...studentForm, term1Amount: e.target.value})}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-400" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Term 2 Fee (₹)</label>
+                    <input type="number" value={studentForm.term2Amount} onChange={e => setStudentForm({...studentForm, term2Amount: e.target.value})}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-400" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Term 3 Fee (₹)</label>
+                    <input type="number" value={studentForm.term3Amount} onChange={e => setStudentForm({...studentForm, term3Amount: e.target.value})}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-400" />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">Additional (Transport / Uniform) (₹)</label>
+                    <input type="number" value={studentForm.additionalFees} onChange={e => setStudentForm({...studentForm, additionalFees: e.target.value})}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-400" />
+                  </div>
+                </div>
+                <p className="text-[10px] text-emerald-700">These amounts will appear in the Fee Management section. You can update them later from the student's fee panel.</p>
+              </div>
+
               <button type="submit" className="flex w-full items-center justify-center rounded-2xl bg-amber-500 py-3 font-bold text-white transition-colors hover:bg-amber-600">
                 Admit Student & Generate Parent Login
               </button>
@@ -2689,7 +2724,7 @@ export function AdminDashboard({ section = 'home' }) {
 
       </div>
 
-      <div className={`${activeSection === 'events' || activeSection === 'polls' || activeSection === 'feedback' || activeSection === 'memories' || activeSection === 'leave-requests' || activeSection === 'analytics' || activeSection === 'exports' || activeSection === 'timetable' || activeSection === 'report-card' || activeSection === 'promotion' || activeSection === 'circulars' || activeSection === 'transport' || activeSection === 'library' ? 'block' : 'hidden'} mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8`}>
+      <div className={`${activeSection === 'events' || activeSection === 'polls' || activeSection === 'feedback' || activeSection === 'memories' || activeSection === 'leave-requests' || activeSection === 'analytics' || activeSection === 'exports' || activeSection === 'timetable' || activeSection === 'report-card' || activeSection === 'promotion' || activeSection === 'circulars' || activeSection === 'transport' || activeSection === 'library' || activeSection === 'fees' ? 'block' : 'hidden'} mx-auto max-w-7xl px-4 pb-10 sm:px-6 lg:px-8`}>
         {activeSection === 'events' && <UpcomingEventsSection role="admin" />}
         {activeSection === 'polls' && <OpinionPollSection role="admin" />}
         {activeSection === 'feedback' && <FeedbackInboxSection role="admin" />}
@@ -2703,6 +2738,7 @@ export function AdminDashboard({ section = 'home' }) {
         {activeSection === 'circulars' && <CircularsAdmin />}
         {activeSection === 'transport' && <TransportAdmin />}
         {activeSection === 'library' && <LibraryAdmin />}
+        {activeSection === 'fees' && <FeeManagementSection allStudents={allStudents} onRefresh={() => { const t = localStorage.getItem('schoolToken'); fetchStudents(t); }} />}
       </div>
       
       {selectedFacultyProfile && (

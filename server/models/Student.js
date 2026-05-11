@@ -77,17 +77,21 @@ export async function countDocuments(where = {}) {
 export async function create(data) {
   const {
     name, srvNumber, grade, section, group, motherName, fatherName, guardianName,
-    parentMobileNumber, dateOfBirth, contactNumber, address, facultyId
+    parentMobileNumber, dateOfBirth, contactNumber, address, facultyId,
+    term1Amount, term2Amount, term3Amount, additionalFees
   } = data;
 
   const [result] = await pool.query(
     `INSERT INTO students
      (name, srv_number, grade, section, \`group\`, mother_name, father_name, guardian_name,
-      parent_mobile_number, date_of_birth, contact_number, address, faculty_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      parent_mobile_number, date_of_birth, contact_number, address, faculty_id,
+      fee_term1_amount, fee_term2_amount, fee_term3_amount, fee_additional)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [name, srvNumber, grade, section, group || null, motherName || '', fatherName || '',
      guardianName || '', parentMobileNumber || '', dateOfBirth || null,
-     contactNumber || null, address || null, facultyId || null]
+     contactNumber || null, address || null, facultyId || null,
+     Number(term1Amount) || 4500, Number(term2Amount) || 4500, Number(term3Amount) || 4500,
+     Number(additionalFees) || 0]
   );
   return findById(result.insertId);
 }

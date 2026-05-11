@@ -223,7 +223,7 @@ export function About() {
       </section>
 
       <section className="srv-page-container mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8">
-        <div className="mb-12 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div className="mb-16 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div className="max-w-3xl">
             <p className="mb-4 text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">
               Leadership
@@ -237,40 +237,59 @@ export function About() {
           </p>
         </div>
 
-        <div className="grid gap-8 xl:grid-cols-3">
-          {leadership.map((person, index) => (
-            <motion.article
-              key={person.name}
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true }}
-              transition={{ delay: index * 0.08 }}
-              className="overflow-hidden rounded-[32px] bg-white shadow-xl shadow-slate-200/60 ring-1 ring-slate-200"
-            >
-              <div className={`aspect-[4/4.4] overflow-hidden ${person.imageWrapperClassName || 'bg-slate-200'}`}>
-                <img
-                  src={person.image}
-                  alt={person.name}
-                  className={`h-full w-full ${person.imageClassName || 'object-cover'}`}
-                />
-              </div>
-              <div className="p-8">
-                <p className="mb-3 text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">
-                  {person.role}
-                </p>
-                <h3 className="mb-4 text-2xl font-bold text-slate-900">{person.name}</h3>
-                <p className="mb-6 leading-7 text-slate-600">{person.summary}</p>
-                <div className="space-y-4">
-                  {person.points.map((point) => (
-                    <div key={point} className="flex items-start gap-3">
-                      <ArrowRight className="mt-1 h-4 w-4 shrink-0 text-amber-600" />
-                      <p className="text-sm leading-7 text-slate-600">{point}</p>
+        <div className="space-y-20 lg:space-y-28">
+          {leadership.map((person, index) => {
+            const isReversed = index % 2 !== 0;
+            return (
+              <motion.article
+                key={person.name}
+                initial={{ opacity: 0, y: 40 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.7 }}
+                className={`grid items-center gap-8 lg:gap-16 lg:grid-cols-2 ${isReversed ? '' : ''}`}
+              >
+                {/* Photo */}
+                <div className={`${isReversed ? 'lg:order-2' : 'lg:order-1'}`}>
+                  <div className="overflow-hidden rounded-[2rem] shadow-2xl shadow-slate-300/50 ring-1 ring-slate-200">
+                    <div className="aspect-[4/4.2] overflow-hidden bg-slate-100">
+                      <img
+                        src={person.image}
+                        alt={person.name}
+                        loading="lazy"
+                        decoding="async"
+                        className={`h-full w-full ${person.imageClassName || 'object-cover'}`}
+                      />
                     </div>
-                  ))}
+                  </div>
                 </div>
-              </div>
-            </motion.article>
-          ))}
+
+                {/* Info */}
+                <div className={`${isReversed ? 'lg:order-1' : 'lg:order-2'}`}>
+                  <p className="mb-3 text-sm font-semibold uppercase tracking-[0.28em] text-emerald-700">
+                    {person.role}
+                  </p>
+                  <h3 className="mb-4 text-3xl font-bold text-slate-900 md:text-4xl">
+                    {person.name}
+                  </h3>
+                  <div className="mb-6 h-1 w-16 rounded-full bg-amber-400" />
+                  <p className="mb-8 text-lg leading-8 text-slate-600">
+                    {person.summary}
+                  </p>
+                  <div className="space-y-4">
+                    {person.points.map((point) => (
+                      <div key={point} className="flex items-start gap-3">
+                        <div className="mt-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                          <ArrowRight className="h-3.5 w-3.5" />
+                        </div>
+                        <p className="text-[15px] leading-7 text-slate-600">{point}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.article>
+            );
+          })}
         </div>
       </section>
 

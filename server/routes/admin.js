@@ -1,5 +1,6 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
+import pool from '../db/pool.js';
 import User from '../models/User.js';
 import Student from '../models/Student.js';
 import FoodMenu from '../models/FoodMenu.js';
@@ -106,7 +107,7 @@ router.post('/faculty', protect, adminOnly, async (req, res) => {
 // @desc    Register a new student and generate their parent account
 // @access  Private (Admin only)
 router.post('/student', protect, adminOnly, async (req, res) => {
-  const { name, grade, section, group, dateOfBirth, contactNumber, address, admissionNumber } = req.body;
+  const { name, grade, section, group, dateOfBirth, contactNumber, address, admissionNumber, term1Amount, term2Amount, term3Amount, additionalFees } = req.body;
 
   try {
     const familyValidation = validateStudentFamilyDetails(req.body);
@@ -159,7 +160,11 @@ router.post('/student', protect, adminOnly, async (req, res) => {
       dateOfBirth,
       contactNumber,
       address,
-      facultyId: null
+      facultyId: null,
+      term1Amount,
+      term2Amount,
+      term3Amount,
+      additionalFees
     });
 
     // 3. Automatically create the Parent login account
@@ -384,6 +389,48 @@ router.delete('/faculty/:id', protect, adminOnly, async (req, res) => {
     res.json({ message: 'Faculty deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Error deleting faculty' });
+  }
+});
+
+// @route   GET /api/admin/fee-summary
+// @desc    Get aggregated fee collection stats across all students
+// @access  Private (Admin only)
+router.get('/fee-summary', protect, adminOnly, async (req, res) => {
+  try {
+    const [rows] = await pool.query(`
+      SELECT
+        COUNT(*) AS totalStudents,
+        SUM(COALESCE(fee_term1_amount,0) + COALESCE(fee_term2_amount,0) + COALESCE(fee_term3_amount,0) + COALESCE(fee_additional,0)) AS totalDue,
+        SUM(COALESCE(fee_term1_paid,0) + COALESCE(fee_term2_paid,0) + COALESCE(fee_term3_paid,0) + COALESCE(fee_additional_paid,0)) AS totalCollected,
+        SUM(
+          (COALESCE(fee_term1_amount,0) - COALESCE(fee_term1_paid,0)) +
+          (COALESCE(fee_term2_amount,0) - COALESCE(fee_term2_paid,0)) +
+          (COALESCE(fee_term3_amount,0) - COALESCE(fee_term3_paid,0)) +
+          (COALESCE(fee_additional,0) - COALESCE(fee_additional_paid,0))
+        ) AS totalPending,
+        SUM(CASE WHEN fee_overall = 'Paid' THEN 1 ELSE 0 END) AS fullyPaidCount,
+        SUM(CASE WHEN fee_overall = 'Partial' THEN 1 ELSE 0 END) AS partialCount,
+        SUM(CASE WHEN fee_overall = 'Unpaid' OR fee_overall IS NULL THEN 1 ELSE 0 END) AS unpaidCount
+      FROM students
+    `);
+    const stats = rows[0];
+    const totalDue = Number(stats.totalDue) || 0;
+    const totalCollected = Number(stats.totalCollected) || 0;
+    const collectionRate = totalDue > 0 ? Math.round((totalCollected / totalDue) * 100) : 0;
+
+    res.json({
+      totalStudents: Number(stats.totalStudents) || 0,
+      totalDue,
+      totalCollected,
+      totalPending: Number(stats.totalPending) || 0,
+      collectionRate,
+      fullyPaidCount: Number(stats.fullyPaidCount) || 0,
+      partialCount: Number(stats.partialCount) || 0,
+      unpaidCount: Number(stats.unpaidCount) || 0
+    });
+  } catch (error) {
+    console.error('[Fee Summary Error]', error);
+    res.status(500).json({ message: 'Error fetching fee summary' });
   }
 });
 
